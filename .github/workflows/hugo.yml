@@ -2,7 +2,7 @@ name: Deploy Hugo site to Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 permissions:
@@ -38,9 +38,22 @@ jobs:
         id: pages
         uses: actions/configure-pages@v4
 
+      - name: Debug - List files
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in current directory:"
+          ls -la
+          echo "Content directory:"
+          ls -la content/
+          echo "Config file:"
+          cat config.toml
+
       - name: Download Theme
         run: |
           git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
+          echo "Theme downloaded:"
+          ls -la themes/PaperMod/
 
       - name: Build with Hugo
         env:
@@ -51,6 +64,8 @@ jobs:
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
+          echo "Build completed. Public directory:"
+          ls -la public/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
