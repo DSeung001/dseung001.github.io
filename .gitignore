@@ -1,1 +1,12 @@
+# Hugo generated files
+public/
+.hugo_build.lock
+hugo_stats.json
+
+# IDE files
 .idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
