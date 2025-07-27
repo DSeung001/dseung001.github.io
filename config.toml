@@ -8,7 +8,7 @@ contentDir = "content"
 
 # URL 구조 설정 - posts 제거
 [permalinks]
-  posts = "/:year/:month/:day/:contentbasename/"
+  posts = "/posts/:year/:month/:day/:contentbasename/"
   tags = "/tags/:slug/"
   categories = "/categories/:slug/"
 
@@ -56,9 +56,16 @@ contentDir = "content"
   TocOpen = false
   
   # 소셜 링크
-  [params.socialIcons]
-    github = "dseung001"
-    email = "mailto:your-email@example.com"
+ [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/dseung001"
+
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:your-email@example.com"
+
+  [[params.schemas]]
+    url = "https://example.com/schema.json"
 
 # 빌드 설정
 [build]
