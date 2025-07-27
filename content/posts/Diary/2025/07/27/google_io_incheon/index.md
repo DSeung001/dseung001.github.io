@@ -1,12 +1,10 @@
 ---
 title: "Google I/O Extended 2025 인천 후기"
 date: 2025-07-27T11:48:13+09:00
-categories: [ "Diary" ]
-tags: [ "후기", "Google IO" ]
+categories: ["Diary"]
+tags: ["후기", "Google IO"]
 draft: false
-type: "posts"
-layout: "single"
-url: "/Diary/2025/07/27/google_io_incheon/"
+description: "Google I/O Extended 2025 인천 행사에 참가한 후기입니다."
 ---
 
 # google io란

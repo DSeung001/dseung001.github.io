@@ -6,17 +6,16 @@ theme = "PaperMod"
 # 콘텐츠 디렉토리 설정
 contentDir = "content"
 
-# 포스트 경로 설정 - 현재 구조에 맞게 수정
+# URL 구조 설정 - posts 제거
 [permalinks]
-  posts = "/:section/:year/:month/:day/:contentbasename/"
+  posts = "/:year/:month/:day/:contentbasename/"
   tags = "/tags/:slug/"
   categories = "/categories/:slug/"
 
-# 택소노미 설정 - 섹션 기반으로 변경
+# 택소노미 설정
 [taxonomies]
   category = "categories"
   tag = "tags"
-  section = "sections"
 
 # 메뉴 설정
 [menu]
