@@ -9,6 +9,8 @@ contentDir = "content"
 # 포스트 경로 설정 - 현재 구조에 맞게 수정
 [permalinks]
   posts = "/:section/:year/:month/:day/:contentbasename/"
+  tags = "/tags/:slug/"
+  categories = "/categories/:slug/"
 
 # 택소노미 설정 - 섹션 기반으로 변경
 [taxonomies]

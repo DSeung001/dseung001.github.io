@@ -3,6 +3,10 @@ public/
 .hugo_build.lock
 hugo_stats.json
 
+# GitHub Actions generated files
+.hugo_build.lock
+hugo_stats.json
+
 # IDE files
 .idea/
 .vscode/
@@ -10,3 +14,7 @@ hugo_stats.json
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
