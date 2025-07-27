@@ -44,15 +44,20 @@ jobs:
           pwd
           echo "Files in current directory:"
           ls -la
+          echo "Themes directory:"
+          ls -la themes/ || echo "Themes directory not found"
           echo "Content directory:"
-          ls -la content/
-          echo "Config file:"
-          cat config.toml
+          ls -la content/ || echo "Content directory not found"
 
-      - name: Download Theme
+      - name: Download Theme (if not exists)
         run: |
-          git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
-          echo "Theme downloaded:"
+          if [ ! -d "themes/PaperMod" ]; then
+            echo "Theme not found, downloading..."
+            git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
+          else
+            echo "Theme already exists"
+          fi
+          echo "Theme directory contents:"
           ls -la themes/PaperMod/
 
       - name: Build with Hugo
