@@ -106,3 +106,10 @@ draft: false
 - [Hugo 공식 문서](https://gohugo.io/documentation/)
 - [PaperMod 테마](https://github.com/adityatelange/hugo-PaperMod)
 - [GitHub Pages](https://pages.github.com/)
+
+## To do List
+- 댓글 기능 
+- 좋아요 같은 이모지 기능
+- 글또 블로그에 있는 기능
+  - AI 피드백
+  - 글 쓰는데 소비된 시간 표시 
