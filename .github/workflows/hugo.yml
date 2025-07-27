@@ -55,10 +55,14 @@ jobs:
             echo "Theme not found, downloading..."
             git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
           else
-            echo "Theme already exists"
+            echo "Theme already exists, but will re-download to ensure latest version"
+            rm -rf themes/PaperMod
+            git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
           fi
           echo "Theme directory contents:"
           ls -la themes/PaperMod/
+          echo "Theme version:"
+          cat themes/PaperMod/theme.toml || echo "No theme.toml found"
 
       - name: Build with Hugo
         env:
