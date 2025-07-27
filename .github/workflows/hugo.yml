@@ -32,38 +32,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           submodules: recursive
+          fetch-depth: 0
 
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
-
-      - name: Debug - List files
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Files in current directory:"
-          ls -la
-          echo "Themes directory:"
-          ls -la themes/ || echo "Themes directory not found"
-          echo "Content directory:"
-          ls -la content/ || echo "Content directory not found"
-
-      - name: Download Theme (if not exists)
-        run: |
-          if [ ! -d "themes/PaperMod" ]; then
-            echo "Theme not found, downloading..."
-            git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
-          else
-            echo "Theme already exists, but will re-download to ensure latest version"
-            rm -rf themes/PaperMod
-            git clone --depth=1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
-          fi
-          echo "Theme directory contents:"
-          ls -la themes/PaperMod/
-          echo "Theme version:"
-          cat themes/PaperMod/theme.toml || echo "No theme.toml found"
 
       - name: Build with Hugo
         env:
@@ -74,8 +48,6 @@ jobs:
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
-          echo "Build completed. Public directory:"
-          ls -la public/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
