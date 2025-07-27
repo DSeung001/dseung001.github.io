@@ -1,0 +1,16 @@
+{{- define "main" }}
+
+{{- if (not site.Params.disableReadmore) }}
+  {{- if (ne .Params.readmore false) }}
+    {{- if (or .Truncated .Summary) }}
+      <header class="entry-header">
+        <h2>{{ .Title }}</h2>
+      </header>
+      <div class="entry-content">
+        {{ .Content }}
+      </div>
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- end }}{{- /* end main */ -}} 

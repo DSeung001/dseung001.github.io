@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>http://localhost:1313/categories/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/categories/diary/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/google-i/o/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/Diary/2025/07/27/google_incheon/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/posts/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/%ED%9B%84%EA%B8%B0/</loc>
+    <lastmod>2025-07-27T11:48:13+09:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/sections/</loc>
+  </url>
+</urlset>

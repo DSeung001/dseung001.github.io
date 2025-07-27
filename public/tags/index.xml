@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Tags on DevSeung Blog</title>
+    <link>http://localhost:1313/tags/</link>
+    <description>Recent content in Tags on DevSeung Blog</description>
+    <generator>Hugo -- 0.148.1</generator>
+    <language>ko-kr</language>
+    <lastBuildDate>Sun, 27 Jul 2025 11:48:13 +0900</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Google I/O</title>
+      <link>http://localhost:1313/tags/google-i/o/</link>
+      <pubDate>Sun, 27 Jul 2025 11:48:13 +0900</pubDate>
+      <guid>http://localhost:1313/tags/google-i/o/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>후기</title>
+      <link>http://localhost:1313/tags/%ED%9B%84%EA%B8%B0/</link>
+      <pubDate>Sun, 27 Jul 2025 11:48:13 +0900</pubDate>
+      <guid>http://localhost:1313/tags/%ED%9B%84%EA%B8%B0/</guid>
+      <description></description>
+    </item>
+  </channel>
+</rss>

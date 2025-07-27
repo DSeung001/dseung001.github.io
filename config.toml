@@ -1,0 +1,74 @@
+baseURL = "https://dseung001.github.io/"
+languageCode = "ko-kr"
+title = "DevSeung Blog"
+theme = "PaperMod"
+
+# 콘텐츠 디렉토리 설정
+contentDir = "content"
+
+# 포스트 경로 설정 - 현재 구조에 맞게 수정
+[permalinks]
+  posts = "/:section/:year/:month/:day/:contentbasename/"
+
+# 택소노미 설정 - 섹션 기반으로 변경
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+  section = "sections"
+
+# 메뉴 설정
+[menu]
+  [[menu.main]]
+    identifier = "posts"
+    name = "Posts"
+    url = "/posts/"
+    weight = 10
+  [[menu.main]]
+    identifier = "categories"
+    name = "Categories"
+    url = "/categories/"
+    weight = 20
+  [[menu.main]]
+    identifier = "tags"
+    name = "Tags"
+    url = "/tags/"
+    weight = 30
+
+# 파라미터 설정
+[params]
+  # 기본 정보
+  author = "DSeung001"
+  description = "개발자 블로그"
+  
+  # PaperMod 테마 설정
+  ShowReadingTime = true
+  ShowShareButtons = true
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  
+  # 색상 테마
+  colorScheme = "auto"
+  
+  # 사이드바 설정
+  ShowToc = true
+  TocOpen = false
+  
+  # 소셜 링크
+  [params.socialIcons]
+    github = "dseung001"
+    email = "mailto:your-email@example.com"
+
+# 빌드 설정
+[build]
+  writeStats = true
+  noChmod = true
+  noTimes = true
+
+# 마크다운 설정
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    noClasses = false 
