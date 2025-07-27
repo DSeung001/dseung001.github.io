@@ -57,10 +57,10 @@ contentDir = "content"
   
   # SEO 최적화 설정
   [params.seo]
-    googleAnalytics = "G-XXXXXXXXXX"  # Google Analytics ID 추가 필요
+    googleAnalytics = "G-FX0PNVWBVG"  # Google Analytics ID 추가 필요
     googleSiteVerification = "google-site-verification=KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"  # Google Search Console 인증 코드
+    naverSiteVerification = "c15cf65c023f2d9602a5d788b26bf2ff511c407b"
     bingSiteVerification = "your-bing-verification-code"
-    naverSiteVerification = "your-naver-verification-code"
   
   # 소셜 링크
   [[params.socialIcons]]
