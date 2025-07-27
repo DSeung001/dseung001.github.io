@@ -1,0 +1,18 @@
+{
+  "Blog post frontmatter": {
+    "scope": "markdown",
+    "prefix": "blogfm",
+    "body": [
+      "---",
+      "title: ${1:Title}",
+      "date: $CURRENT_YEAR-$CURRENT_MONTH-${CURRENT_DATE}T$CURRENT_HOUR:$CURRENT_MINUTE:$CURRENT_SECONDZ",
+      "categories: [\"${2:category}\"]",
+      "tags: [\"${3:tag1}\", \"${4:tag2}\"]",
+      "draft: ${5:false}",
+      "---",
+      "",
+      "$0"
+    ],
+    "description": "GitHub blog front-matter"
+  }
+}
