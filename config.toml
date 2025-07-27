@@ -58,7 +58,7 @@ contentDir = "content"
   # SEO 최적화 설정
   [params.seo]
     googleAnalytics = "G-XXXXXXXXXX"  # Google Analytics ID 추가 필요
-    googleSiteVerification = "your-verification-code"  # Google Search Console 인증 코드
+    googleSiteVerification = "google-site-verification=KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"  # Google Search Console 인증 코드
     bingSiteVerification = "your-bing-verification-code"
     naverSiteVerification = "your-naver-verification-code"
   
