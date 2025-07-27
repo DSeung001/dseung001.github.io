@@ -39,7 +39,7 @@ contentDir = "content"
 [params]
   # 기본 정보
   author = "DSeung001"
-  description = "개발자 블로그"
+  description = "개발자 블로그 - AI, 개발, 기술 관련 경험과 인사이트를 공유합니다"
   
   # PaperMod 테마 설정
   ShowReadingTime = true
@@ -55,8 +55,15 @@ contentDir = "content"
   ShowToc = true
   TocOpen = false
   
+  # SEO 최적화 설정
+  [params.seo]
+    googleAnalytics = "G-XXXXXXXXXX"  # Google Analytics ID 추가 필요
+    googleSiteVerification = "your-verification-code"  # Google Search Console 인증 코드
+    bingSiteVerification = "your-bing-verification-code"
+    naverSiteVerification = "your-naver-verification-code"
+  
   # 소셜 링크
- [[params.socialIcons]]
+  [[params.socialIcons]]
     name = "github"
     url = "https://github.com/dseung001"
 
@@ -64,8 +71,22 @@ contentDir = "content"
     name = "email"
     url = "mailto:your-email@example.com"
 
-  [[params.schemas]]
-    url = "https://example.com/schema.json"
+  # Schema.org 설정
+  [params.schema]
+    publisherType = "Person"
+    sameAs = [
+      "https://github.com/dseung001"
+    ]
+
+  # 이미지 설정
+  [params.assets]
+    favicon = "favicon.ico"
+    favicon16x16 = "favicon-16x16.png"
+    favicon32x32 = "favicon-32x32.png"
+    apple_touch_icon = "apple-touch-icon.png"
+    safari_pinned_tab = "safari-pinned-tab.svg"
+    theme_color = "#2e2e33"
+    msapplication_TileColor = "#2e2e33"
 
 # 빌드 설정
 [build]
@@ -79,4 +100,10 @@ contentDir = "content"
     [markup.goldmark.renderer]
       unsafe = true
   [markup.highlight]
-    noClasses = false 
+    noClasses = false
+
+# 사이트맵 설정
+[sitemap]
+  changefreq = "weekly"
+  priority = 0.5
+  filename = "sitemap.xml" 

@@ -1,0 +1,70 @@
+/* 헤더 커스터마이징 CSS */
+
+/* 헤더 배경색 변경 */
+.header {
+    background-color: #2e2e33;
+    border-bottom: 1px solid #404040;
+}
+
+/* 로고 스타일 커스터마이징 */
+.logo a {
+    color: #ffffff;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.logo a:hover {
+    color: #4a9eff;
+}
+
+/* 메뉴 아이템 스타일 */
+#menu li a {
+    color: #ffffff;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+#menu li a:hover {
+    background-color: #404040;
+    color: #4a9eff;
+}
+
+#menu li a span.active {
+    color: #4a9eff;
+    font-weight: bold;
+}
+
+/* 테마 토글 버튼 스타일 */
+#theme-toggle {
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+#theme-toggle:hover {
+    background-color: #404040;
+    color: #4a9eff;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .header {
+        padding: 0 16px;
+    }
+    
+    #menu {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    #menu li a {
+        display: block;
+        padding: 12px 16px;
+    }
+} 

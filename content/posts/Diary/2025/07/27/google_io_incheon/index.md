@@ -2,9 +2,12 @@
 title: "Google I/O Extended 2025 인천 후기"
 date: 2025-07-27T11:48:13+09:00
 categories: ["Diary"]
-tags: ["후기", "Google IO"]
+tags: ["후기", "Google IO", "AI", "개발자", "컨퍼런스", "인천"]
 draft: false
 description: "Google I/O Extended 2025 인천 행사에 참가한 이유와 인상 깊은 점, 그리고 제 생각을 정리한 글입니다."
+keywords: ["Google I/O", "AI", "개발자", "컨퍼런스", "인천", "후기", "바이브코딩"]
+author: "DSeung001"
+lastmod: 2025-07-27T11:48:13+09:00
 ---
 
 ## Google I/O Extended
