@@ -131,6 +131,15 @@
   background: #1a1a1a;
 }
 
+/* Giscus reactions 숨기기 */
+.gsc-reactions {
+  display: none !important;
+}
+
+.gsc-reactions-container {
+  display: none !important;
+}
+
 /* 댓글 영역 반응형 */
 @media (max-width: 768px) {
   .comments {
