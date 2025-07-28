@@ -68,3 +68,114 @@
         padding: 12px 16px;
     }
 } 
+
+/* 댓글 시스템 스타일 */
+.comments {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--entry);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.comments-header h3 {
+  margin: 0 0 1rem 0;
+  color: var(--primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.comments-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--secondary);
+}
+
+/* Giscus 댓글 시스템 스타일 개선 */
+.comments .giscus {
+  margin-top: 1rem;
+}
+
+/* Giscus 다크/라이트 모드 대응 */
+.comments .giscus-frame {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Giscus 테마 전환 감지 및 적용 */
+.comments .giscus iframe {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+}
+
+/* 라이트 모드에서 Giscus 스타일 */
+@media (prefers-color-scheme: light) {
+  .comments .giscus iframe {
+    background: #ffffff;
+  }
+}
+
+/* 다크 모드에서 Giscus 스타일 */
+@media (prefers-color-scheme: dark) {
+  .comments .giscus iframe {
+    background: #1a1a1a;
+  }
+}
+
+/* 수동 테마 전환 감지 */
+[data-theme="light"] .comments .giscus iframe {
+  background: #ffffff;
+}
+
+[data-theme="dark"] .comments .giscus iframe {
+  background: #1a1a1a;
+}
+
+/* 댓글 영역 반응형 */
+@media (max-width: 768px) {
+  .comments {
+    padding: 1rem;
+    margin-top: 1.5rem;
+  }
+  
+  .comments-header h3 {
+    font-size: 1.1rem;
+  }
+}
+
+
+
+/* 다크 모드 대응 */
+@media (prefers-color-scheme: dark) {
+  .comments,
+  .emoji-reactions {
+    background: var(--entry);
+    border-color: var(--border);
+  }
+  
+  .reaction-btn {
+    background: var(--theme);
+    border-color: var(--border);
+  }
+  
+  .reaction-btn:hover {
+    background: var(--primary);
+    color: var(--theme);
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .reactions-container {
+    justify-content: center;
+  }
+  
+  .reaction-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .reaction-btn .emoji {
+    font-size: 1rem;
+  }
+} 

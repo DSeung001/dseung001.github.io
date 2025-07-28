@@ -48,6 +48,9 @@ contentDir = "content"
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
   
+  # 댓글 시스템 설정
+  comments = true
+  
   # 색상 테마
   colorScheme = "auto"
   
