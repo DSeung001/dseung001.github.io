@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="canonical" href="{{ .Permalink }}"/>
     <title>Redirecting...</title>
     <style>
         html, body {
@@ -27,7 +28,7 @@
 </head>
 <body>
 <div class="message">
-    <p>Redirecting to updated page</p>
+    <p>Redirecting to <a href="{{ .Permalink }}">updated page</a></p>
 </div>
 </body>
 </html>
