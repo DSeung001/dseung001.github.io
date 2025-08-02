@@ -8,7 +8,7 @@ description: "Google I/O Extended 2025 인천 행사에 참여한 이유와 인�
 keywords: ["Google I/O", "AI", "개발자", "컨퍼런스", "인천", "후기", "바이브 코딩"]
 author: "DSeung001"
 lastmod: 2025-07-27T11:48:13+09:00
-aliases: ["/posts/2025/08/01/google_io_incheon/"]
+aliases: ["/posts/2025/07/27/google_io_incheon/"]
 ---
 
 ## Google I/O Extended
