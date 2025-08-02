@@ -8,6 +8,7 @@ description: "AI와 바이크 코딩 시대으로 혼란스러운 개발자 시�
 keywords: ["개발자 강연", "진로 교육", "고등학교 강의", "입학 연설", "구글 IO", "경쟁력", "바이크 코딩", "AI"]
 author: "DSeung001"
 lastmod: 2025-08-01T15:30:05+09:00
+aliases: ["/posts/2025/08/01/highschool_ai_bikecoding_talk/"]
 ---
 
 ## 고등학교 모교로 가게 된 이유
