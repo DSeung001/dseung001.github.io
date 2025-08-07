@@ -399,23 +399,105 @@ CMS는 대부분의 개발자가 가장 먼저 접하는 친숙한 구조입니�
 
 ## 18. 퍼포먼스 및 SEO
 
-### 18.1 SSR 또는 SSG 적용
-- SSR: 모든 페이지 요청 시 서버가 HTML을 생성함, 실시간성이 필요한 콘텐츠에 적합
-- SSG: 빌드 타임에 HTML을 생성하여 CDN으로 배포, 빠른 로드 속도, CDN 캐싱 최적화, SEO 측면 매우 유리
-- 영상 콘텐츠 페이지: SSG + ISR(Incremental Static Regeneration)을 활용해서 고성능과 최신성 유지
+### 18.1 사이트 랜더링 전략
+- **SSR (Server-Side Rendering)**  
+  - 거의 모든 서버 사용하는 전통 적인 방식(HTML 템플릿 기반)
+  - 모든 페이지 요청 시 서버가 HTML을 생성  
+  - 실시간 데이터 반영이 필요하거나 사용자별 콘텐츠 제공에 유리  
+  - TTFB가 상대적으로 느리고 서버 부하 증가 가능성 있음  
+  - ex: 관리자 페이지, 로그인 후 콘텐츠
+
+- **SSG (Static Site Generation)**  
+  - 정적 사이트 생성기를 통해 언어 불문하고 구현 가능
+  - 빌드 타임에 정적 HTML을 생성하여 CDN에 배포  
+  - 매우 빠른 로딩 속도와 캐싱 효율, 높은 SEO 성능  
+  - 콘텐츠 변경 시 전체 재빌드 필요  
+  - ex: 블로그, 제품 소개 페이지
+
+- **ISR (Incremental Static Regeneration)**  
+  - Next.js 같은 js 프레임워크 방식  
+  - 정적 페이지를 주기적으로 백그라운드에서 재생성  
+  - 실시간성 + 성능 모두 고려 가능  
+  - 영상 콘텐츠와 같은 자주 업데이트되는 페이지에 적합
+
+> 구조 권장 예시
+> - 기본 구조: SSG
+> - 데이터 갱신 필요: ISR
+> - 사용자 맞춤형 콘텐츠: SSR
+
+---
 
 ### 18.2 SEO 최적화
-- Open Graph, Twitter Card, JSON-LD 자동 생성
-- Lazy Load, Intersection Observer 적용
-    - 자동 지연 로드를 지원안하는 블아ㅜ저는 직접 js polyfill 로 IntersectionObserver 사용하여 처리
 
-### 18.3 Web Vitals 최적화 (LCP, CLS, TTI)
-- LCP 최적화:
-    - 필수 이미지, 비디오 poster는 preload 사용
-    - 페이지 내용 시각화를 빠르게 시작
-- CLS 최소화:
-    - element 크기 미리 할당
-    - intersection observer 적용 시 자리 고정
-- INP 대응:
-    - 초기 JS 번들 크기 최소화
-    - 물리적 interaction (스크롤, 클릭 등) 후 세밀한 paint 유지
+- **메타 태그 최적화**  
+  Open Graph, Twitter Card를 통해 SNS 공유 시 미리보기 콘텐츠 제어  
+  JSON-LD 구조화 데이터로 검색엔진에 의미 있는 정보 제공
+
+- **Lazy Load 적용**  
+  이미지, 영상 등 리소스는 사용자 뷰포트에 진입 시 로드  
+  렌더링 속도 개선 및 데이터 절약 효과 있음
+
+- **Intersection Observer 사용**  
+  Lazy Load를 효율적으로 제어하는 브라우저 API  
+  이미지, 광고, 무한 스크롤 등에 적용  
+  자동 지원이 되지 않는 구형 브라우저는 polyfill 필요
+
+---
+
+### 18.3 Web Vitals 최적화 (LCP, CLS, INP)
+Web Vitals: 페이지가 로드될 때 "가장 큰 콘텐츠(이미지, 텍스트 등)"가 화면에 표시 되는 데 걸리는 시간
+
+- **LCP (Largest Contentful Paint)**  
+  - 목표: 2.5초 이하
+  - 주요 이미지나 텍스트 콘텐츠의 렌더링 속도를 개선  
+  - 초기 렌더링 리소스를 우선 로딩하고 차단 리소스 최소화
+
+- **CLS (Cumulative Layout Shift)**  
+  - 목표: 0.1 이하
+  - 예상치 못한 레이아웃 이동 방지  
+  - 모든 요소에 명확한 크기 지정  
+  - 이미지, 광고, 동적 콘텐츠 영역에는 고정 영역 확보 필요
+
+- **INP (Interaction to Next Paint)**  
+  - 목표: 200ms 이하
+  - 사용자 인터랙션 후 빠른 응답 및 렌더링 유지  
+  - 초기 JS 번들 최적화 및 비동기 처리 강화  
+  - 렌더링 부담이 큰 동작은 유휴 시간 또는 애니메이션 프레임에 처리
+
+## 19. iframe 활용 전략
+
+### 유용한 상황
+- 레거시 시스템 통합
+- 서드파티 위젯 사용
+- 마이크로프론트엔드 구성
+- 보안 격리
+- 성능 분리
+
+### 바닐라 JS + HTML 활용
+- 정적/동적 iframe 생성
+- postMessage 통신
+- 로딩/에러 처리
+- 생명주기 관리
+
+### 장점
+- 기술적 격리
+- 레거시 통합 및 팀 분리
+- 기술 스택 자유도
+- 배포 및 테스트 독립성
+
+### 단점
+- 성능 이슈
+- UX 저하
+- 보안/정책 제한
+
+### React에서 대안
+- iframe 사용 회피 사유
+- 대체 기술: Portal, React.lazy, Web Components, Module Federation, API 통합
+
+### 최적화 전략
+- 성능 최적화: 지연 로딩, 풀링, 캐싱, 크기 조정
+- 보안 강화: sandbox, CSP, origin 검증, HTTPS 사용
+
+### 활용 사례
+- 결제 시스템
+- 마이크로프론트엔드
