@@ -127,7 +127,7 @@ Gno.Land는 블록체인에서 돌아가는 오픈소스 공유 플랫폼을 지
 문서: https://gno.land/
 github: https://github.com/gnolang/gno
 
-https://github.com/gnolang/gno 를 로컬에 다운받고 손쉽게 로커레서 블록체인 환경으로 테스트도 가능하고 코드도 돌려볼 수 있습니다.
+https://github.com/gnolang/gno 를 로컬에 다운받고 손쉽게 로컬에서 블록체인 환경으로 테스트도 가능하고 코드도 돌려볼 수 있습니다.
 
 ### 폴더 구조
 
