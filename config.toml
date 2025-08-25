@@ -60,8 +60,8 @@ contentDir = "content"
   
   # SEO 최적화 설정
   [params.seo]
-    googleAnalytics = "G-FX0PNVWBVG"  # Google Analytics ID 추가 필요
-    googleSiteVerification = "KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"  # Google Search Console 인증 코드
+    googleAnalytics = "G-FX0PNVWBVG"
+    googleSiteVerification = "KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"
     naverSiteVerification = "c15cf65c023f2d9602a5d788b26bf2ff511c407b"
     bingSiteVerification = "your-bing-verification-code"
   
@@ -110,3 +110,6 @@ contentDir = "content"
   changefreq = "weekly"
   priority = 0.5
   filename = "sitemap.xml" 
+  
+[outputs]
+  home = [ "HTML", "RSS", "Sitemap", "Robots" ]

@@ -1,19 +1,20 @@
-{{- $.Scratch.Add "sitemap" slice -}}
-{{- range .Data.Pages -}}
-{{- if not .Draft -}}
-{{- $.Scratch.Add "sitemap" (dict "url" .Permalink "lastmod" .Lastmod "changefreq" "weekly" "priority" 0.5) -}}
-{{- end -}}
-{{- end -}}
-{{- range .Sections -}}
-{{- range .Pages -}}
-{{- if not .Draft -}}
-{{- $.Scratch.Add "sitemap" (dict "url" .Permalink "lastmod" .Lastmod "changefreq" "weekly" "priority" 0.5) -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+{{- /* sitemap.xml */ -}}
+{{ "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  {{- $.Scratch.Add "sitemap" slice -}}
+  {{- range .Data.Pages -}}
+  {{- if not .Draft -}}
+  {{- $.Scratch.Add "sitemap" (dict "url" .Permalink "lastmod" .Lastmod "changefreq" "weekly" "priority" 0.5) -}}
+  {{- end -}}
+  {{- end -}}
+  {{- range .Sections -}}
+  {{- range .Pages -}}
+  {{- if not .Draft -}}
+  {{- $.Scratch.Add "sitemap" (dict "url" .Permalink "lastmod" .Lastmod "changefreq" "weekly" "priority" 0.5) -}}
+  {{- end -}}
+  {{- end -}}
+  {{- end -}}
   {{- range $.Scratch.Get "sitemap" -}}
   <url>
     <loc>{{ .url }}</loc>
@@ -22,4 +23,4 @@
     <priority>{{ .priority }}</priority>
   </url>
   {{- end -}}
-</urlset> 
+</urlset>

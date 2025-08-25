@@ -17,31 +17,44 @@
                 data-reactions-enabled="1"
                 data-emit-metadata="0"
                 data-input-position="top"
-                data-theme="preferred_color_scheme"
+                data-theme="light"
                 data-lang="ko"
                 crossorigin="anonymous"
                 async>
         </script>
 
-        <!-- 테마 전환 감지를 위한 스크립트 -->
+        <!-- localStorage 기반 완벽한 테마 동기화 스크립트 -->
         <script>
-            // 단순화된 테마 감지: body 클래스만 확인
+            // PaperMod 테마와 localStorage 동기화된 테마 감지
             function getCurrentTheme() {
-                return document.body.classList.contains('dark') ? 'dark' : 'light';
+                // 1. localStorage에서 사용자 선택 확인 (PaperMod 우선순위)
+                const userPreference = localStorage.getItem('pref-theme');
+                
+                if (userPreference === 'dark') {
+                    return 'dark';
+                } else if (userPreference === 'light') {
+                    return 'light';
+                }
+                
+                // 2. body 클래스 확인 (현재 적용된 상태)
+                if (document.body.classList.contains('dark')) {
+                    return 'dark';
+                }
+                
+                // 3. 시스템 설정 확인 (기본값)
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                }
+                
+                // 4. 기본값
+                return 'light';
             }
 
-            // Giscus 테마 강제 업데이트
-            function forceUpdateGiscusTheme() {
+            // Giscus 테마 업데이트
+            function updateGiscusTheme() {
                 const currentTheme = getCurrentTheme();
-                const giscusScript = document.querySelector('script[src*="giscus.app"]');
                 const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
-
-                // 스크립트 테마 속성 업데이트
-                if (giscusScript) {
-                    giscusScript.setAttribute('data-theme', currentTheme);
-                }
-
-                // iframe이 로드된 경우 메시지 전송
+                
                 if (giscusFrame) {
                     try {
                         giscusFrame.contentWindow.postMessage({
@@ -52,169 +65,77 @@
                             }
                         }, 'https://giscus.app');
                     } catch (error) {
-                        // Silent error handling
+                        // 에러 무시
                     }
                 }
             }
 
-            // 페이지 로드 시 초기 설정
-            document.addEventListener('DOMContentLoaded', function () {
-                setTimeout(forceUpdateGiscusTheme, 500);
-            });
-        </script>
-
-        <script>
-            function checkGiscusStatus() {
-                const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
-                if (giscusFrame) {
-                    alert('Giscus is loaded successfully!\n\nIf you see "Unable to create discussion" error:\n1. Check if you are logged into GitHub\n2. Verify Giscus app has write permissions\n3. Ensure Discussions are enabled in your repository');
-                } else {
-                    alert('Giscus failed to load. Please check GitHub Discussions and Giscus app installation.');
-                }
-            }
-
-            // Giscus 권한 확인 함수
-            function checkGiscusPermissions() {
-                const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
-                if (giscusFrame) {
-                    try {
-                        giscusFrame.contentWindow.postMessage({
-                            giscus: {
-                                getConfig: {}
-                            }
-                        }, 'https://giscus.app');
-                        alert('Giscus permissions check sent. Check browser console for response.');
-                    } catch (error) {
-                        alert('Cannot communicate with Giscus iframe: ' + error.message);
+            // localStorage 변경 감지
+            function setupLocalStorageListener() {
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'pref-theme') {
+                        setTimeout(updateGiscusTheme, 100);
                     }
-                } else {
-                    alert('Giscus iframe not found. Please wait for it to load.');
-                }
-            }
-
-            // 테마 강제 설정 함수 (디버깅용)
-            function forceGiscusTheme(theme) {
-                const giscusScript = document.querySelector('script[src*="giscus.app"]');
-                const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
-
-                if (giscusScript) {
-                    giscusScript.setAttribute('data-theme', theme);
-                }
-
-                if (giscusFrame) {
-                    try {
-                        giscusFrame.contentWindow.postMessage({
-                            giscus: {
-                                setConfig: {
-                                    theme: theme
-                                }
-                            }
-                        }, 'https://giscus.app');
-                    } catch (error) {
-                        // Silent error handling
-                    }
-                }
-
-                alert('Theme forced to: ' + theme);
-            }
-        </script>
-
-        <!-- 댓글 로딩 중 표시 -->
-        <div class="comments-loading" id="comments-loading">
-            <p>comments loading...</p>
-            <!-- 디버깅 버튼들 -->
-            <div style="margin-top: 15px; padding: 10px; background: var(--entry); border: 1px solid var(--border); border-radius: 5px;">
-                <p style="font-size: 12px; color: var(--secondary); margin-bottom: 10px;">🔧 Debug Tools:</p>
-                <button onclick="checkGiscusStatus()" style="margin-right: 10px; padding: 5px 10px; font-size: 12px;">
-                    Check Giscus Status
-                </button>
-                <button onclick="checkGiscusPermissions()"
-                        style="margin-right: 10px; padding: 5px 10px; font-size: 12px;">Check Permissions
-                </button>
-                <button onclick="forceGiscusTheme('light')"
-                        style="margin-right: 10px; padding: 5px 10px; font-size: 12px; background: #007acc; color: white; border: none; border-radius: 3px;">
-                    Force Light Mode
-                </button>
-                <button onclick="forceGiscusTheme('dark')"
-                        style="margin-right: 10px; padding: 5px 10px; font-size: 12px; background: #333; color: white; border: none; border-radius: 3px;">
-                    Force Dark Mode
-                </button>
-                <button onclick="alert('HTML theme: ' + (document.documentElement.getAttribute('data-theme') || 'null') + '\nBody dark class: ' + document.body.classList.contains('dark') + '\nlocalStorage pref-theme: ' + (localStorage.getItem('pref-theme') || 'null'));"
-                        style="padding: 5px 10px; font-size: 12px;">Check Current Theme
-                </button>
-            </div>
-        </div>
-
-        <!-- Giscus 로딩 완료 시 로딩 메시지 숨기기 및 테마 전환 감지 -->
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                // Giscus가 로드되면 로딩 메시지 숨기기
-                const checkGiscus = setInterval(function () {
-                    const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
-                    if (giscusFrame) {
-                        document.getElementById('comments-loading').style.display = 'none';
-                        clearInterval(checkGiscus);
-
-                        // Giscus 로드 후 테마 설정
-                        forceUpdateGiscusTheme();
-                    }
-                }, 1000);
-
-                // 10초 후에도 로드되지 않으면 메시지 변경
-                setTimeout(function () {
-                    const loadingElement = document.getElementById('comments-loading');
-                    if (loadingElement && loadingElement.style.display !== 'none') {
-                        loadingElement.innerHTML = `
-            <p>댓글 로딩에 문제가 있습니다.</p>
-            <p style="font-size: 12px; color: var(--secondary); margin-top: 10px;">
-              <a href="https://github.com/dseung001/dseung001.github.io/discussions" target="_blank">GitHub Discussions에서 댓글을 확인하세요</a>
-            </p>
-          `;
-                    }
-                }, 10000);
-            });
-
-
-            // 시스템 테마 변경 감지
-            if (window.matchMedia) {
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-                    forceUpdateGiscusTheme();
                 });
             }
 
-            // 테마 토글 버튼 클릭 감지
-            function detectThemeToggle() {
-                const themeToggle = document.getElementById('theme-toggle');
-                if (themeToggle) {
-                    themeToggle.addEventListener('click', function () {
-                        // 테마 전환 후 즉시 Giscus 업데이트
-                        setTimeout(forceUpdateGiscusTheme, 100);
-                    });
-                }
-            }
-
-            // body 클래스 변경 감지
-            function setupBodyClassObserver() {
-                const observer = new MutationObserver(function (mutations) {
-                    mutations.forEach(function (mutation) {
+            // 테마 변경 감지 및 즉시 적용
+            function setupThemeSync() {
+                // 1. body 클래스 변경 감지
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
                         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                            // 즉시 테마 업데이트
-                            forceUpdateGiscusTheme();
+                            setTimeout(updateGiscusTheme, 50);
                         }
                     });
                 });
 
-                const bodyElement = document.body;
-                observer.observe(bodyElement, {
+                observer.observe(document.body, {
                     attributes: true,
                     attributeFilter: ['class']
                 });
+
+                // 2. 테마 토글 버튼 클릭 감지
+                const themeToggle = document.getElementById('theme-toggle');
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', function() {
+                        setTimeout(updateGiscusTheme, 100);
+                    });
+                }
+
+                // 3. 시스템 테마 변경 감지
+                if (window.matchMedia) {
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+                        setTimeout(updateGiscusTheme, 100);
+                    });
+                }
+
+                // 4. localStorage 변경 감지
+                setupLocalStorageListener();
+
+                // 5. 페이지 로드 시 초기 테마 설정
+                setTimeout(updateGiscusTheme, 500);
             }
 
-            // 페이지 로드 시 감지 설정
-            document.addEventListener('DOMContentLoaded', function () {
-                setTimeout(detectThemeToggle, 1000);
-                setTimeout(setupBodyClassObserver, 1000);
+            // Giscus 로드 완료 감지 및 테마 설정
+            function waitForGiscus() {
+                const checkInterval = setInterval(function() {
+                    const giscusFrame = document.querySelector('iframe[src*="giscus.app"]');
+                    if (giscusFrame) {
+                        clearInterval(checkInterval);
+                        
+                        // 테마 동기화 설정
+                        setupThemeSync();
+                        
+                        // 초기 테마 적용
+                        setTimeout(updateGiscusTheme, 100);
+                    }
+                }, 500);
+            }
+
+            // 페이지 로드 시 실행
+            document.addEventListener('DOMContentLoaded', function() {
+                waitForGiscus();
             });
         </script>
     </div>
