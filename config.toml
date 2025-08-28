@@ -2,6 +2,7 @@ baseURL = "https://dseung001.github.io/"
 languageCode = "ko-kr"
 title = "DevSeung Blog"
 theme = "PaperMod"
+enableGitInfo = true
 
 # 콘텐츠 디렉토리 설정
 contentDir = "content"
