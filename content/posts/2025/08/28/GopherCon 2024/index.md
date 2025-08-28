@@ -10,7 +10,7 @@ author: "DSeung001"
 aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
 ---
 
-## Go언어 프로젝트 가이드 A-Z - 변규현, 당근
+## Go언어 프로젝트 가이드 A-Z
 ### 주된 내용
 Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 할 때 어떻게 접근 하는 지에 대한 이야기
 
