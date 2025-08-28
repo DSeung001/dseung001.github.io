@@ -4,7 +4,7 @@ date: 2025-08-28T11:58:05+09:00
 categories: [ "Conference", "Diary" ]
 tags: [ "GopherCon", "Golang", "컨퍼런스" ]
 draft: false
-description: "GopherCon 2024에서 다뤄진 주요 세션과 인사이트를 제멋 대로 짤막하게 정리 해봤습니다."
+description: "GopherCon 2024에서 다뤄진 주요 세션과 인사이트를 제멋대로 짤막하게 정리 해봤습니다."
 keywords: [ "GopherCon 2024", "Go", "고퍼콘", "컨퍼런스", "발표정리" ]
 author: "DSeung001"
 aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
@@ -54,6 +54,7 @@ Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 
             [----------------Domain----------------]      
 
 Presenter → Handler → Usecase → Service → Repository → Recorder
+
 ```
 각각의 기능이 고유 특징을 잘 지켜가며 DDD 패턴을 지키는 데, DDD를 지향할 때 마다 맞닥뜨리는 부분을 딱 집어줘서 좋았습니다.
 규모가 큰 프로젝트를 진행할 경우 이 구조를 기초로 두고 프로젝트 특징에 하위 도메인을 통해 분리 해가면 도메인을 더 좋게 나눌 수 있어 보입니다.
@@ -74,9 +75,9 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
   - usecase에서 공통으로 쓰이는 로직을 service로 옮겨 재사용성 높임 (usecase는 흐름과 조정, service는 구체적인 비즈니스 로직)
   - 필요한 경우에만 서비스를 도입하여 불필요한 추상화 줄이고 시스템의 유연성 유지
 - repository
-  - 비즈니스 로직과 데이터 접근에서 오직 데이터 접근 로직을 담당하여 상위 계층은 저장 방식을 알 필요가 없음 
+  - 비즈니스 로직과 데이터 접근에서 오직 데이터 접근 로직을 담당하여 상위 계층은 저장 방식을 알 필요가 없음
   - 도메인 모델을 반환하므로 repository는 domain을 의존하게 되는 데 이로써 의존성 역전 원칙을 따름(도메인 로직이 인프라(db) 세부 사항으로부터 독립)
-- redocder(otpional)
+- recorder(optional)
   - dynamoDB의 특정 API나 쿼리 언어 추상화
   - 다른 db로 마이그레이션시 recorder마 수정하면 됨
   - 복잡한 쿼리가 많을 경우 고려
@@ -117,7 +118,7 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
 - 빌드 속도 3배 증가.
 - Go는 바이너리 빌드 덕분에 컨테이너 이미지 크기 최소화 가능.
 
-PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대폭 늘려 인프라 비용을 대폭 절감하는 효과를 나타낸 시나리오를 볼 수 있었습니다. 
+PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대폭 늘려 인프라 비용을 대폭 절감하는 효과를 나타낸 시나리오를 볼 수 있었습니다.
 
 ### 배운 점
 아래 사이클로 돌아 가는 개발 사이클을 엿볼 수 있다는 점이 가장 좋았고
@@ -133,7 +134,7 @@ PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대
 ## 차량 업데이트 파일의 안전한 관리
 ### 주된 내용
 42dot: SDV(Software Defined Vehicle, 소프트웨어 정의 자동차)에서 자율주행, OTA 업데이트 파일 관리법 공유
-Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호화 하는지 
+Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호화 하는지
 
 
 보안 개념 정리 (CIA Triad)
@@ -248,7 +249,7 @@ Flaky Test 탐지
 - Go 1.17+ → go test -shuffle=on 으로 테스트 실행 순서 섞기
 
 결론
-- 결정적 테스트을 이룰려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
+- 결정적 테스트를 이룰려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
 - Go는 컴파일 언어이므로 파이썬 처럼 monkey patch를 사용하지 못한다, 대신 아키텍처 패턴으로 해결.
 - Flaky Test를 줄여서 보다 안정적 CI/CD로 신뢰할 수 있는 배포 가능
 
