@@ -194,4 +194,66 @@ Distributed Trace Monitoring
 - Log → Grafana에서 시각화.
 
 ### 배운 점
-Go에서 미들웨어를 통해 어떻게 모니터링 시스템을 구축하는 지를 볼 수 있었습니다. Trace와 Span을 추가하고 http.RoundTripper 로 커스텀 해서 자동으로 해더에 넣어 줌으로써 프로세스의 흐름을 파악 한다는 게 재밌었네요. 
+Go에서 미들웨어를 통해 어떻게 모니터링 시스템을 구축하는 지를 볼 수 있었습니다. Trace와 Span을 추가하고 http.RoundTripper 로 커스텀 해서 자동으로 해더에 넣어 줌으로써 프로세스의 흐름을 파악 한다는 게 재밌었네요.
+
+## Deterministic testing in Go
+### 주된 내용
+Deterministic Testing in Go란 테스트가 매번 같은 입력을 보장하여 같은 결과를 보장하도록 만드는 기법 입니다. <br/>
+즉, 랜덤/시간/고루틴 순서 등 비결정적 요소로 생기는 **Flaky Test(간헐적 실패 테스트)**를 제거 하는 방법에 관한 내용이죠.
+
+Non-Deterministic Testing (비결정적 테스트)
+- 결과가 매번 달라질 수 있는 테스트
+- 원인:
+  - 네트워크 호출
+  - 파일 입출력
+  - 랜덤 값 (UUID, nonce 등)
+  - 시간(time.Now)
+  - 고루틴/채널 실행 순서
+  - map 순회 순서
+  - marshal/json 변환 시 출력 순서 불일치
+- Flaky Test는 프로덕션 배포의 불안 요소이기에 해소하는 편이 좋음
+
+Deterministic Testing 방법
+- 의존성 주입
+  - 랜덤 값, 시간, ID 생성 등은 함수 인자로 주입하거나 interface로 추상화.
+  - time.Now, uuid.New 같은 값은 직접 호출하지 않고 외부에서 넘겨받기.
+- 랜덤/생성 값 고정하기
+  - uuid/nonce는 생성 함수 인자로 받기.
+  - 기존 코드 수정 어려운 경우 값 자체 비교 대신 형식/속성 검증(길이, charset 등).
+- map / slice 순서 문제
+  - go의 map 순회 순서는 보장되지 않음.
+    - 해결법: slice에 저장 후 **정렬(sorting)** 해서 비교.
+    - map은 단순 lookup 용도로만 사용.
+- 시간 고정하기
+  - time.Since, time.Until을 내부에서 time.Now 사용하므로 테스트에 넣지 않도록 하기.
+  - 해결법
+    - nowFunc 같은 함수 인자 주입.
+    - 고정된 시간을 넘길 수 있도록 설계.
+    - sleep, ticker, timer 같은 경우는 Clock 인터페이스 도입.
+- 타임아웃 테스트
+  - 10초 기다릴 수 없음.
+  - 해결법
+    - context.WithTimeout(ctx, 0) 사용 → 즉시 timeout 상태 전달.
+- 고루틴 테스트
+  - runtime.Gosched()만으로 실행 보장을 할 수 없음
+  - 해결법:
+    - assert.Eventually (testify)
+    - 채널/WaitGroup 사용해 완료 보장
+    - 고루틴 실행 순서를 제어하려면 Group 인터페이스 추상화해서 mock 구현으로 테스트
+    - fan-out/fan-in 패턴에서 정해진 인덱스에 결과 저장해서 해결(실패 케이스 대처 필요)
+
+Flaky Test 탐지
+- GitHub Actions 등에서 재실행 시 성공/실패가 번갈아 나오는 경우
+- go test -count 10 / -count 100으로 반복 실행
+- Go 1.17+ → go test -shuffle=on 으로 테스트 실행 순서 섞기
+
+결론
+- 결정적 테스트을 이룰려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
+- Go는 컴파일 언어이므로 파이썬 처럼 monkey patch를 사용하지 못한다, 대신 아키텍처 패턴으로 해결.
+- Flaky Test를 줄여서 보다 안정적 CI/CD로 신뢰할 수 있는 배포 가능
+
+### 배운 점
+Non-Deterministic Testing 와 Deterministic Testing 테스팅의 차이점을 알 수 있었고 기존에는 테스트는 다양하면 좋다고 해서 오히려 Non-Deterministic Testing 패턴으로 접근해서 작성하기도 했었습니다.
+
+하지만 이번 강좌를 보니 그 부분을 피해서 좀 더 안정적인 테스트를 지향하더군요
+테스트의 목적은 로직의 검증이니 항상 결과가 다를 수 있다는 요인을 남겨둔다면 그건 테스트의 본질을 잃는 것이니 이쪽이 더 맞는 것 같습니다. 
