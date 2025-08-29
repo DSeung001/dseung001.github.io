@@ -14,7 +14,7 @@ aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
 ### 주된 내용
 Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 할 때 어떻게 접근 하는 지에 대한 이야기
 
-규모에 맞춰 아래와 같이 나눠서 접근
+**규모에 맞춰 아래와 같이 나눠서 접근**
 - 초기(스타트업/MVP 단계)
   - 사용자 검증을 위한 빠른 개발에 집중
   - 불필요한 라이브러리 최소화, 표준 라이브러리 활용
@@ -41,7 +41,7 @@ Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 
   - API 모델과 내부 도메인 분리 (Presenter 패턴 활용)
   - 각 레이어 분리로 테스트 용이 (Fake 구현 활용)
 
-운영 필수 도구
+**운영 필수 도구**
 - APM(Application Performance Monitoring): Datadog
 - Error Monitoring: Sentry/Datadog
 - Metrics: Prometheus
@@ -59,6 +59,7 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
 각각의 기능이 고유 특징을 잘 지켜가며 DDD 패턴을 지키는 데, DDD를 지향할 때 마다 맞닥뜨리는 부분을 딱 집어줘서 좋았습니다.
 규모가 큰 프로젝트를 진행할 경우 이 구조를 기초로 두고 프로젝트 특징에 하위 도메인을 통해 분리 해가면 도메인을 더 좋게 나눌 수 있어 보입니다.
 
+**도메인 분리**
 - presenter
   - 화면을 자유롭게 나눌 수 있음
 - handler
@@ -84,19 +85,19 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
 
 ## GoLang으로 4일만에 아이디어스 Image 서버 성능 72% 개선
 ### 주된 내용
-문제 상황
+**문제 상황**
 - 레거시 이미지 서버(10년 이상 유지된 PHP 기반)에서 CPU Throttling 문제 발생.
 - CDN 캐시 만료 시 요청이 폭증 → 이미지 리사이즈 API가 병목.
 - CPU 오토스케일링은 동작했지만 리소스 사용 효율이 매우 낮음.
 
-개선 목표
+**개선 목표**
 - 기존보다 성능 2배 향상을 목표.
 - Go 언어 기반으로 마이그레이션.
 - 유지보수성과 문서화를 고려해 Gin 프레임워크 채택.
 - DevOps 친화적인 언어 선택(CNCF/Kubernetes/ArgoCD와 자연스럽게 연결).
 - 최소한의 리소스 투입
 
-개선 과정
+**개선 과정**
 - 성능 테스트
   - Locust로 PHP vs Go 비교.
   - 초반엔 PHP가 더 빠름 → 이유는 라이브러리 차이.
@@ -112,7 +113,7 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
   - Kubernetes + Istio Virtual Service로 트래픽 분산.
   - 빠른 롤백 가능성 확보.
 
-성능 개선 성과
+**성능 개선 성과**
 - 요청 처리 성능 74.7% 향상.
 - Latency 감소.
 - 빌드 속도 3배 증가.
@@ -137,12 +138,12 @@ PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대
 Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호화 하는지
 
 
-보안 개념 정리 (CIA Triad)
+**보안 개념 정리 (CIA Triad)**
 - Confidentiality (기밀성): 업데이트 파일 암호화
 - Integrity (무결성): 업데이트 파일 변조 방지 및 검증
 - Availability (가용성): 업데이트 파일 접근 가능 보장
 
-암호화 (Confidentiality)
+**암호화 (Confidentiality)**
 - Go의 기본 암호화 모듈 사용.
 - 자동차 OTA 업데이트는 GB 단위이므로 io.Reader, io.Writer 기반 스트리밍 방식으로 메모리 절약.
 - Enveloped Encryption 방식 활용:
@@ -155,7 +156,7 @@ Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호�
   - 서버에 평문 파일 저장 → 위험.
   - 서버 측에서 암호화 비용 → 크므로 대칭+비대칭 혼합 방식 채택.
 
-무결성 보장 (Integrity)
+**무결성 보장 (Integrity)**
 - OTA 업데이트 전송 중 변조 및 공격 방지 필요.
 - UPTANE (CNCF 산하 프레임워크) 활용:
   - 차량 소프트웨어 업데이트 보안을 위한 오픈소스 표준.   
@@ -168,21 +169,21 @@ Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호�
 ## Golang 웹 프레임워크, Gin 모니터링 서비스 개발
 ### 주된 내용
 
-Gin 프레임워크
+**Gin 프레임워크**
 - Go 언어에서 가장 인기 있는 웹 프레임워크.
 - Iris, Beego보다 사용자 수·스타 수 압도적.
 - 최근 업그레이드로 성능 20% 향상.
 
-Gin 모니터링이 중요한 이유
+**Gin 모니터링이 중요한 이유**
 - Kubernetes, MSA(마이크로서비스 아키텍처) 확산으로 애플리케이션 단위가 작아지고 통신이 복잡해짐.
 
-Metric Monitoring
+**Metric Monitoring**
 - 수집 항목: Request Duration, Request Count, Status Code
 - 미들웨어에서 요청 시작/종료 시간 체크 후 duration 계산.
 - 동시성 문제 방지를 위해 Mutex 사용.
 - 데이터는 **시계열 DB(InfluxDB)**에 저장.
 
-Distributed Trace Monitoring
+**Distributed Trace Monitoring**
 - Trace: 클라이언트 요청 전체 경로 추적 (Trace ID로 연결).
 - Span: 각 구간별 ID, parent span ID로 호출 경로 파악.
 - 구현 방식:
@@ -190,7 +191,7 @@ Distributed Trace Monitoring
   - 미들웨어에서 trace/span id 확인 후 갱신.
 - 결과: 분산 환경에서도 요청 흐름을 추적 가능.
 
-결과 저장
+**결과 저장**
 - Metric → InfluxDB (스케줄링으로 주기적 적재).
 - Log → Grafana에서 시각화.
 
@@ -202,7 +203,7 @@ Go에서 미들웨어를 통해 어떻게 모니터링 시스템을 구축하는
 Deterministic Testing in Go란 테스트가 매번 같은 입력을 보장하여 같은 결과를 보장하도록 만드는 기법 입니다. <br/>
 즉, 랜덤/시간/고루틴 순서 등 비결정적 요소로 생기는 **Flaky Test(간헐적 실패 테스트)**를 제거 하는 방법에 관한 내용이죠.
 
-Non-Deterministic Testing (비결정적 테스트)
+**Non-Deterministic Testing (비결정적 테스트)**
 - 결과가 매번 달라질 수 있는 테스트
 - 원인:
   - 네트워크 호출
@@ -214,7 +215,7 @@ Non-Deterministic Testing (비결정적 테스트)
   - marshal/json 변환 시 출력 순서 불일치
 - Flaky Test는 프로덕션 배포의 불안 요소이기에 해소하는 편이 좋음
 
-Deterministic Testing 방법
+**Deterministic Testing 방법**
 - 의존성 주입
   - 랜덤 값, 시간, ID 생성 등은 함수 인자로 주입하거나 interface로 추상화.
   - time.Now, uuid.New 같은 값은 직접 호출하지 않고 외부에서 넘겨받기.
@@ -243,12 +244,12 @@ Deterministic Testing 방법
     - 고루틴 실행 순서를 제어하려면 Group 인터페이스 추상화해서 mock 구현으로 테스트
     - fan-out/fan-in 패턴에서 정해진 인덱스에 결과 저장해서 해결(실패 케이스 대처 필요)
 
-Flaky Test 탐지
+**Flaky Test 탐지**
 - GitHub Actions 등에서 재실행 시 성공/실패가 번갈아 나오는 경우
 - go test -count 10 / -count 100으로 반복 실행
 - Go 1.17+ → go test -shuffle=on 으로 테스트 실행 순서 섞기
 
-결론
+**결론**
 - 결정적 테스트를 이룰려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
 - Go는 컴파일 언어이므로 파이썬 처럼 monkey patch를 사용하지 못한다, 대신 아키텍처 패턴으로 해결.
 - Flaky Test를 줄여서 보다 안정적 CI/CD로 신뢰할 수 있는 배포 가능
