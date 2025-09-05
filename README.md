@@ -1,6 +1,6 @@
 # DevSeung Blog
 
-Hugo + PaperMod 테마로 구축된 개인 블로그입니다.
+Blog url : https://dseung001.github.io/
 
 ## 🎨 현재 테마
 
