@@ -259,3 +259,31 @@ Non-Deterministic Testing 와 Deterministic Testing 테스팅의 차이점을 �
 
 하지만 이번 강좌를 보니 그 부분을 피해서 좀 더 안정적인 테스트를 지향하더군요
 테스트의 목적은 로직의 검증이니 항상 결과가 다를 수 있다는 요인을 남겨둔다면 그건 테스트의 본질을 잃는 것이니 이쪽이 더 맞는 것 같습니다. 
+
+## Building Minimalistic Backend Microservice in Go
+### 주된 내용
+Go 언어로 마이크로서비스를 만들 때 반복적으로 신경써야 하는 요소들과 팁들(Config 읽기, Graceful Shutdown, 테스트 가능성, API 문서, 로깅, 모니터링/메트릭/트레이싱)
+최소한의 코드(200 LOC 이하, 단일 main.go, 표준 패키지만)로 프로토타입 성격의 프로젝트 구현
+
+**코드 스타일 철학**
+- Keep minimal: 외부 라이브러리 대신 표준 패키지로 구현, 의존성 최소화
+- Testability: main() → run() 함수로 분리하여 테스트 가능하게
+- Conciseness: 함수 분산보다 한 곳에서 해결을 선호
+- Trade-off: 간결성과 기능성 사이의 균형 필요
+
+**주요 기능 구현**
+- Health Check API: 버전, Uptime, Commit Hash 등 반환
+- 빌드 시 ldflags로 버전 정보 삽입
+- embed 패키지로 YAML(OpenAPI 문서 등) 포함 → 배포 용이
+- Logging: JSON 로그 표준화, slog + stdout, Fluentbit 연계
+- Middleware/Decorator 패턴으로 로깅과 에러 복구(Recover) 처리
+
+**문서화 강조**
+- OpenAPI YAML을 코드와 함께 관리, /openapi.yaml endpoint 제공
+
+### 배운 점
+다음 깃이 해당 내용을 담고 있습니다.
+https://github.com/raeperd/kickstart.go.git
+
+최대한 적은 코드로 테스트가 용이하며, 문서와 로깅을 반드시 포함하는 프로젝트의 구조가 직관적이어서 좋았고
+다음에 프로젝트를 시작한다면 kickstart.go를 꼭 적용 해보고 싶네요.
