@@ -4,7 +4,7 @@ date: 2025-08-28T11:58:05+09:00
 categories: [ "Conference", "Diary" ]
 tags: [ "GopherCon", "Golang", "컨퍼런스" ]
 draft: false
-description: "GopherCon 2024에서 다뤄진 주요 세션과 인사이트를 제멋대로 짤막하게 정리 해봤습니다."
+description: "GopherCon 2024에서 다뤄진 주요 세션과 인사이트를 제멋대로 짤막하게 정리해봤습니다."
 keywords: [ "GopherCon 2024", "Go", "고퍼콘", "컨퍼런스", "발표정리" ]
 author: "DSeung001"
 aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
@@ -12,7 +12,7 @@ aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
 
 ## Go언어 프로젝트 가이드 A-Z
 ### 주된 내용
-Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 할 때 어떻게 접근 하는 지에 대한 이야기
+Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 할 때 어떻게 접근하는지에 대한 이야기
 
 **규모에 맞춰 아래와 같이 나눠서 접근**
 - 초기(스타트업/MVP 단계)
@@ -22,7 +22,7 @@ Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 
 - 서비스 확장 단계(유니콘/중간 규모)
   - 기능이 많아지고 의존성이 복잡해지므로 이 시기부터 패턴의 중요성 커짐
   - 단순 HandlerFunc에서 Handler 패턴으로 전환하는 시기로 특히 상태 관리, 의존성 명확화가 필요
-    - Handler 패턴: 구조체에 의존성을 주입할 수 있게 하고, ServeHTTP를 구현하게 해서 어디든 사용 가능 하게 해서 확장성을 챙김
+    - Handler 패턴: 구조체에 의존성을 주입할 수 있게 하고, ServeHTTP를 구현하게 해서 어디든 사용 가능하게 해서 확장성을 챙김
     ```go
     type PingHandler struct {
         DB *sql.DB
@@ -48,7 +48,7 @@ Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 
 - Logging 서비스
 
 ### 배운 점
-가장 인상 깊게 본 파트는 엔터프라이즈 규모에서 DDD로 나눌 때 도메인을 나누는 규칙으로 API Model(API 로직), Domain(비즈니스 로직), Mode(DB 로직)을 나눈 게 가장 인상 깊었습니다.
+가장 인상 깊게 본 파트는 엔터프라이즈 규모에서 DDD로 나눌 때 도메인을 나누는 규칙으로 API Model(API 로직), Domain(비즈니스 로직), Model(DB 로직)을 나눈 게 가장 인상 깊었습니다.
 ```text
 [----API Model----]                      [-------Model-------]
             [----------------Domain----------------]      
@@ -56,8 +56,8 @@ Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 
 Presenter → Handler → Usecase → Service → Repository → Recorder
 
 ```
-각각의 기능이 고유 특징을 잘 지켜가며 DDD 패턴을 지키는 데, DDD를 지향할 때 마다 맞닥뜨리는 부분을 딱 집어줘서 좋았습니다.
-규모가 큰 프로젝트를 진행할 경우 이 구조를 기초로 두고 프로젝트 특징에 하위 도메인을 통해 분리 해가면 도메인을 더 좋게 나눌 수 있어 보입니다.
+각각의 기능이 고유 특징을 잘 지켜가며 DDD 패턴을 지키는데, DDD를 지향할 때마다 맞닥뜨리는 부분을 딱 집어줘서 좋았습니다.
+규모가 큰 프로젝트를 진행할 경우 이 구조를 기초로 두고 프로젝트 특징에 하위 도메인을 통해 분리해가면 도메인을 더 좋게 나눌 수 있어 보입니다.
 
 **도메인 분리**
 - presenter
@@ -77,10 +77,10 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
   - 필요한 경우에만 서비스를 도입하여 불필요한 추상화 줄이고 시스템의 유연성 유지
 - repository
   - 비즈니스 로직과 데이터 접근에서 오직 데이터 접근 로직을 담당하여 상위 계층은 저장 방식을 알 필요가 없음
-  - 도메인 모델을 반환하므로 repository는 domain을 의존하게 되는 데 이로써 의존성 역전 원칙을 따름(도메인 로직이 인프라(db) 세부 사항으로부터 독립)
+  - 도메인 모델을 반환하므로 repository는 domain을 의존하게 되는데 이로써 의존성 역전 원칙을 따름(도메인 로직이 인프라(db) 세부 사항으로부터 독립)
 - recorder(optional)
   - dynamoDB의 특정 API나 쿼리 언어 추상화
-  - 다른 db로 마이그레이션시 recorder마 수정하면 됨
+  - 다른 db로 마이그레이션시 recorder만 수정하면 됨
   - 복잡한 쿼리가 많을 경우 고려
 
 ## GoLang으로 4일만에 아이디어스 Image 서버 성능 72% 개선
@@ -122,7 +122,7 @@ Presenter → Handler → Usecase → Service → Repository → Recorder
 PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대폭 늘려 인프라 비용을 대폭 절감하는 효과를 나타낸 시나리오를 볼 수 있었습니다.
 
 ### 배운 점
-아래 사이클로 돌아 가는 개발 사이클을 엿볼 수 있다는 점이 가장 좋았고
+아래 사이클로 돌아가는 개발 사이클을 엿볼 수 있다는 점이 가장 좋았고
 ```text
 문제파악 → 문제정의 → 문제해결 → 테스트 → 테스트 검증 → 점진적 적용(Canary) → 전체 배포
 ```
@@ -135,7 +135,7 @@ PHP 레거시 코드를 적은 리소스 투입으로 프로세스 성능을 대
 ## 차량 업데이트 파일의 안전한 관리
 ### 주된 내용
 42dot: SDV(Software Defined Vehicle, 소프트웨어 정의 자동차)에서 자율주행, OTA 업데이트 파일 관리법 공유
-Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호화 하는지
+Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호화하는지
 
 
 **보안 개념 정리 (CIA Triad)**
@@ -150,7 +150,7 @@ Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호�
   - 목적: 업데이트 파일을 안전하게 암호화해서 외부에서 내용을 볼 수 없도록 함
   - 특징: 속도(대칭) + 안전한 키 관리(비대칭)를 동시에 잡음.
     - 대칭키(AES 등)로 대용량 파일을 빠르게 암호화.
-    - 대칭키(RSA, ECC 등)로 대칭키를 암호화.
+    - 비대칭키(RSA, ECC 등)로 대칭키를 암호화.
     - 수신자는 비대칭키 개인키로 대칭키를 복호화한 뒤, 그 대칭키로 파일을 해독.
 - 문제점 보완:
   - 서버에 평문 파일 저장 → 위험.
@@ -164,7 +164,7 @@ Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호�
 
 ### 배운 점
 
-대용량 업데이트 서버를 다루는 도메인에서 업데이트를 관리하는 법을 참고 수 있었습니다.
+대용량 업데이트 서버를 다루는 도메인에서 업데이트를 관리하는 법을 참고할 수 있었습니다.
 
 ## Golang 웹 프레임워크, Gin 모니터링 서비스 개발
 ### 주된 내용
@@ -196,12 +196,12 @@ Go 기반 소프트웨어 업데이트 서버에서 어떻게 파일을 암호�
 - Log → Grafana에서 시각화.
 
 ### 배운 점
-Go에서 미들웨어를 통해 어떻게 모니터링 시스템을 구축하는 지를 볼 수 있었습니다. Trace와 Span을 추가하고 http.RoundTripper 로 커스텀 해서 자동으로 해더에 넣어 줌으로써 프로세스의 흐름을 파악 한다는 게 재밌었네요.
+Go에서 미들웨어를 통해 어떻게 모니터링 시스템을 구축하는지를 볼 수 있었습니다. Trace와 Span을 추가하고 http.RoundTripper로 커스텀해서 자동으로 헤더에 넣어 줌으로써 프로세스의 흐름을 파악한다는 게 재밌었네요.
 
 ## Deterministic testing in Go
 ### 주된 내용
-Deterministic Testing in Go란 테스트가 매번 같은 입력을 보장하여 같은 결과를 보장하도록 만드는 기법 입니다. <br/>
-즉, 랜덤/시간/고루틴 순서 등 비결정적 요소로 생기는 **Flaky Test(간헐적 실패 테스트)**를 제거 하는 방법에 관한 내용이죠.
+Deterministic Testing in Go란 테스트가 매번 같은 입력을 보장하여 같은 결과를 보장하도록 만드는 기법입니다. <br/>
+즉, 랜덤/시간/고루틴 순서 등 비결정적 요소로 생기는 **Flaky Test(간헐적 실패 테스트)**를 제거하는 방법에 관한 내용이죠.
 
 **Non-Deterministic Testing (비결정적 테스트)**
 - 결과가 매번 달라질 수 있는 테스트
@@ -247,15 +247,15 @@ Deterministic Testing in Go란 테스트가 매번 같은 입력을 보장하여
 **Flaky Test 탐지**
 - GitHub Actions 등에서 재실행 시 성공/실패가 번갈아 나오는 경우
 - go test -count 10 / -count 100으로 반복 실행
-- Go 1.17+ → go test -shuffle=on 으로 테스트 실행 순서 섞기
+- Go 1.17+ → go test -shuffle=on으로 테스트 실행 순서 섞기
 
 **결론**
-- 결정적 테스트를 이룰려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
-- Go는 컴파일 언어이므로 파이썬 처럼 monkey patch를 사용하지 못한다, 대신 아키텍처 패턴으로 해결.
+- 결정적 테스트를 이루려면 의존성 주입을 통해 모든 외부 요인(시간, 랜덤, 고루틴, 순서)을 통제하면 가능.
+- Go는 컴파일 언어이므로 파이썬처럼 monkey patch를 사용하지 못한다, 대신 아키텍처 패턴으로 해결.
 - Flaky Test를 줄여서 보다 안정적 CI/CD로 신뢰할 수 있는 배포 가능
 
 ### 배운 점
-Non-Deterministic Testing 와 Deterministic Testing 테스팅의 차이점을 알 수 있었고 기존에는 테스트는 다양하면 좋다고 해서 오히려 Non-Deterministic Testing 패턴으로 접근해서 작성하기도 했었습니다.
+Non-Deterministic Testing과 Deterministic Testing 테스팅의 차이점을 알 수 있었고 기존에는 테스트는 다양하면 좋다고 해서 오히려 Non-Deterministic Testing 패턴으로 접근해서 작성하기도 했었습니다.
 
 하지만 이번 강좌를 보니 그 부분을 피해서 좀 더 안정적인 테스트를 지향하더군요
 테스트의 목적은 로직의 검증이니 항상 결과가 다를 수 있다는 요인을 남겨둔다면 그건 테스트의 본질을 잃는 것이니 이쪽이 더 맞는 것 같습니다. 
@@ -299,6 +299,77 @@ Kubebuilder를 통해 Reconciler에 집중하여 리소스 상태를 관리할 �
 문제는 쿠버네티스를 사용해본 적이 없어서 와닿기 어려웠다는 점입니다.
 그래도 앱 운영을 체계적이고 안정적으로 만들 수 있는 핵심 개념이라는 점으로 이해를 했습니다.
 
+## Building Minimalistic Backend Microservice in Go
+### 주된 내용
+Go 언어로 마이크로서비스를 만들 때 반복적으로 신경써야 하는 요소들과 팁들(Config 읽기, Graceful Shutdown, 테스트 가능성, API 문서, 로깅, 모니터링/메트릭/트레이싱)
+최소한의 코드(200 LOC 이하, 단일 main.go, 표준 패키지만)로 프로토타입 성격의 프로젝트 구현
+
+**코드 스타일 철학**
+- Keep minimal: 외부 라이브러리 대신 표준 패키지로 구현, 의존성 최소화
+- Testability: main() → run() 함수로 분리하여 테스트 가능하게
+- Conciseness: 함수 분산보다 한 곳에서 해결을 선호
+- Trade-off: 간결성과 기능성 사이의 균형 필요
+
+**주요 기능 구현**
+- Health Check API: 버전, Uptime, Commit Hash 등 반환
+- 빌드 시 ldflags로 버전 정보 삽입
+- embed 패키지로 YAML(OpenAPI 문서 등) 포함 → 배포 용이
+- Logging: JSON 로그 표준화, slog + stdout, Fluentbit 연계
+- Middleware/Decorator 패턴으로 로깅과 에러 복구(Recover) 처리
+
+**문서화 강조**
+- OpenAPI YAML을 코드와 함께 관리, /openapi.yaml endpoint 제공
+
+### 배운 점
+다음 깃이 해당 내용을 담고 있습니다.
+https://github.com/raeperd/kickstart.go.git
+
+최대한 적은 코드로 테스트가 용이하며, 문서와 로깅을 반드시 포함하는 프로젝트의 구조가 직관적이어서 좋았고
+다음에 프로젝트를 시작한다면 kickstart.go를 꼭 적용해보고 싶네요.
+
+## Go 서버 아키텍처 만들기, 근데 이제 리브랜딩을 곁들인
+### 주된 내용
+리브랜딩 배경
+- 챌린저스가 습관 형성 서비스에서 사업 확장을 위해 뷰티 득템 앱으로 전환하기 위해 리브랜딩을 진행
+- 기업 고객에게는 성과 보장, 개인 고객에게는 혜택 제공이라는 새로운 BM을 구축.
+
+서버 전환 과정에서의 고민
+- Go 선택: Python 기반 API에서 복잡한 API가 필요해졌는데 여기서 성능 이슈가 발생하여, 러닝커브와 성능 측면까지 고려하여 Go를 채택.
+- 클린 아키텍처: 의존성 분리, 테스트 용이성, 확장성을 고려해 채택.
+- 의존성 주입: Wire(컴파일 타임) vs Fx(런타임) 중 고민 끝에 Fx 선택.
+  - Wire를 사용하는게 좀 더 Go 같지 않나라는 생각이 드네요
+- HTTP 프레임워크: Chi(기존 파이썬 코드와의 호환성) → Gin (직관성과 커뮤니티 지원 때문).
+- ORM: 유지보수성과 개발 속도를 위해 ORM 채택, 그 중에서 최종적으로 GORM 선택.
+
+기타 도구:
+- 문서화: swaggo
+- 설정 관리: viper
+- 로깅: zap
+
+그 외 에러 처리/테스트는 여전히 과제로 남음.
+
+Gopher들 사이의 논의 주제
+- Don't Panic: 실무에서 panic & recovery 패턴으로 모든 에러를 해결했던 경험을 공유, 새 아키텍처에서는 꼭 필요할 때만 Panic을 제한적으로 사용.
+- Named result parameter: 가독성 문제로 인해 프로젝트 컨벤션상 지양하기로 합의.
+  ```go
+  func ReadFull(r io.Reader, buf []byte) (n int, err error){
+      for len(buf) > 0 && err == nil {
+          var nr int
+          nr, err = r.Read(buf)
+          n += nr
+          buf = buf[nr:]
+      }
+  }
+  ```
+
+향후 방향
+- 검색 기능 고도화, 양방향 통신, 메시지 큐 기반 이벤트 처리 등을 통한 확장.
+
+### 배운점
+프로젝트는 비즈니스에 맞춰 설계할 수밖에 없고 또 코드를 보면 비즈니스가 어떻게 흘러갔는지를 알 수 있다는 걸 다시금 깨달았습니다.<br/>
+의존성 주입, HTTP 프레임워크, ORM 선택 등 오픈소스 도입은 신중해야 하고 이는 곧 성능·개발속도·유지보수성·커뮤니티 지원 등 다양한 관점을 고려해야 하며, 기업의 성장 단계마다 최적의 선택이 달라질 수 있습니다.<br/>
+
+실무에서 쓰인 코드가 내 생각에 안티 패턴일 경우 어떻게 접근해야 할까라는 생각이 들고 확실히 기업 사례 기반 발표라서 몰입도를 높게 가져가며 볼 수 있었네요.
 ## Go로 배우는 분산 시스템
 ### 주된 내용
 
