@@ -270,7 +270,7 @@ Non-Deterministic Testing과 Deterministic Testing 테스팅의 차이점을 알
 쿠버네티스 API
 - HTTP 기반 API로 클러스터 및 리소스 제어
 - 리소스 목록 조회, 생성, 상태 모니터링 가능
-- https://<APISERVER>/<GROUP>/<VERSION>/<RESOURCE>/<NAME> 구조
+- ```https://<APISERVER>/<GROUP>/<VERSION>/<RESOURCE>/<NAME> 구조```
 
 client-go
 - 쿠버네티스 API를 추상화하여 Go에서 쉽게 사용 가능
