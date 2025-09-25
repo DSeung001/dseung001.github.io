@@ -2,7 +2,7 @@
 title: "Gno.land란?"
 date: 2025-08-25T15:30:05+09:00
 categories: [ "Memo" ]
-tags: [ "블록체인", "Cosmos", "Gno.land" ]
+tags: [ "Block Chain", "Cosmos", "Gno.land" ]
 draft: false
 description: "Gno.land에 대해 알아보고 메모 형태로 정리한 글입니다."
 keywords: [ "Gno.land", "Cosmos", "블록체인", "스마트컨트랙트" ]
