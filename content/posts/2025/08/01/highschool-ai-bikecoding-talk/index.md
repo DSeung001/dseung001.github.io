@@ -1,14 +1,14 @@
 ---
 title: "고등학교에서의 첫 강연: AI 시대, 개발자로 살아남기"
 date: 2025-08-01T15:30:05+09:00
-categories: ["Talk", "Diary"]
-tags: ["Lecture", "Career,", "AI," "Vibe coding," "High school," "Seminar"]
+categories: [ "Talk", "Diary" ]
+tags: [ "Lecture", "Career", "AI", "Vibe coding", "High school","Seminar" ]
 draft: false
 description: "AI와 바이크 코딩 시대으로 혼란스러운 개발자 시장에서 살아남는 개발자와 회사에서 원하는 인재에 대한 내 생각이 도움이 되길 바라며 고등학교로 가서 작은 강연을 열었습니다, 만족스럽게 갔다온 후 바로 적은 후기 글입니다."
-keywords: ["개발자 강연", "진로 교육", "고등학교 강의", "입학 연설", "구글 IO", "경쟁력", "바이크 코딩", "AI"]
+keywords: [ "개발자 강연", "진로 교육", "고등학교 강의", "입학 연설", "구글 IO", "경쟁력", "바이크 코딩", "AI" ]
 author: "DSeung001"
 lastmod: 2025-08-01T15:30:05+09:00
-aliases: ["/posts/2025/08/01/highschool_ai_bikecoding_talk/"]
+aliases: [ "/posts/2025/08/01/highschool_ai_bikecoding_talk/" ]
 ---
 
 ## 고등학교 모교로 가게 된 이유
