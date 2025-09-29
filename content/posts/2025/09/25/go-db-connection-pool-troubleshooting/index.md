@@ -284,10 +284,27 @@ func (c *ExamCache) cleanupExpired() {
 늘어나는 횟수를 보면서, 이 장비만 타는 로직을 분석해보니 원인을 겨우 찾을 수 있었습니다.
 
 진짜 원인은 go 1.15 버전의 내장 sql 라이브러리에서 발생했습니다.<br/>
-패키지 내부를 까보니 QueryRow를 Scan을 통해서 데이터를 받을 경우에만 커넥션 풀이 반환되는데 프로젝트 코드 중 한 군데서 Scan을 사용하지 않았더군요.
-Scan을 쓰지 않으니 Context Deadline이 끝나지 않는 한 계속 커넥션 풀이 물려있어서 해당 이슈사 발생했습니다.
-Exec는 사용 자체로 커넥션 풀이 반환되었기에 혼동해서 발생한 이유로 추정이되었고 이를 해결 후 부하테스트를 진행해서 정상적으로 돌아가는 것을 확인했습니다.
+다음 로직을 사용하고 있었는데 여기서 커넥션 풀이 반환있었습니다. 에러 로그도 발생하지 않아서 놓치고 있었네요.
+```go
+err := database.GetDB().QueryRow(query,
+    &r.Iol_License_Tbl_Serial_id,
+    &r.Device_Name,
+    &r.Device_Serial_Number,
+    r.Serial_Id,
+).Err()
+```
+패키지 내부를 까보니 QueryRow를 Scan을 통해서 데이터를 받을 경우에만 커넥션 풀이 반환되는데, 위 코드는 Scan을 사용하지 않았고 그로 인해 Context Deadline이 끝나지 않는 한 계속 커넥션 풀이 물려있어서 해당 이슈가 발생한거였습니다.
+Exec는 사용 자체로 커넥션 풀이 반환되었기에 혼동해서 발생한 이유로 추정 되었고 이를 다음 처럼 변경 한 뒤
+```go
+_, err := database.GetDB().Exec(query,
+    &r.Iol_License_Tbl_Serial_id,
+    &r.Device_Name,
+    &r.Device_Serial_Number,
+    r.Serial_Id,
+)
+```
 
+시스템 테스트 및 부하 테스트를 진행해서 정상적으로 돌아가는 것을 확인했습니다.
 조금 더 빨리 알아챘다면 더 빠르게 해결할 수 있는 이슈였던 게 아쉬웠습니다.
 
 ## 삽질의 결과
