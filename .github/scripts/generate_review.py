@@ -376,8 +376,65 @@ def check_token_permissions():
         print(f"❌ 토큰 인증 실패: {response.status_code}")
         return False
 
+def get_category_id_graphql(repository_id):
+    """GraphQL API를 사용하여 카테고리 ID 가져오기"""
+    query = """
+    query GetRepository($repositoryId: ID!) {
+        node(id: $repositoryId) {
+            ... on Repository {
+                discussionCategories(first: 10) {
+                    nodes {
+                        id
+                        name
+                    }
+                }
+            }
+        }
+    }
+    """
+    
+    variables = {
+        "repositoryId": repository_id
+    }
+    
+    graphql_url = "https://api.github.com/graphql"
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+    }
+    
+    response = requests.post(
+        graphql_url,
+        headers=headers,
+        json={'query': query, 'variables': variables}
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        if 'errors' in result:
+            print(f"⚠️  GraphQL 에러: {result['errors']}")
+            return None
+        
+        if 'data' in result and result['data']:
+            repository = result['data']['node']
+            if repository and 'discussionCategories' in repository:
+                categories = repository['discussionCategories']['nodes']
+                for category in categories:
+                    if category['name'] == 'Blog Comments':
+                        print(f"✅ GraphQL 카테고리 ID: {category['id']}")
+                        return category['id']
+                
+                # Blog Comments가 없으면 첫 번째 카테고리 사용
+                if categories:
+                    print(f"⚠️  'Blog Comments' 카테고리를 찾을 수 없어 첫 번째 카테고리 사용")
+                    print(f"   사용할 카테고리: {categories[0]['name']} (ID: {categories[0]['id']})")
+                    return categories[0]['id']
+    
+    return None
+
 def create_discussion(permalink, post_title, post_url):
-    """Discussion 자동 생성"""
+    """GraphQL API를 사용하여 Discussion 자동 생성"""
     # 저장소 정보 확인
     if not check_repository_info():
         return None
@@ -389,20 +446,30 @@ def create_discussion(permalink, post_title, post_url):
     # 토큰 권한 확인
     check_token_permissions()
     
-    # 카테고리 ID 가져오기
-    category_id = get_discussion_category_id()
+    # 저장소 ID (Giscus 설정에서 확인)
+    repository_id = "R_kgDOO9ggNQ"
+    
+    print(f"📋 Discussion 생성 정보 (GraphQL):")
+    print(f"   저장소 ID: {repository_id}")
+    print(f"   저장소: {GITHUB_REPO}")
+    print(f"   제목: {post_title}")
+    
+    # GraphQL로 카테고리 ID 가져오기
+    print(f"🔍 GraphQL로 카테고리 ID 조회 중...")
+    category_id = get_category_id_graphql(repository_id)
+    
+    if not category_id:
+        # REST API로 폴백
+        print(f"⚠️  GraphQL 카테고리 조회 실패, REST API로 시도...")
+        category_id = get_discussion_category_id()
+        if category_id:
+            # REST API의 숫자 ID를 GraphQL 형식으로 변환 시도
+            # GraphQL은 보통 다른 형식이지만, 일단 시도
+            print(f"   REST API 카테고리 ID: {category_id}")
     
     if not category_id:
         print(f"❌ 카테고리 ID를 가져올 수 없습니다.")
         return None
-    
-    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
-    
-    print(f"📋 Discussion 생성 정보:")
-    print(f"   URL: {url}")
-    print(f"   저장소: {GITHUB_REPO}")
-    print(f"   카테고리 ID: {category_id}")
-    print(f"   제목: {post_title}")
     
     # Giscus가 인식할 수 있도록 permalink를 body에 포함
     discussion_body = f"""이 Discussion은 다음 블로그 포스트에 대한 댓글을 위한 것입니다:
@@ -414,70 +481,97 @@ def create_discussion(permalink, post_title, post_url):
 이 Discussion은 Giscus 댓글 시스템에서 자동으로 사용됩니다.
 """
     
-    data = {
-        'title': f"{post_title}",
-        'body': discussion_body,
-        'category': category_id  # 숫자 ID 사용
+    # GraphQL Mutation
+    mutation = """
+    mutation CreateDiscussion($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+        createDiscussion(input: {
+            repositoryId: $repositoryId
+            categoryId: $categoryId
+            title: $title
+            body: $body
+        }) {
+            discussion {
+                number
+                url
+            }
+        }
+    }
+    """
+    
+    variables = {
+        "repositoryId": repository_id,
+        "categoryId": category_id,
+        "title": post_title,
+        "body": discussion_body
     }
     
-    print(f"📤 요청 데이터:")
-    print(f"   - title: {data['title']}")
-    print(f"   - category: {data['category']}")
-    print(f"   - body 길이: {len(data['body'])} 문자")
+    print(f"📤 GraphQL 요청:")
+    print(f"   - repositoryId: {repository_id}")
+    print(f"   - categoryId: {category_id}")
+    print(f"   - title: {post_title}")
+    print(f"   - body 길이: {len(discussion_body)} 문자")
+    
+    graphql_url = "https://api.github.com/graphql"
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+    }
     
     # 헤더 정보 (토큰은 마스킹)
-    auth_header = GITHUB_HEADERS.get('Authorization', '')
-    masked_token = auth_header[:20] + '***' if auth_header else 'None'
+    masked_token = headers['Authorization'][:20] + '***' if headers.get('Authorization') else 'None'
     print(f"📤 요청 헤더:")
     print(f"   - Authorization: {masked_token}")
-    print(f"   - Accept: {GITHUB_HEADERS.get('Accept', 'N/A')}")
-    print(f"   - X-GitHub-Api-Version: {GITHUB_HEADERS.get('X-GitHub-Api-Version', 'N/A')}")
+    print(f"   - Content-Type: {headers.get('Content-Type', 'N/A')}")
+    print(f"   - Accept: {headers.get('Accept', 'N/A')}")
     
     try:
-        response = requests.post(url, headers=GITHUB_HEADERS, json=data)
+        response = requests.post(
+            graphql_url,
+            headers=headers,
+            json={'query': mutation, 'variables': variables}
+        )
         
         print(f"📥 응답 정보:")
         print(f"   - 상태 코드: {response.status_code}")
-        print(f"   - 응답 헤더: {dict(response.headers)}")
         
-        if response.status_code == 201:
-            discussion = response.json()
-            print(f"✅ Discussion #{discussion['number']} 생성 완료")
-            print(f"   Discussion URL: {discussion.get('html_url', 'N/A')}")
-            return discussion['number']
+        if response.status_code == 200:
+            result = response.json()
+            
+            if 'errors' in result:
+                print(f"❌ GraphQL 에러:")
+                for error in result['errors']:
+                    print(f"   - {error.get('message', 'Unknown error')}")
+                    if 'type' in error:
+                        print(f"     타입: {error['type']}")
+                    if 'path' in error:
+                        print(f"     경로: {error['path']}")
+                return None
+            
+            if 'data' in result and result['data']:
+                discussion_data = result['data'].get('createDiscussion', {})
+                if discussion_data and 'discussion' in discussion_data:
+                    discussion = discussion_data['discussion']
+                    discussion_number = discussion.get('number')
+                    discussion_url = discussion.get('url', 'N/A')
+                    
+                    print(f"✅ Discussion #{discussion_number} 생성 완료")
+                    print(f"   Discussion URL: {discussion_url}")
+                    return discussion_number
+                else:
+                    print(f"❌ Discussion 데이터가 응답에 없습니다.")
+                    print(f"   응답: {result}")
+            else:
+                print(f"❌ 응답에 데이터가 없습니다.")
+                print(f"   응답: {result}")
         else:
-            print(f"❌ Discussion 생성 실패: {response.status_code}")
-            print(f"📥 응답 본문:")
+            print(f"❌ GraphQL 요청 실패: {response.status_code}")
             try:
                 error_data = response.json()
+                print(f"📥 응답 본문:")
                 print(f"   {error_data}")
-                
-                # 에러 메시지 분석
-                if 'message' in error_data:
-                    print(f"\n🔍 에러 분석:")
-                    error_msg = error_data['message']
-                    print(f"   메시지: {error_msg}")
-                    
-                    if 'Not Found' in error_msg:
-                        print(f"   💡 가능한 원인:")
-                        print(f"      1. 저장소에 Discussions가 활성화되지 않았을 수 있습니다.")
-                        print(f"         → GitHub 저장소 Settings → General → Features에서 Discussions 활성화 확인")
-                        print(f"      2. 카테고리 ID가 잘못되었을 수 있습니다.")
-                        print(f"         → 현재 카테고리 ID: {category_id}")
-                        print(f"      3. API 권한이 부족할 수 있습니다.")
-                        print(f"         → GITHUB_TOKEN에 'write:discussions' 권한이 있는지 확인")
-                    elif 'Bad Request' in error_msg or 'Validation Failed' in error_msg:
-                        print(f"   💡 가능한 원인:")
-                        print(f"      1. 요청 데이터 형식이 잘못되었을 수 있습니다.")
-                        print(f"      2. 카테고리 ID가 유효하지 않을 수 있습니다.")
-                        print(f"      3. 제목이나 본문이 너무 길 수 있습니다.")
-                elif 'errors' in error_data:
-                    print(f"   상세 에러:")
-                    for error in error_data['errors']:
-                        print(f"     - {error}")
-                        
             except ValueError:
-                print(f"   (JSON 파싱 실패) 원본 텍스트:")
+                print(f"📥 응답 텍스트:")
                 print(f"   {response.text}")
             
             return None
