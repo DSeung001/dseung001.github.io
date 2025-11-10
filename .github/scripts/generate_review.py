@@ -498,17 +498,21 @@ def create_discussion(permalink, post_title, post_url):
     }
     """
     
+    # Giscus가 pathname 매핑으로 찾을 수 있도록 제목에 permalink 포함
+    # Giscus는 현재 페이지 경로를 Discussion 제목이나 body에서 찾습니다
+    discussion_title = f"{post_title} {permalink}"
+    
     variables = {
         "repositoryId": repository_id,
         "categoryId": category_id,
-        "title": post_title,
+        "title": discussion_title,
         "body": discussion_body
     }
     
     print(f"📤 GraphQL 요청:")
     print(f"   - repositoryId: {repository_id}")
     print(f"   - categoryId: {category_id}")
-    print(f"   - title: {post_title}")
+    print(f"   - title: {discussion_title}")
     print(f"   - body 길이: {len(discussion_body)} 문자")
     
     graphql_url = "https://api.github.com/graphql"
