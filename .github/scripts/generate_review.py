@@ -189,8 +189,53 @@ def find_discussion_by_permalink(permalink):
     
     return None
 
+def get_discussion_category_id():
+    """Discussion 카테고리 ID 가져오기"""
+    # 기존 Discussions에서 카테고리 정보 가져오기
+    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
+    params = {'per_page': 1}
+    
+    response = requests.get(url, headers=GITHUB_HEADERS, params=params)
+    
+    if response.status_code == 200:
+        discussions = response.json()
+        if discussions:
+            # 기존 Discussion에서 카테고리 ID 가져오기
+            category_id = discussions[0].get('category', {}).get('id')
+            if category_id:
+                print(f"✅ 카테고리 ID: {category_id}")
+                return category_id
+    
+    # Discussions가 없거나 카테고리를 찾을 수 없는 경우
+    # 카테고리 목록 API 시도 (일부 저장소에서는 작동하지 않을 수 있음)
+    categories_url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions/categories"
+    response = requests.get(categories_url, headers=GITHUB_HEADERS)
+    
+    if response.status_code == 200:
+        categories = response.json()
+        # "Blog Comments" 카테고리 찾기
+        for category in categories:
+            if category.get('name') == 'Blog Comments':
+                print(f"✅ 카테고리 ID: {category.get('id')}")
+                return category.get('id')
+        
+        # "Blog Comments"가 없으면 첫 번째 카테고리 사용
+        if categories:
+            print(f"⚠️  'Blog Comments' 카테고리를 찾을 수 없어 첫 번째 카테고리를 사용합니다.")
+            return categories[0].get('id')
+    
+    print(f"⚠️  카테고리 ID를 찾을 수 없습니다. Discussions가 활성화되어 있는지 확인하세요.")
+    return None
+
 def create_discussion(permalink, post_title, post_url):
     """Discussion 자동 생성"""
+    # 카테고리 ID 가져오기
+    category_id = get_discussion_category_id()
+    
+    if not category_id:
+        print(f"❌ 카테고리 ID를 가져올 수 없습니다.")
+        return None
+    
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
     
     # Giscus가 인식할 수 있도록 permalink를 body에 포함
@@ -206,7 +251,7 @@ def create_discussion(permalink, post_title, post_url):
     data = {
         'title': f"{post_title}",
         'body': discussion_body,
-        'category_id': 'DIC_kwDOO9ggNc4CtfJF'  # Blog Comments 카테고리
+        'category': category_id  # 숫자 ID 사용
     }
     
     response = requests.post(url, headers=GITHUB_HEADERS, json=data)
