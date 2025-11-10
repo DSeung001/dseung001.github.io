@@ -29,7 +29,7 @@ GITHUB_HEADERS = {
 
 # Gemini API 설정
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 # 리뷰 프롬프트
 REVIEW_PROMPT = """당신은 기술 블로그 글을 전문적으로 리뷰하는 AI 어시스턴트입니다. 
