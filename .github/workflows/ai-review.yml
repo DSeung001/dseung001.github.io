@@ -43,7 +43,7 @@ jobs:
       - name: Generate AI Review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.BLOG_ACTION_KEY || github.token }}
           TARGET_FILE: ${{ inputs.file_path }}
         run: |
           if [ "${{ inputs.review_all }}" == "true" ]; then

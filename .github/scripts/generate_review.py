@@ -340,6 +340,42 @@ def check_discussions_enabled():
             pass
         return False
 
+def check_token_permissions():
+    """토큰 권한 확인"""
+    print(f"🔍 토큰 권한 확인 중...")
+    
+    # 토큰 정보 확인
+    url = f"{GITHUB_API_BASE}/user"
+    response = requests.get(url, headers=GITHUB_HEADERS)
+    
+    if response.status_code == 200:
+        user_info = response.json()
+        print(f"✅ 토큰 인증 성공")
+        print(f"   사용자: {user_info.get('login', 'N/A')}")
+        
+        # OAuth 스코프 확인 (헤더에서)
+        oauth_scopes = response.headers.get('X-OAuth-Scopes', '')
+        accepted_scopes = response.headers.get('X-Accepted-OAuth-Scopes', '')
+        
+        if oauth_scopes:
+            print(f"   OAuth 스코프: {oauth_scopes}")
+            if 'write:discussions' in oauth_scopes or 'repo' in oauth_scopes:
+                print(f"✅ Discussions 쓰기 권한 확인됨")
+                return True
+            else:
+                print(f"⚠️  Discussions 쓰기 권한이 없습니다.")
+                print(f"   현재 스코프: {oauth_scopes}")
+                print(f"   필요한 스코프: write:discussions 또는 repo")
+        else:
+            # GitHub Actions 토큰의 경우 스코프가 표시되지 않을 수 있음
+            print(f"   ⚠️  OAuth 스코프 정보를 확인할 수 없습니다.")
+            print(f"   GitHub Actions 토큰은 제한된 권한을 가질 수 있습니다.")
+        
+        return True
+    else:
+        print(f"❌ 토큰 인증 실패: {response.status_code}")
+        return False
+
 def create_discussion(permalink, post_title, post_url):
     """Discussion 자동 생성"""
     # 저장소 정보 확인
@@ -349,6 +385,9 @@ def create_discussion(permalink, post_title, post_url):
     # Discussions 활성화 여부 확인
     if not check_discussions_enabled():
         return None
+    
+    # 토큰 권한 확인
+    check_token_permissions()
     
     # 카테고리 ID 가져오기
     category_id = get_discussion_category_id()
