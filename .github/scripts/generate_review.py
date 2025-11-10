@@ -191,40 +191,94 @@ def find_discussion_by_permalink(permalink):
 
 def get_discussion_category_id():
     """Discussion 카테고리 ID 가져오기"""
+    print(f"🔍 카테고리 ID 조회 중...")
+    
     # 기존 Discussions에서 카테고리 정보 가져오기
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
     params = {'per_page': 1}
     
+    print(f"   1단계: 기존 Discussions에서 카테고리 정보 조회")
+    print(f"   URL: {url}")
+    
     response = requests.get(url, headers=GITHUB_HEADERS, params=params)
+    
+    print(f"   응답 상태: {response.status_code}")
     
     if response.status_code == 200:
         discussions = response.json()
+        print(f"   조회된 Discussions 수: {len(discussions)}")
+        
         if discussions:
             # 기존 Discussion에서 카테고리 ID 가져오기
-            category_id = discussions[0].get('category', {}).get('id')
+            category = discussions[0].get('category', {})
+            category_id = category.get('id')
+            category_name = category.get('name', 'Unknown')
+            
             if category_id:
-                print(f"✅ 카테고리 ID: {category_id}")
+                print(f"✅ 카테고리 ID: {category_id} (이름: {category_name})")
                 return category_id
+            else:
+                print(f"   ⚠️  Discussion에 카테고리 정보가 없습니다.")
+        else:
+            print(f"   ⚠️  기존 Discussion이 없습니다.")
+    elif response.status_code == 404:
+        print(f"   ⚠️  Discussions API를 찾을 수 없습니다. Discussions가 활성화되지 않았을 수 있습니다.")
+    else:
+        print(f"   ⚠️  Discussions 조회 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"   에러 메시지: {error_data.get('message', 'N/A')}")
+        except:
+            print(f"   응답: {response.text[:200]}")
     
     # Discussions가 없거나 카테고리를 찾을 수 없는 경우
     # 카테고리 목록 API 시도 (일부 저장소에서는 작동하지 않을 수 있음)
+    print(f"   2단계: 카테고리 목록 API로 조회 시도")
     categories_url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions/categories"
+    print(f"   URL: {categories_url}")
+    
     response = requests.get(categories_url, headers=GITHUB_HEADERS)
+    
+    print(f"   응답 상태: {response.status_code}")
     
     if response.status_code == 200:
         categories = response.json()
+        print(f"   조회된 카테고리 수: {len(categories)}")
+        
+        if categories:
+            print(f"   사용 가능한 카테고리:")
+            for cat in categories:
+                print(f"     - {cat.get('name')} (ID: {cat.get('id')})")
+        
         # "Blog Comments" 카테고리 찾기
         for category in categories:
             if category.get('name') == 'Blog Comments':
-                print(f"✅ 카테고리 ID: {category.get('id')}")
-                return category.get('id')
+                category_id = category.get('id')
+                print(f"✅ 'Blog Comments' 카테고리 ID: {category_id}")
+                return category_id
         
         # "Blog Comments"가 없으면 첫 번째 카테고리 사용
         if categories:
+            first_category = categories[0]
+            category_id = first_category.get('id')
+            category_name = first_category.get('name')
             print(f"⚠️  'Blog Comments' 카테고리를 찾을 수 없어 첫 번째 카테고리를 사용합니다.")
-            return categories[0].get('id')
+            print(f"   사용할 카테고리: {category_name} (ID: {category_id})")
+            return category_id
+    elif response.status_code == 404:
+        print(f"   ⚠️  카테고리 목록 API를 찾을 수 없습니다.")
+    else:
+        print(f"   ⚠️  카테고리 목록 조회 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"   에러 메시지: {error_data.get('message', 'N/A')}")
+        except:
+            print(f"   응답: {response.text[:200]}")
     
-    print(f"⚠️  카테고리 ID를 찾을 수 없습니다. Discussions가 활성화되어 있는지 확인하세요.")
+    print(f"❌ 카테고리 ID를 찾을 수 없습니다.")
+    print(f"💡 해결 방법:")
+    print(f"   1. GitHub 저장소 Settings → General → Features에서 Discussions 활성화 확인")
+    print(f"   2. 'Blog Comments' 카테고리가 생성되어 있는지 확인")
     return None
 
 def create_discussion(permalink, post_title, post_url):
@@ -237,6 +291,12 @@ def create_discussion(permalink, post_title, post_url):
         return None
     
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
+    
+    print(f"📋 Discussion 생성 정보:")
+    print(f"   URL: {url}")
+    print(f"   저장소: {GITHUB_REPO}")
+    print(f"   카테고리 ID: {category_id}")
+    print(f"   제목: {post_title}")
     
     # Giscus가 인식할 수 있도록 permalink를 body에 포함
     discussion_body = f"""이 Discussion은 다음 블로그 포스트에 대한 댓글을 위한 것입니다:
@@ -254,15 +314,71 @@ def create_discussion(permalink, post_title, post_url):
         'category': category_id  # 숫자 ID 사용
     }
     
-    response = requests.post(url, headers=GITHUB_HEADERS, json=data)
+    print(f"📤 요청 데이터:")
+    print(f"   - title: {data['title']}")
+    print(f"   - category: {data['category']}")
+    print(f"   - body 길이: {len(data['body'])} 문자")
     
-    if response.status_code == 201:
-        discussion = response.json()
-        print(f"✅ Discussion #{discussion['number']} 생성 완료")
-        return discussion['number']
-    else:
-        print(f"❌ Discussion 생성 실패: {response.status_code}")
-        print(f"Response: {response.text}")
+    # 헤더 정보 (토큰은 마스킹)
+    auth_header = GITHUB_HEADERS.get('Authorization', '')
+    masked_token = auth_header[:20] + '***' if auth_header else 'None'
+    print(f"📤 요청 헤더:")
+    print(f"   - Authorization: {masked_token}")
+    print(f"   - Accept: {GITHUB_HEADERS.get('Accept', 'N/A')}")
+    print(f"   - X-GitHub-Api-Version: {GITHUB_HEADERS.get('X-GitHub-Api-Version', 'N/A')}")
+    
+    try:
+        response = requests.post(url, headers=GITHUB_HEADERS, json=data)
+        
+        print(f"📥 응답 정보:")
+        print(f"   - 상태 코드: {response.status_code}")
+        print(f"   - 응답 헤더: {dict(response.headers)}")
+        
+        if response.status_code == 201:
+            discussion = response.json()
+            print(f"✅ Discussion #{discussion['number']} 생성 완료")
+            print(f"   Discussion URL: {discussion.get('html_url', 'N/A')}")
+            return discussion['number']
+        else:
+            print(f"❌ Discussion 생성 실패: {response.status_code}")
+            print(f"📥 응답 본문:")
+            try:
+                error_data = response.json()
+                print(f"   {error_data}")
+                
+                # 에러 메시지 분석
+                if 'message' in error_data:
+                    print(f"\n🔍 에러 분석:")
+                    error_msg = error_data['message']
+                    print(f"   메시지: {error_msg}")
+                    
+                    if 'Not Found' in error_msg:
+                        print(f"   💡 가능한 원인:")
+                        print(f"      1. 저장소에 Discussions가 활성화되지 않았을 수 있습니다.")
+                        print(f"         → GitHub 저장소 Settings → General → Features에서 Discussions 활성화 확인")
+                        print(f"      2. 카테고리 ID가 잘못되었을 수 있습니다.")
+                        print(f"         → 현재 카테고리 ID: {category_id}")
+                        print(f"      3. API 권한이 부족할 수 있습니다.")
+                        print(f"         → GITHUB_TOKEN에 'write:discussions' 권한이 있는지 확인")
+                    elif 'Bad Request' in error_msg or 'Validation Failed' in error_msg:
+                        print(f"   💡 가능한 원인:")
+                        print(f"      1. 요청 데이터 형식이 잘못되었을 수 있습니다.")
+                        print(f"      2. 카테고리 ID가 유효하지 않을 수 있습니다.")
+                        print(f"      3. 제목이나 본문이 너무 길 수 있습니다.")
+                elif 'errors' in error_data:
+                    print(f"   상세 에러:")
+                    for error in error_data['errors']:
+                        print(f"     - {error}")
+                        
+            except ValueError:
+                print(f"   (JSON 파싱 실패) 원본 텍스트:")
+                print(f"   {response.text}")
+            
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 네트워크 오류 발생:")
+        print(f"   {str(e)}")
         return None
 
 def has_existing_ai_review(discussion_number):
