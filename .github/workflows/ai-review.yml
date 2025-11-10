@@ -1,0 +1,55 @@
+name: AI Blog Review
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'content/posts/**/*.md'
+  workflow_dispatch:
+    inputs:
+      file_path:
+        description: '리뷰할 파일 경로 (예: content/posts/2025/08/28/GopherCon 2024/index.md)'
+        required: false
+        type: string
+      review_all:
+        description: '모든 포스트에 리뷰 생성 (기존 리뷰 제외)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      discussions: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install google-generativeai requests
+
+      - name: Generate AI Review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_FILE: ${{ inputs.file_path }}
+        run: |
+          if [ "${{ inputs.review_all }}" == "true" ]; then
+            # 모든 포스트에 대해 리뷰 생성 (기존 리뷰 제외)
+            python .github/scripts/generate_review.py
+          else
+            # 지정된 파일 또는 변경된 파일에 대해 리뷰 생성
+            python .github/scripts/generate_review.py
+          fi
