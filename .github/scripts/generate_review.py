@@ -281,8 +281,75 @@ def get_discussion_category_id():
     print(f"   2. 'Blog Comments' 카테고리가 생성되어 있는지 확인")
     return None
 
+def check_repository_info():
+    """저장소 정보 확인 및 Discussions 활성화 여부 확인"""
+    print(f"🔍 저장소 정보 확인 중...")
+    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}"
+    
+    response = requests.get(url, headers=GITHUB_HEADERS)
+    
+    if response.status_code == 200:
+        repo_info = response.json()
+        print(f"✅ 저장소 정보:")
+        print(f"   이름: {repo_info.get('full_name')}")
+        print(f"   Private: {repo_info.get('private')}")
+        print(f"   Archived: {repo_info.get('archived')}")
+        print(f"   Disabled: {repo_info.get('disabled')}")
+        
+        # Discussions 활성화 여부는 별도 API로 확인 필요
+        return True
+    elif response.status_code == 404:
+        print(f"❌ 저장소를 찾을 수 없습니다: {GITHUB_REPO}")
+        return False
+    else:
+        print(f"⚠️  저장소 정보 조회 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"   에러: {error_data.get('message', 'N/A')}")
+        except:
+            pass
+        return False
+
+def check_discussions_enabled():
+    """Discussions가 활성화되어 있는지 확인"""
+    print(f"🔍 Discussions 활성화 여부 확인 중...")
+    
+    # Discussions 목록을 조회해서 활성화 여부 확인
+    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
+    params = {'per_page': 1}
+    
+    response = requests.get(url, headers=GITHUB_HEADERS, params=params)
+    
+    if response.status_code == 200:
+        print(f"✅ Discussions가 활성화되어 있습니다.")
+        return True
+    elif response.status_code == 404:
+        print(f"❌ Discussions가 활성화되지 않았거나 접근할 수 없습니다.")
+        print(f"💡 해결 방법:")
+        print(f"   1. GitHub 저장소 페이지로 이동")
+        print(f"   2. Settings → General → Features")
+        print(f"   3. 'Discussions' 체크박스를 활성화")
+        print(f"   4. 'Blog Comments' 카테고리 생성 확인")
+        return False
+    else:
+        print(f"⚠️  Discussions 확인 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"   에러: {error_data.get('message', 'N/A')}")
+        except:
+            pass
+        return False
+
 def create_discussion(permalink, post_title, post_url):
     """Discussion 자동 생성"""
+    # 저장소 정보 확인
+    if not check_repository_info():
+        return None
+    
+    # Discussions 활성화 여부 확인
+    if not check_discussions_enabled():
+        return None
+    
     # 카테고리 ID 가져오기
     category_id = get_discussion_category_id()
     
