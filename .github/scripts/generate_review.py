@@ -581,8 +581,8 @@ def create_discussion(permalink, post_title, post_url):
         print(f"   {str(e)}")
         return None
 
-def has_existing_ai_review(discussion_number):
-    """Discussion에 이미 AI 리뷰 코멘트가 있는지 확인"""
+def find_existing_ai_review(discussion_number):
+    """Discussion에 이미 AI 리뷰 코멘트가 있는지 확인하고 코멘트 ID 반환"""
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions/{discussion_number}/comments"
     params = {'per_page': 100}
     
@@ -592,7 +592,7 @@ def has_existing_ai_review(discussion_number):
         response = requests.get(url, headers=GITHUB_HEADERS, params=params)
         
         if response.status_code != 200:
-            return False
+            return None
         
         comments = response.json()
         if not comments:
@@ -602,13 +602,14 @@ def has_existing_ai_review(discussion_number):
             body = comment.get('body', '')
             # AI 리뷰 마커 확인
             if '🤖 AI 리뷰:' in body or 'Google Gemini API를 사용하여 자동으로 생성' in body:
-                return True
+                comment_id = comment.get('id')
+                return comment_id
         
         page += 1
         if len(comments) < 100:
             break
     
-    return False
+    return None
 
 def generate_review(content):
     """Gemini API를 사용하여 리뷰 생성 (전체 내용)"""
@@ -627,9 +628,59 @@ def generate_review(content):
         print(f"Error generating review: {e}")
         return None
 
+def get_discussion_id_from_number(discussion_number):
+    """Discussion 번호로 GraphQL Discussion ID 가져오기"""
+    query = """
+    query GetDiscussion($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+            discussion(number: $number) {
+                id
+            }
+        }
+    }
+    """
+    
+    owner, repo = GITHUB_REPO.split('/')
+    variables = {
+        "owner": owner,
+        "repo": repo,
+        "number": discussion_number
+    }
+    
+    graphql_url = "https://api.github.com/graphql"
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+    }
+    
+    response = requests.post(
+        graphql_url,
+        headers=headers,
+        json={'query': query, 'variables': variables}
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        if 'errors' in result:
+            print(f"⚠️  GraphQL 에러: {result['errors']}")
+            return None
+        
+        if 'data' in result and result['data']:
+            repository = result['data'].get('repository')
+            if repository and 'discussion' in repository and repository['discussion']:
+                return repository['discussion']['id']
+    
+    return None
+
 def create_discussion_comment(discussion_number, review_text, post_title):
-    """Discussion에 리뷰 코멘트 추가"""
-    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions/{discussion_number}/comments"
+    """GraphQL API를 사용하여 Discussion에 리뷰 코멘트 추가"""
+    # Discussion ID 가져오기
+    discussion_id = get_discussion_id_from_number(discussion_number)
+    
+    if not discussion_id:
+        print(f"❌ Discussion ID를 가져올 수 없습니다.")
+        return False
     
     comment_body = f"""## 🤖 AI 리뷰: {post_title}
 
@@ -640,18 +691,200 @@ def create_discussion_comment(discussion_number, review_text, post_title):
 *생성 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S KST')}*
 """
     
-    data = {'body': comment_body}
+    mutation = """
+    mutation AddDiscussionComment($discussionId: ID!, $body: String!) {
+        addDiscussionComment(input: {
+            discussionId: $discussionId
+            body: $body
+        }) {
+            comment {
+                id
+                url
+            }
+        }
+    }
+    """
     
-    response = requests.post(url, headers=GITHUB_HEADERS, json=data)
+    variables = {
+        "discussionId": discussion_id,
+        "body": comment_body
+    }
     
-    if response.status_code == 201:
-        comment_url = response.json().get('html_url', '')
-        print(f"✅ 리뷰 코멘트가 성공적으로 추가되었습니다!")
-        print(f"   코멘트 URL: {comment_url}")
-        return True
+    graphql_url = "https://api.github.com/graphql"
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+    }
+    
+    print(f"📤 GraphQL 코멘트 추가 요청:")
+    print(f"   - discussionId: {discussion_id}")
+    print(f"   - body 길이: {len(comment_body)} 문자")
+    
+    response = requests.post(
+        graphql_url,
+        headers=headers,
+        json={'query': mutation, 'variables': variables}
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        
+        if 'errors' in result:
+            print(f"❌ GraphQL 에러:")
+            for error in result['errors']:
+                print(f"   - {error.get('message', 'Unknown error')}")
+            return False
+        
+        if 'data' in result and result['data']:
+            comment_data = result['data'].get('addDiscussionComment', {})
+            if comment_data and 'comment' in comment_data:
+                comment = comment_data['comment']
+                comment_url = comment.get('url', 'N/A')
+                print(f"✅ 리뷰 코멘트가 성공적으로 추가되었습니다!")
+                print(f"   코멘트 URL: {comment_url}")
+                return True
+        
+        print(f"❌ 응답에 데이터가 없습니다.")
+        print(f"   응답: {result}")
+        return False
     else:
-        print(f"❌ 코멘트 추가 실패: {response.status_code}")
-        print(f"Response: {response.text}")
+        print(f"❌ GraphQL 요청 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"Response: {error_data}")
+        except:
+            print(f"Response: {response.text}")
+        return False
+
+def update_discussion_comment(discussion_number, comment_id, review_text, post_title):
+    """GraphQL API를 사용하여 Discussion의 기존 리뷰 코멘트 업데이트"""
+    # REST API의 comment_id를 GraphQL 형식으로 변환 필요할 수 있음
+    # 일단 그대로 시도
+    
+    comment_body = f"""## 🤖 AI 리뷰: {post_title}
+
+{review_text}
+
+---
+*이 리뷰는 Google Gemini API를 사용하여 자동으로 생성되었습니다.*  
+*생성 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S KST')}*  
+*🔄 업데이트됨*
+"""
+    
+    mutation = """
+    mutation UpdateDiscussionComment($commentId: ID!, $body: String!) {
+        updateDiscussionComment(input: {
+            commentId: $commentId
+            body: $body
+        }) {
+            comment {
+                id
+                url
+            }
+        }
+    }
+    """
+    
+    # REST API의 comment_id를 GraphQL ID로 변환
+    # REST API ID는 숫자이므로, GraphQL ID 형식으로 변환 필요
+    # 일단 그대로 시도하거나, Discussion에서 코멘트를 찾아서 GraphQL ID 가져오기
+    graphql_comment_id = comment_id
+    
+    # REST API comment_id로 GraphQL comment ID 가져오기
+    query = """
+    query GetDiscussionComment($owner: String!, $repo: String!, $discussionNumber: Int!) {
+        repository(owner: $owner, name: $repo) {
+            discussion(number: $discussionNumber) {
+                comments(first: 100) {
+                    nodes {
+                        id
+                        databaseId
+                    }
+                }
+            }
+        }
+    }
+    """
+    
+    owner, repo = GITHUB_REPO.split('/')
+    variables_query = {
+        "owner": owner,
+        "repo": repo,
+        "discussionNumber": discussion_number
+    }
+    
+    graphql_url = "https://api.github.com/graphql"
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github+json'
+    }
+    
+    # 먼저 코멘트의 GraphQL ID 찾기
+    response = requests.post(
+        graphql_url,
+        headers=headers,
+        json={'query': query, 'variables': variables_query}
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        if 'data' in result and result['data']:
+            repository = result['data'].get('repository')
+            if repository and 'discussion' in repository:
+                discussion = repository['discussion']
+                if discussion and 'comments' in discussion:
+                    comments = discussion['comments']['nodes']
+                    for comment in comments:
+                        # REST API의 comment_id와 databaseId 비교
+                        if str(comment.get('databaseId')) == str(comment_id):
+                            graphql_comment_id = comment['id']
+                            break
+    
+    variables = {
+        "commentId": graphql_comment_id,
+        "body": comment_body
+    }
+    
+    print(f"📤 GraphQL 코멘트 업데이트 요청:")
+    print(f"   - commentId: {graphql_comment_id}")
+    print(f"   - body 길이: {len(comment_body)} 문자")
+    
+    response = requests.post(
+        graphql_url,
+        headers=headers,
+        json={'query': mutation, 'variables': variables}
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        
+        if 'errors' in result:
+            print(f"❌ GraphQL 에러:")
+            for error in result['errors']:
+                print(f"   - {error.get('message', 'Unknown error')}")
+            return False
+        
+        if 'data' in result and result['data']:
+            comment_data = result['data'].get('updateDiscussionComment', {})
+            if comment_data and 'comment' in comment_data:
+                comment = comment_data['comment']
+                comment_url = comment.get('url', 'N/A')
+                print(f"✅ 리뷰 코멘트가 성공적으로 업데이트되었습니다!")
+                print(f"   코멘트 URL: {comment_url}")
+                return True
+        
+        print(f"❌ 응답에 데이터가 없습니다.")
+        print(f"   응답: {result}")
+        return False
+    else:
+        print(f"❌ GraphQL 요청 실패: {response.status_code}")
+        try:
+            error_data = response.json()
+            print(f"Response: {error_data}")
+        except:
+            print(f"Response: {response.text}")
         return False
 
 def main():
@@ -725,14 +958,9 @@ def main():
         else:
             print(f"✅ Discussion #{discussion_number} 찾음")
         
-        # 이미 리뷰가 있는지 확인
+        # 기존 리뷰 확인
         print(f"🔍 기존 리뷰 확인 중...")
-        if has_existing_ai_review(discussion_number):
-            print(f"⏭️  이미 AI 리뷰가 존재합니다. 건너뜁니다.\n")
-            skip_count += 1
-            continue
-        
-        print(f"✅ 새로운 리뷰 생성 가능")
+        existing_comment_id = find_existing_ai_review(discussion_number)
         
         # 리뷰 생성 (전체 내용)
         print("🤖 AI 리뷰 생성 중...")
@@ -745,12 +973,21 @@ def main():
         
         print("✅ 리뷰 생성 완료")
         
-        # 코멘트 추가
-        print(f"💬 Discussion에 코멘트 추가 중...")
-        if create_discussion_comment(discussion_number, review, title):
-            success_count += 1
+        # 기존 리뷰가 있으면 업데이트, 없으면 생성
+        if existing_comment_id:
+            print(f"🔄 기존 리뷰 발견 (코멘트 ID: {existing_comment_id})")
+            print(f"💬 기존 리뷰 업데이트 중...")
+            if update_discussion_comment(discussion_number, existing_comment_id, review, title):
+                success_count += 1
+                print(f"✅ 리뷰가 성공적으로 업데이트되었습니다!")
+            else:
+                error_count += 1
         else:
-            error_count += 1
+            print(f"💬 새로운 리뷰 코멘트 추가 중...")
+            if create_discussion_comment(discussion_number, review, title):
+                success_count += 1
+            else:
+                error_count += 1
         print()
     
     # 결과 요약
