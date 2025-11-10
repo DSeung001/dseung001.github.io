@@ -189,6 +189,37 @@ def find_discussion_by_permalink(permalink):
     
     return None
 
+def create_discussion(permalink, post_title, post_url):
+    """Discussion 자동 생성"""
+    url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions"
+    
+    # Giscus가 인식할 수 있도록 permalink를 body에 포함
+    discussion_body = f"""이 Discussion은 다음 블로그 포스트에 대한 댓글을 위한 것입니다:
+
+- **제목**: {post_title}
+- **URL**: {post_url}
+- **Permalink**: {permalink}
+
+이 Discussion은 Giscus 댓글 시스템에서 자동으로 사용됩니다.
+"""
+    
+    data = {
+        'title': f"{post_title}",
+        'body': discussion_body,
+        'category_id': 'DIC_kwDOO9ggNc4CtfJF'  # Blog Comments 카테고리
+    }
+    
+    response = requests.post(url, headers=GITHUB_HEADERS, json=data)
+    
+    if response.status_code == 201:
+        discussion = response.json()
+        print(f"✅ Discussion #{discussion['number']} 생성 완료")
+        return discussion['number']
+    else:
+        print(f"❌ Discussion 생성 실패: {response.status_code}")
+        print(f"Response: {response.text}")
+        return None
+
 def has_existing_ai_review(discussion_number):
     """Discussion에 이미 AI 리뷰 코멘트가 있는지 확인"""
     url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/discussions/{discussion_number}/comments"
@@ -315,11 +346,23 @@ def main():
         if not discussion_number:
             print(f"⚠️  Discussion을 찾을 수 없습니다.")
             print(f"   Permalink: {permalink}")
-            print(f"   해당 포스트의 댓글 섹션을 한 번 방문하면 Discussion이 생성됩니다.\n")
-            error_count += 1
-            continue
-        
-        print(f"✅ Discussion #{discussion_number} 찾음")
+            print(f"🔄 Discussion 자동 생성 중...")
+            
+            # 블로그 URL 생성
+            base_url = "https://dseung001.github.io"
+            post_url = f"{base_url}{permalink}"
+            
+            # Discussion 자동 생성
+            discussion_number = create_discussion(permalink, title, post_url)
+            
+            if not discussion_number:
+                print(f"❌ Discussion 생성 실패. 건너뜁니다.\n")
+                error_count += 1
+                continue
+            
+            print(f"✅ Discussion #{discussion_number} 생성 완료")
+        else:
+            print(f"✅ Discussion #{discussion_number} 찾음")
         
         # 이미 리뷰가 있는지 확인
         print(f"🔍 기존 리뷰 확인 중...")
