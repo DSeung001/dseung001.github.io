@@ -186,6 +186,7 @@ def filepath_to_permalink(filepath):
     """
     파일 경로를 Hugo permalink로 변환
     config.toml: posts = "/posts/:year/:month/:day/:contentbasename/"
+    날짜는 항상 2자리로 포맷팅 (01, 02, ..., 12 / 01, 02, ..., 31)
     """
     path = Path(filepath)
     parts = path.parts
@@ -202,6 +203,14 @@ def filepath_to_permalink(filepath):
     year = post_parts[0]
     month = post_parts[1]
     day = post_parts[2]
+    
+    # 날짜를 2자리로 포맷팅 (1 -> 01, 9 -> 09)
+    try:
+        month = f"{int(month):02d}"
+        day = f"{int(day):02d}"
+    except ValueError:
+        # 숫자로 변환할 수 없으면 그대로 사용
+        pass
     
     if len(post_parts) > 4:
         basename = post_parts[3]
