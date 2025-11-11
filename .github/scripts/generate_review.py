@@ -109,7 +109,7 @@ def read_markdown_file(filepath):
         return None
 
 def extract_front_matter(content):
-    """Front matter에서 제목과 메타데이터 추출"""
+    """Front matter에서 제목, description, 메타데이터 추출"""
     front_matter_match = re.match(r'^---\n(.*?)\n---\n(.*)$', content, re.DOTALL)
     if front_matter_match:
         front_matter = front_matter_match.group(1)
@@ -118,8 +118,11 @@ def extract_front_matter(content):
         title_match = re.search(r'^title:\s*["\']?(.*?)["\']?$', front_matter, re.MULTILINE)
         title = title_match.group(1) if title_match else "Unknown"
         
-        return title, body
-    return None, content
+        description_match = re.search(r'^description:\s*["\']?(.*?)["\']?$', front_matter, re.MULTILINE)
+        description = description_match.group(1) if description_match else ""
+        
+        return title, description, body
+    return None, "", content
 
 def filepath_to_permalink(filepath):
     """
@@ -152,6 +155,18 @@ def filepath_to_permalink(filepath):
     
     permalink = f"/posts/{year}/{month}/{day}/{basename}/"
     return permalink
+
+def permalink_to_discussion_title(permalink):
+    """
+    permalink를 Discussion 제목 형식으로 변환
+    "/posts/2025/07/27/google-io-incheon/" -> "posts/2025/07/27/google-io-incheon/"
+    """
+    # 앞뒤 슬래시 제거
+    title = permalink.strip('/')
+    # 뒤에 슬래시 추가
+    if not title.endswith('/'):
+        title += '/'
+    return title
 
 def find_discussion_by_permalink(permalink):
     """permalink로 Discussion 찾기"""
@@ -433,7 +448,7 @@ def get_category_id_graphql(repository_id):
     
     return None
 
-def create_discussion(permalink, post_title, post_url):
+def create_discussion(permalink, post_title, post_url, description=""):
     """GraphQL API를 사용하여 Discussion 자동 생성"""
     # 저장소 정보 확인
     if not check_repository_info():
@@ -452,7 +467,6 @@ def create_discussion(permalink, post_title, post_url):
     print(f"📋 Discussion 생성 정보 (GraphQL):")
     print(f"   저장소 ID: {repository_id}")
     print(f"   저장소: {GITHUB_REPO}")
-    print(f"   제목: {post_title}")
     
     # GraphQL로 카테고리 ID 가져오기
     print(f"🔍 GraphQL로 카테고리 ID 조회 중...")
@@ -471,14 +485,16 @@ def create_discussion(permalink, post_title, post_url):
         print(f"❌ 카테고리 ID를 가져올 수 없습니다.")
         return None
     
-    # Giscus가 인식할 수 있도록 permalink를 body에 포함
-    discussion_body = f"""이 Discussion은 다음 블로그 포스트에 대한 댓글을 위한 것입니다:
+    # Discussion 제목: permalink를 Giscus 형식으로 변환
+    discussion_title = permalink_to_discussion_title(permalink)
+    print(f"   제목: {discussion_title}")
+    
+    # Discussion 본문 형식
+    discussion_body = f"""# {discussion_title}
 
-- **제목**: {post_title}
-- **URL**: {post_url}
-- **Permalink**: {permalink}
+{description}
 
-이 Discussion은 Giscus 댓글 시스템에서 자동으로 사용됩니다.
+{post_url}
 """
     
     # GraphQL Mutation
@@ -497,10 +513,6 @@ def create_discussion(permalink, post_title, post_url):
         }
     }
     """
-    
-    # Giscus가 pathname 매핑으로 찾을 수 있도록 제목에 permalink 포함
-    # Giscus는 현재 페이지 경로를 Discussion 제목이나 body에서 찾습니다
-    discussion_title = f"{post_title} {permalink}"
     
     variables = {
         "repositoryId": repository_id,
@@ -925,9 +937,11 @@ def main():
             error_count += 1
             continue
         
-        # Front matter에서 제목 추출
-        title, body = extract_front_matter(content)
+        # Front matter에서 제목, description 추출
+        title, description, body = extract_front_matter(content)
         print(f"📌 제목: {title}")
+        if description:
+            print(f"📝 Description: {description}")
         
         # Permalink 계산
         permalink = filepath_to_permalink(filepath)
@@ -951,7 +965,7 @@ def main():
             post_url = f"{base_url}{permalink}"
             
             # Discussion 자동 생성
-            discussion_number = create_discussion(permalink, title, post_url)
+            discussion_number = create_discussion(permalink, title, post_url, description)
             
             if not discussion_number:
                 print(f"❌ Discussion 생성 실패. 건너뜁니다.\n")
