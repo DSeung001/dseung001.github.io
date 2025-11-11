@@ -87,7 +87,48 @@ def get_target_files():
         except:
             pass
     
-    # 3. Push 이벤트의 경우 변경된 파일만
+    # 3. workflow_run 이벤트의 경우 (배포 성공 후)
+    if os.getenv('GITHUB_EVENT_NAME') == 'workflow_run':
+        # CHANGED_FILES 환경 변수에서 변경된 파일 목록 가져오기
+        changed_files_env = os.getenv('CHANGED_FILES', '')
+        if changed_files_env:
+            files = [
+                f.strip() for f in changed_files_env.split()
+                if f.strip().endswith('.md') and 'content/posts' in f
+            ]
+            if files:
+                return files
+        
+        # 환경 변수가 없으면 이벤트 파일에서 확인
+        event_path = os.getenv('GITHUB_EVENT_PATH')
+        if event_path and os.path.exists(event_path):
+            try:
+                import json
+                with open(event_path, 'r') as f:
+                    event = json.load(f)
+                    workflow_run = event.get('workflow_run', {})
+                    head_commit = workflow_run.get('head_commit', {})
+                    commit_id = head_commit.get('id')
+                    
+                    if commit_id:
+                        # 원본 커밋의 변경 파일 확인
+                        result = subprocess.run(
+                            ['git', 'diff', '--name-only', '--diff-filter=AM', f'{commit_id}~1', commit_id],
+                            capture_output=True,
+                            text=True,
+                            check=True
+                        )
+                        files = [
+                            f.strip() for f in result.stdout.split('\n')
+                            if f.strip().endswith('.md') and 'content/posts' in f
+                        ]
+                        return files
+            except Exception as e:
+                print(f"Error getting changed files from workflow_run: {e}")
+        
+        return []
+    
+    # 4. Push 이벤트의 경우 변경된 파일만
     if os.getenv('GITHUB_EVENT_NAME') == 'push':
         try:
             before = os.getenv('GITHUB_SHA') + '~1'

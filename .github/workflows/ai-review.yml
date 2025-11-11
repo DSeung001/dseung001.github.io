@@ -1,11 +1,12 @@
 name: AI Blog Review
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Deploy Hugo site to Pages"]
+    types:
+      - completed
     branches:
       - master
-    paths:
-      - 'content/posts/**/*.md'
   workflow_dispatch:
     inputs:
       file_path:
@@ -21,6 +22,8 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # 배포 워크플로우가 성공했을 때만 실행
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: read
       discussions: write
@@ -30,6 +33,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          # workflow_run 이벤트의 경우 원본 워크플로우의 커밋 사용
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+          # workflow_run의 경우 원본 커밋 SHA 사용
+          sha: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,11 +47,35 @@ jobs:
         run: |
           pip install google-generativeai requests
 
+      - name: Get changed files from deployment workflow
+        if: github.event_name == 'workflow_run'
+        id: changed-files
+        run: |
+          # 배포 워크플로우의 커밋에서 변경된 파일 가져오기
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          if [ -n "$HEAD_SHA" ]; then
+            # 원본 커밋의 변경 파일 확인
+            git diff --name-only ${HEAD_SHA}~1 ${HEAD_SHA} | grep 'content/posts.*\.md$' > changed_files.txt || true
+            if [ -s changed_files.txt ]; then
+              echo "files=$(cat changed_files.txt | tr '\n' ' ')" >> $GITHUB_OUTPUT
+              echo "✅ 변경된 포스트 파일 발견:"
+              cat changed_files.txt
+            else
+              echo "files=" >> $GITHUB_OUTPUT
+              echo "ℹ️  변경된 포스트 파일이 없습니다."
+            fi
+          else
+            echo "files=" >> $GITHUB_OUTPUT
+            echo "⚠️  커밋 SHA를 찾을 수 없습니다."
+          fi
+
       - name: Generate AI Review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.BLOG_ACTION_KEY || github.token }}
           TARGET_FILE: ${{ inputs.file_path }}
+          # workflow_run 이벤트의 경우 변경된 파일 목록 전달
+          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
         run: |
           if [ "${{ inputs.review_all }}" == "true" ]; then
             # 모든 포스트에 대해 리뷰 생성 (기존 리뷰 제외)

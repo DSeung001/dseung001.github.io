@@ -12,7 +12,7 @@ aliases: [ "/posts/2025/08/25/gophercon-2024-summary/" ]
 
 ## Go언어 프로젝트 가이드 A-Z
 ### 주된 내용
-Feather 단위에서 Enterprise 단위까지 Application 개발을 GoLang으로 할 때 어떻게 접근하는지에 대한 이야기
+프로젝트의 크기가 Feather 단위에서 Enterprise 단위까지를 이룰 때 Application 개발을 GoLang으로 할 경우 어떻게 접근하는지에 대한 구조도
 
 **규모에 맞춰 아래와 같이 나눠서 접근**
 - 초기(스타트업/MVP 단계)
