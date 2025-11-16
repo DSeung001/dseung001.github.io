@@ -3,7 +3,7 @@ title: "언어별 동시성 로직 정리"
 date: 2025-11-15T22:42:59+09:00
 categories: [ "Memo" ]
 tags: [ "동시성", "Concurrency", "Async", "Parallel" ]
-draft: true
+draft: false
 description: "Go의 장점인 동시성을 타 언어들과 비교해본 글입니다."
 keywords: [ "동시성", "Concurrency", "언어 철학", "Parallel" ]
 author: "DSeung001"
