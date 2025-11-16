@@ -323,6 +323,110 @@ RUN mkdir -p /results
 CMD ["/app/run_bench.sh"]
 ```
 
+그리고 각 코드들을 실행한 shell은 다음과 같습니다.
+```shell
+#!/usr/bin/env bash
+set -euo pipefail
+
+# How many times to run (configurable via env var, default: 3)
+RUNS="${RUNS:-3}"             # Number of runs (can be changed via env var)
+OUT="/results/results.txt"    # Output file path (inside container)
+
+
+echo "========== LANGUAGE VERSIONS ==========" | tee -a "$OUT"
+
+# Go
+echo "[Go]" | tee -a "$OUT"
+go version 2>/dev/null | tee -a "$OUT"
+
+# Python
+echo "[Python]" | tee -a "$OUT"
+python3 --version 2>/dev/null | tee -a "$OUT"
+
+# Java
+echo "[Java]" | tee -a "$OUT"
+java -version 2>&1 | tee -a "$OUT"
+
+# C (GCC)
+echo "[C / GCC]" | tee -a "$OUT"
+gcc --version | head -n 1 | tee -a "$OUT"
+
+# Rust
+echo "[Rust]" | tee -a "$OUT"
+rustc --version 2>/dev/null | tee -a "$OUT"
+
+echo "" | tee -a "$OUT"
+
+
+echo "==== Building binaries ===="
+
+mkdir -p /app/bin
+
+echo "[C] Building with gcc..."
+gcc -O3 -pthread -o /app/bin/bench_c /app/c/main.c
+
+echo "[Go] Building with go build..."
+cd /app/go && go build -o /app/bin/bench_go main.go
+
+echo "[Rust] Building with rustc..."
+cd /app/rust && rustc -O main.rs -o /app/bin/bench_rust
+
+echo "[Java] Compiling with javac..."
+cd /app/java && javac Main.java
+
+echo "[Python] Python version:"
+python3 --version
+
+cd /app
+
+echo
+echo "==== Running benchmarks (concurrent only, RUNS=$RUNS) ===="
+echo "Results will be stored in $OUT."
+echo > "$OUT"
+
+bench() {
+  local label="$1"; shift
+  local cmd=("$@")
+
+  echo "============================" | tee -a "$OUT"
+  echo "BENCH: $label (runs=$RUNS)"  | tee -a "$OUT"
+  echo "Command: ${cmd[*]}"          | tee -a "$OUT"
+
+  for i in $(seq 1 "$RUNS"); do
+    tmpfile=$(mktemp)
+
+    start_ms=$(date +%s%3N)
+
+    /usr/bin/time -v "${cmd[@]}" 1>/dev/null 2>"$tmpfile"
+
+    end_ms=$(date +%s%3N)
+    elapsed_ms=$((end_ms - start_ms))
+
+    user_time_s=$(grep "User time (seconds)" "$tmpfile" | awk '{print $4}')
+    sys_time_s=$(grep "System time (seconds)" "$tmpfile" | awk '{print $4}')
+    max_rss_kb=$(grep "Maximum resident set size" "$tmpfile" | awk '{print $6}')
+
+    rm -f "$tmpfile"
+
+    user_time_ms=$(awk -v s="$user_time_s" 'BEGIN { printf "%.0f", s * 1000 }')
+    sys_time_ms=$(awk -v s="$sys_time_s" 'BEGIN { printf "%.0f", s * 1000 }')
+
+    printf 'RESULT label="%s" elapsed_ms=%d user_ms=%s sys_ms=%s max_rss_kb=%s\n' \
+      "$label" "$elapsed_ms" "$user_time_ms" "$sys_time_ms" "$max_rss_kb" | tee -a "$OUT"
+  done
+}
+
+bench "c concurrent"       /app/bin/bench_c
+bench "rust concurrent"    /app/bin/bench_rust
+bench "go concurrent"      /app/bin/bench_go
+bench "java concurrent"    java -cp /app/java Main
+bench "python concurrent"  python3 /app/python/main.py
+
+echo
+echo "==== DONE ===="
+echo "Full results saved at: $OUT"
+```
+
 
 ### 2-4. 벤치마킹 값
 
