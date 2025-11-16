@@ -438,7 +438,7 @@ RESULT label="python concurrent" elapsed_ms=433 user_ms=410 sys_ms=20 max_rss_kb
 > - 진짜 이게 장점일까?
 >> C, Rust 보다는 느리지만 이는 유의미한 차이는 아니며 그 대신에 GoLang의 강력한 키워드들(go, chan, select, sync package)로 더 안전하게 동시성을 관리할 수 있다면 장점이다.
 > - 다른 언어에 비해 월등히 좋을까?
->> Go는 컴파일 언어임에도 C, Rust 같은 네이티브 언어와 견줄 수 있는 성능을 지닌다.
+>> Go는 C, Rust 같은 네이티브 언어와 견줄 수 있는 성능을 지닌다.
 > - Rust도 좋다고들 하던데 Rust 보다도 좋을까?
 >> 당연하게도 Rust 보다는 메모리나 속도 면에서 느리다.
 > - Python은 느리다던데 유의미한 퍼포먼스 차이가 있을까?
