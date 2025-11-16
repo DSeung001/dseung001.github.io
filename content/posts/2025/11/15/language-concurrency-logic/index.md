@@ -283,6 +283,47 @@ if __name__ == "__main__":
 >> - OpenJDK 64-Bit Server VM (build 11.0.28+6-post-Ubuntu-1ubuntu122.04.1, mixed mode, sharing)
 > - Python: 3.10.12
 
+다음은 이를 구성할 때 사용한 Dockerfile 입니다.
+```markdown
+FROM ubuntu:22.04
+
+# Install base packages and language runtimes/compilers
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    build-essential \
+    curl \
+    ca-certificates \
+    golang-go \
+    default-jdk \
+    python3 \
+    python3-pip \
+    time \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust using rustup (non-interactive)
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+
+# Copy source code and benchmark script
+COPY go ./go
+COPY python ./python
+COPY java ./java
+COPY c ./c
+COPY rust ./rust
+COPY run_bench.sh ./run_bench.sh
+
+# Remove CRLF and grant execute permission
+RUN sed -i 's/\r$//' /app/run_bench.sh && chmod +x /app/run_bench.sh
+
+# Directory for storing benchmark results
+RUN mkdir -p /results
+
+# Run benchmark script when container starts
+CMD ["/app/run_bench.sh"]
+```
+
+
 ### 2-4. 벤치마킹 값
 
 벤치 마킹은 각 언어별로 동일한 코드를 10번 실행했습니다.
@@ -394,7 +435,7 @@ RESULT label="python concurrent" elapsed_ms=433 user_ms=410 sys_ms=20 max_rss_kb
 
 처음에 꼬리물기 질문을 했던 것들에 답한다면
 > - 진짜 이게 장점일까?
->> C, Rust 보다는 느리지만 이는 유의미한 차이는 아니며 그 대신에 GoLang의 강력한 키워드들로 더 안전하게 동시성을 관리할 수 있다면 장점이다.
+>> C, Rust 보다는 느리지만 이는 유의미한 차이는 아니며 그 대신에 GoLang의 강력한 키워드들(go, chan, select, sync package)로 더 안전하게 동시성을 관리할 수 있다면 장점이다.
 > - 다른 언어에 비해 월등히 좋을까?
 >> Go는 컴파일 언어지만 C, Rust 같은 네이티브 언어와 견줄 수 있는 성능이다.
 > - Rust도 좋다고들 하던데 Rust 보다도 좋을까?
