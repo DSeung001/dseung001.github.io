@@ -4,7 +4,7 @@ date: 2026-04-18T00:00:00+09:00
 categories: [ "Memo", "Digging", "RFC" ]
 tags: [ "HTTP/2", "RFC 7540", "네트워크", "TLS", "HPACK" ]
 draft: false
-description: "HTTP/2의 바이너리 프레이밍, 스트림·멀티플렉싱, HPACK 등 RFC 7540 기준 핵심만 정리합니다."
+description: "RFC 7540을 기준으로 HTTP/2의 바이너리 프레이밍, 스트림 멀티플렉싱, 상태 전이와 주요 고려사항을 핵심만 정리합니다."
 keywords: [ "HTTP/2", "RFC 7540", "멀티플렉싱", "HPACK", "ALPN" ]
 author: "DSeung001"
 lastmod: 2026-04-18T00:00:00+09:00
@@ -32,26 +32,27 @@ HTTP 의미론(HTTP Semantics)을 기본 연결에 적용하는 방향으로 단
 
 즉 불필요한 연결을 줄이고 연결을 HTTP/1.1보다 길게 가져갑니다.
 
-또 HPACK으로 HTTP 헤더를 압축하여 효율적으로 사용했고 스트림에 우선순위 지정을 허용하여 중요도가 높은 요청을 우선적으로 처리할 수 있게 함으로써 요청 처리 시간이 빨라져 성능이 더욱 향상되었죠.<br/>
+또 [HPACK(RFC 7541)](https://datatracker.ietf.org/doc/html/rfc7541)으로 HTTP 헤더를 압축해 효율적으로 사용했고, 스트림에 우선순위 지정을 허용해 중요도가 높은 요청을 우선적으로 처리할 수 있게 함으로써 요청 처리 시간이 빨라져 성능이 더욱 향상되었죠.<br/>
+
 결과적으로 HTTP/2는 생성된 프로토콜이 더 적은 수의 요소로 네트워크 친화적이면서, TCP 연결을 1.1에 비해 더 오래 연결하고 다른 흐름과의 경쟁이 적게 가져갈 수 있게 됩니다.
 
 ## 핵심용어
 
-- client:  HTTP/2 연결을 시작하는 엔드포인트. 클라이언트 HTTP 요청을 보내고 HTTP 응답을 받음
-- connection:  두 엔드 포인트 간의 전송 계층 연결
-- connection error:  HTTP/2 전체에 영향을 미치는 에러
-- endpoint:  연결을 위한 서버 또는 클라이언트
-- frame:  HTTP/2 내에서 가장 작은 통신 단위로, 헤더와 가변 길이 시퀀스로 구성되며 frame type에 따라 구성되는 Octet(8bit)
-- peer: 특정 endpoint를 의미할 때 사용하며 기본 주체와 원격에 있는 endpoint를 의미
-- receiver: 프레임을 수신하는 endpoint
-- sender: 프레임을 전송하는 endpoint
-- server:  HTTP/2 연결을 수락하는 엔드포인트. 서버 HTTP 요청을 수신하고 HTTP 응답을 전송
-- stream:  HTTP/2 연결 내에서 프레임이 양방향으로 흐르는 것을 의미
-- stream error:  개별 HTTP/2 스트림에서 발생하는 오류
-- gateway(reverse proxy): 요청을 처리하고 다른 서버로 수신되는 요청을 전달하는데, 레거시 시스템이나 신뢰할 수 없는 시스템을 캡슐화 하는 데 자주 사용
-- intermediary: client와 server 사이에서 요청·응답을 중계하는 중간 노드(프록시·게이트웨이 등)
-- tunnel: 방화벽이나 NAT 등을 제한된 네트워크 환경에서 HTTP/HTTPS 프로토콜을 사용하여 데이터를 캡슐화하고 외부 서버와 통신하는 기능
-- payload body: HTTP 메시지 본문으로 전송되는 데이터가 있는 부분
+- **client**:  HTTP/2 연결을 시작하는 엔드포인트. 클라이언트 HTTP 요청을 보내고 HTTP 응답을 받음
+- **connection**:  두 엔드 포인트 간의 전송 계층 연결
+- **connection error**:  HTTP/2 전체에 영향을 미치는 에러
+- **endpoint**:  연결을 위한 서버 또는 클라이언트
+- **frame**:  HTTP/2 내에서 가장 작은 통신 단위로, 헤더와 가변 길이 시퀀스로 구성되며 frame type에 따라 구성되는 Octet(8bit)
+- **peer**: 특정 endpoint를 의미할 때 사용하며 기본 주체와 원격에 있는 endpoint를 의미
+- **receiver**: 프레임을 수신하는 endpoint
+- **sender**: 프레임을 전송하는 endpoint
+- **server**:  HTTP/2 연결을 수락하는 엔드포인트. 서버 HTTP 요청을 수신하고 HTTP 응답을 전송
+- **stream**:  HTTP/2 연결 내에서 프레임이 양방향으로 흐르는 것을 의미
+- **stream error**:  개별 HTTP/2 스트림에서 발생하는 오류
+- **gateway(reverse proxy)**: 요청을 처리하고 다른 서버로 수신되는 요청을 전달하는데, 레거시 시스템이나 신뢰할 수 없는 시스템을 캡슐화 하는 데 자주 사용
+- **intermediary**: client와 server 사이에서 요청·응답을 중계하는 중간 노드(프록시·게이트웨이 등)
+- **tunnel**: 방화벽이나 NAT 등을 제한된 네트워크 환경에서 HTTP/HTTPS 프로토콜을 사용하여 데이터를 캡슐화하고 외부 서버와 통신하는 기능
+- **payload body**: HTTP 메시지 본문으로 전송되는 데이터가 있는 부분
 
 ## HTTP/2 연결 
 
