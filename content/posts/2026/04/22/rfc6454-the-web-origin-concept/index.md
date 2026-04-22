@@ -118,7 +118,7 @@ Origin은 **(scheme, host, port)** 튜플로 정의됩니다. 그런데 HTTP `Or
 Same-Origin의 다이어그램에서 그린 `curl`처럼 서버 간 호출은 SOP 밖에서 이뤄집니다.<br/>
 응답 본문은 서버가 만들지만, 그 응답을 브라우저가 교차 출처 페이지의 JS에 풀어줄지는 `Access-Control-Allow-Origin` 등 CORS 응답 헤더에 달려 있습니다. 
 
-# Security
+# SOP, CORS
 앞에서는 Origin이 튜플이고, 비교·전송에 쓰는 ASCII 직렬화가 있다는 점을 정리했습니다.
 여기서는 그 이름이 실제 브라우저 안에서 어떻게 쓰이는지, <u>SOP(기본 격리)</u>와 <u>CORS(응답으로 그 격리를 푸는 합의)</u>를 정리합니다.
 
