@@ -155,6 +155,28 @@ flowchart TB
 **응답 본문·상태 코드**는 전부 서버가 만듭니다. <br/>
 CORS는 “브라우저가 교차 출처 읽기를 풀어줄지”를 응답 헤더로 말해 주는 측면이 큽니다.
 
+아래는 개발자 도구에서 캡처한 YouTube 응답 일부입니다. <br/>
+**같은 응답**에 CORS뿐 아니라 리소스 정책·타이밍·캐시 관련 헤더가 함께 붙는데, 겹쳐 보이지만 역할이 다릅니다.
+
+| 응답 헤더 | 사용처 | 설명 |
+| --- | --- | --- |
+| `Access-Control-Allow-Credentials` | [Fetch] CORS | CORS(교차 출처 리소스 공유) 요청 시 브라우저가 쿠키, 인증 헤더 등 자격 증명(Credentials)을 포함하여 서버에 요청하는 것을 허용할지 결정하는 HTTP 응답 헤더 |
+| `Access-Control-Allow-Origin` | [Fetch] CORS | 웹 서버가 브라우저에게 "이 리소스는 특정 도메인(Origin)에서 요청할 수 있다"고 허용하는 CORS(교차 출처 리소스 공유) 대상을 지정하는 HTTP 응답 헤더 |
+| `Access-Control-Expose-Headers` | [Fetch] CORS | CORS로 허용된 응답에서, JS가 `getResponseHeader()`로 읽을 수 있게 추가로 공개할 응답 헤더 이름 나열 |
+| `Cross-Origin-Resource-Policy` | [HTML] 리소스 격리 | 브라우저가 다른 출처(Origin)나 사이트에서 자사 리소스를 무단으로 로딩하는 것을 차단하는 보안 메커니즘 |
+| `Timing-Allow-Origin` | [Resource Timing] |  교차 출처 리소스의 타이밍 데이터(네트워크 지연 등) 공유 허용하는 리스트|
+
+```http
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: https://www.youtube.com
+Access-Control-Expose-Headers: Client-Protocol, Content-Length, Content-Type, X-Bandwidth-Est, X-Bandwidth-Est2, X-Bandwidth-Est3, 
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/vnd.yt-ump
+Cross-Origin-Resource-Policy: cross-origin
+Server: gvs 1.0
+Timing-Allow-Origin: https://www.youtube.com
+```
+
 ### Preflight Request
 `GET`이나 “단순 요청”에 가까운 몇몇 경우는, 브라우저가 곧바로 본요청을 보내기도 합니다. (`GET`이라도 `fetch`에 커스텀 헤더 등 비단순 조건이 붙으면 preflight가 필요할 수 있습니다.)
 반면 `PUT`·`DELETE`, 일부 `Content-Type`, **커스텀 헤더** 등, “단순 요청”이 아닌 조합은 먼저 `OPTIONS`로 “이 메서드·헤더로 보내도 되는지”를 묻는 **preflight**를 두는 쪽이 일반적입니다.
