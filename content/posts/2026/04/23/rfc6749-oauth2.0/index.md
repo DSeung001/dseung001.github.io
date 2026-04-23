@@ -236,13 +236,14 @@ grant_type=refresh_token&refresh_token=tGzv3JOkF0XG5Qx2TlKWIA
 - 탈취/의심 상황에서는 리프레시 토큰을 폐기하고 재인증을 요구해야 합니다.
 
 # Security Considerations
-실무에서 먼저 점검할 체크리스트를 위험 -> 대응으로 정리하면 아래와 같습니다.
+실무에서 먼저 점검할 체크리스트를 위험 목록과 그에 대한 대응으로 정리하면 아래와 같습니다.
 
-- **Redirect URI 변조/오용** -> 등록된 `redirect_uri`와 요청값을 정확 일치로 검증
-- **CSRF/응답 주입** -> 인가 요청마다 `state`를 생성하고, 콜백의 `state`와 반드시 일치 검증
-- **Public Client 코드 탈취** -> SPA/네이티브는 `authorization_code + PKCE`를 기본으로 사용
-- **토큰 노출/오남용** -> `Access Token`/`Refresh Token`에 HTTPS 전송, 안전 저장, 짧은 만료, 최소 scope 원칙 적용
-- **리프레시 토큰 장기 탈취** -> 회전(rotation), 재사용 탐지, 의심 시 폐기(revocation) 운영
-- **클라이언트 인증 약함** -> confidential client는 `client_secret_basic` 또는 필요 시 `private_key_jwt`/`mTLS` 적용
+- **Redirect URI 변조/오용**:  등록된 `redirect_uri`와 요청값을 정확 일치로 검증
+- **CSRF/응답 주입**: 인가 요청마다 `state`를 생성하고, 콜백의 `state`와 반드시 일치 검증
+- **Public Client 코드 탈취**: SPA/네이티브는 `authorization_code + PKCE`를 기본으로 사용
+- **토큰 노출/오남용**: `Access Token`/`Refresh Token`에 HTTPS 전송, 안전 저장, 짧은 만료, 최소 scope 원칙 적용
+- **리프레시 토큰 장기 탈취**: 회전(rotation), 재사용 탐지, 의심 시 폐기(revocation) 운영
+- **클라이언트 인증 약함**: confidential client는 `client_secret_basic` 또는 필요 시 `private_key_jwt`/`mTLS` 적용
 
-- **※JWT 메모**: JWT는 클라이언트 인증(`private_key_jwt`) 외에도 액세스 토큰 형식, ID 토큰, `client_assertion` 등 여러 위치에서 사용될 수 있습니다. 다만 OAuth 2.0에서 JWT 사용 방식은 구현/확장 선택 사항입니다.
+OAUTH와 같이 언급되는 JWT는 클라이언트 인증(`private_key_jwt`) 외에도 액세스 토큰 형식, ID 토큰, `client_assertion` 등 여러 위치에서 사용될 수 있습니다.<br/>
+다만 OAuth 2.0에서 JWT 사용 방식은 구현/확장 선택 사항입니다.
