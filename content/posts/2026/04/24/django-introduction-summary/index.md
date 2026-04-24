@@ -657,6 +657,50 @@ admin.site.register(Question)
 이 자동화 기능은 꽤 편리합니다. 단순 CRUD 작업을 위해 일일이 모델 작성, 서비스 로직 구성, API 연결, 뷰 작성 등 반복하는 부담을 줄여 주기 때문에 특히 단순한 관리 기능에서 유용한 것 같습니다, 복잡한 모델 관계가 생기면 어떻게 될지는 봐야겠군요.
 
 ## part 3
+설문조사 앱은 다음 보기 방식을 가집니다.
+- 질문 "색인" 페이지: 최근 질문 몇 개를 표시합니다.
+- 질문 "상세" 페이지: 질문 텍스트만 표시되고 결과는 없지만 투표 양식이 있습니다.
+- 질문 "결과" 페이지: 특정 질문에 대한 결과를 표시합니다.
+- 투표 동작: 특정 질문에서 특정 선택에 투표하는 것을 처리합니다.
+이를 URLconf로 세련되게 만든다고 하군요, URL Dispachter랑 같이 개념을 명확히 하자만
+- **URL Dispatcher**: Django의 URL 라우팅 시스템 전체 개념/메커니즘으로 Reuqest URL을 받아 `urlpatters`를 순서대로 매치앺서 view를 호출하는 **동작**이 `URL Dispatcher`입니다.
+- **URLconf**: `Dispatcher` 참고하는 실제 URL 설정 파일입니다. 즉 `mysite/urls.py`, `polls/urls.py`가 설정 파일이죠.
+<br/>
+
+아래와 같이 `view`와 `URLconf`를 설정해주면
+`polls/views.py`
+```python
+def detail(request, question_id):
+    # 파이썬 문자열 포메팅으로 %s에 변수 매핑, 2개 이상이면 튜플로 넘겨줘야함 (x, y)
+    return HttpResponse("You're looking at question %s." % question_id)
+
+def results(request, question_id):
+    response = "You're  looking at the results of question %s." % question_id
+    return HttpResponse(response)
+
+def vote(request, question_id):
+    return HttpResponse("You're voting on question %s." % question_id)
+```
+
+`polls/urls.py`
+```python
+urlpatterns = [
+    # /polls/
+    path("", views.index, name="index"),
+    # /polls/:id
+    path("<int:question_id>/", views.detail, name="detail"),
+    # /polls/:id/results
+    path("<int:question_id>/results/", views.results, name="results"),
+    # /polls/5/vote
+    path("<int:question_id>/vote/", views.vote, name="vote"),
+]
+```
+이제 `urls`에 해당하는 주소로 접속이 됩니다.
+- http://localhost:8000/polls/34/
+- http://localhost:8000/polls/34/results/
+- http://localhost:8000/polls/34/vote/
+
+
 ## part 4
 ## part 5
 ## part 6
