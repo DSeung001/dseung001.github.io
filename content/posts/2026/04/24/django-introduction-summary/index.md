@@ -398,7 +398,7 @@ INSTALLED_APPS = [
 **※ 마이그레이션(Migration)**: Django가 현재 모델에 맞춰 데이터베이스 스키마를 업데이트하는 데 사용하는 이력을 형성합니다.
 
 설문조사 앱을 만들기 위해 아래 2개의 모델을 만듭니다.
-- **Question**: 질문과 발행일 정보
+- **Question**: 설문지와 발행일 정보
 - **Choice**: 선택 내용과 득표 수
 
 ```python
@@ -658,10 +658,10 @@ admin.site.register(Question)
 
 ## part 3
 설문조사 앱은 다음 보기 방식을 가집니다.
-- 질문 "색인" 페이지: 최근 질문 몇 개를 표시합니다.
-- 질문 "상세" 페이지: 질문 텍스트만 표시되고 결과는 없지만 투표 양식이 있습니다.
-- 질문 "결과" 페이지: 특정 질문에 대한 결과를 표시합니다.
-- 투표 동작: 특정 질문에서 특정 선택에 투표하는 것을 처리합니다.
+- 설문지 "색인" 페이지: 최근 설문지 몇 개를 표시합니다.
+- 설문지 "상세" 페이지: 설문지 텍스트만 표시되고 결과는 없지만 투표 양식이 있습니다.
+- 설문지 "결과" 페이지: 특정 설문지에 대한 결과를 표시합니다.
+- 투표 동작: 특정 설문지에서 특정 선택에 투표하는 것을 처리합니다.
 이를 URLconf로 세련되게 만든다고 하군요, URL Dispachter랑 같이 개념을 명확히 하자만
 - **URL Dispatcher**: Django의 URL 라우팅 시스템 전체 개념/메커니즘으로 Reuqest URL을 받아 `urlpatters`를 순서대로 매치앺서 view를 호출하는 **동작**이 `URL Dispatcher`입니다.
 - **URLconf**: `Dispatcher` 참고하는 실제 URL 설정 파일입니다. 즉 `mysite/urls.py`, `polls/urls.py`가 설정 파일이죠.
@@ -700,6 +700,130 @@ urlpatterns = [
 - http://localhost:8000/polls/34/results/
 - http://localhost:8000/polls/34/vote/
 
+Django에서의 View는 Laravel과 달리 살짝 Controller의 역할을 더 담고 있었습니다. 
+대신에 Template를 별도로 분리해서 레이어 마다의 역할을 구분했죠.
+
+Django의 View는 다음 역할들을 기대할 수 있습니다.
+- HTTP 상태코드 반환, 에러 반환
+- DB에서 레코드를 읽어오기
+- Django의 Template나 다른 Python Template 읽어오기 
+- PDF, XML, ZIP 관련 기능 등 원하는 Python 라이브러리는 뭐든 할 수 있음
+- Django 시스템에서는 반환으로 `HttpResponse`나 `Exception`만 주면 됨
+
+지금까지는 정적 페이지에 가까웠습니다, 이제 View, Template를 연결하여 동적 페이지로 바꿔봅시다.
+우선 Template를 2개 추가합니다.
+<br/><br/>
+`polls/templates/polls/index.html`<br/>
+설문지 "색인" 페이지입니다, View에서 전달할 `latest_question_list` 딕셔너리를 for in 문과 HTML을 이용해 리스트로 뿌려주고 있죠.
+또 `"{% url 'detail' question.id %}">`로 urls에서 경로가 바뀌어도 동적으로 연결되게 구성했습니다.
+여기서 정한 `'detail'`은 `urls.py`에서 `path("<int:question_id>/", views.detail, name="detail"),`로  name 값을 정해줬기 때문에 연결이 되는 것 입니다.
+```python
+{% if latest_question_list %}
+<ul>
+    {% for question in latest_question_list %}
+    <li>
+        <a href="{% url 'detail' question.id %}">
+            {{ question.question_text }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No polls are available</p>
+{% endif %}
+```
+`polls/templates/polls/detail.html` <br/>
+설문지 "상세" 페이지는 설문지와 관련된 선택들의 목록을 보여줄겁니다, 연결된 데이터가 없다면 for in 문이 루프를 돌지 않아 빈 화면이 출력되겠죠.
+```python
+<h1>{{ question.question_text }}</h1>
+<ul>
+{% for choice in question.choice_set.all %}
+    <li>{{ choice.choice_text }}</li>
+{% endfor %}
+</ul>
+```
+이 Tempalte 들은 설정의 `DIRS` 또는 앱 내부 `tempates/` 경로에서 코드에서 지정한 템플릿 이름을 찾아 랜더링합니다.
+이 연결 작업을 View에서 할 수 있죠.
+<br/>
+
+`polls/views.py`
+
+장고에서는 편의 기능을 제공해서 간략화하는 기능들이 많습니다. <br/>
+주석으로 동일한 기능을 적어뒀으니 참고하시면 됩니다.
+
+```python
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, Http404<br/>
+from django.template import loader
+
+from polls.models import Question
+
+
+def index(request):
+    # -pub_date 는 내림차순 pub_date는 오름차순
+    latest_question_list = Question.objects.order_by('-pub_date')[:5]
+
+    # 딕셔너리화화
+    context = {"latest_question_list": latest_question_list}
+
+    # template + return을 render로 간략화 가능
+    # template = loader.get_template('polls/index.html')
+    # return HttpResponse(template.render(context, request))
+    return render(request, 'polls/index.html', context)
+
+def detail(request, question_id):
+    # 아래 예외 처리를 다음 코드로 간략화 가능
+    # try:
+    #    question = Question.objects.get(pk=question_id)
+    # except Question.DoesNotExist:
+    #    raise Http404("Question does not exist")
+    question = get_object_or_404(Question, pk=question_id)
+
+    return render(request, 'polls/detail.html', {'question': question})
+
+def results(request, question_id):
+    response = "You're  looking at the results of question %s." % question_id
+    return HttpResponse(response)
+
+def vote(request, question_id):
+    return HttpResponse("You're voting on question %s." % question_id)
+```
+
+여기까지 구현했다면
+`http://127.0.0.1:8000/polls/`를 접속해서 설문지 목록을 볼 수 있고, 설문지를 클릭하면 관련된 선택들으 볼 수 있을 겁니다.
+
+마지막으로 현재는 앱이 `polls` 하나 뿐이라 상관이 없지만 후에 여럿 앱이 추가될 경우 URLconf에서 정한 `name`이 중복될 수 있습니다.
+
+### Namespace 지정
+그럴 때는 Namespace를 지정해서 해결할 수 있습니다. <br/>
+`polls/urls.py`
+```python
+from . import views
+from django.urls import path
+
+# namespace를 polls로 지정
+app_name = 'polls'
+urlpatterns = [
+    # /polls/
+    path("", views.index, name="index"),
+    # /polls/:id
+    path("<int:question_id>/", views.detail, name="detail"),
+    # /polls/:id/results
+    path("<int:question_id>/results/", views.results, name="results"),
+    # /polls/5/vote
+    path("<int:question_id>/vote/", views.vote, name="vote"),
+]
+```
+
+`namespace`가 지정되었으니 urls의 name을 사용한 곳을 바꿔줍니다. <br/>
+`polls/templates/polls/index.html`
+```html
+...
+        <a href="{% url 'polls:detail' question.id %}">
+            {{ question.question_text }}
+        </a>
+...
+```
 
 ## part 4
 ## part 5
