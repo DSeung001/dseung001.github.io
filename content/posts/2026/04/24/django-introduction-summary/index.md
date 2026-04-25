@@ -834,7 +834,7 @@ urlpatterns = [
 
 ## part 4
 ### Form 
-여기서는 간단한 form 처리와 소스코드를 줄이는데 중점을 둡니다, detail 페이지를 수정해서 연관된 choice 목록을 불러와 체크할 수 있는 페이지로 바꿉니다.<br/>
+여기서는 간단한 form 처리와 소스 코드를 줄이는 데 중점을 둡니다. detail 페이지를 수정해 연관된 choice 목록을 불러와 선택할 수 있는 페이지로 바꿉니다.<br/>
 `polls/templates/polls/detail.html`
 ```html
 <form action="{% url 'polls:vote' question.id %}" method="post">
@@ -857,19 +857,210 @@ urlpatterns = [
 </form>
 ```
 
-Laravel 프레임워크랑 동일하게 `CSRF`로 요청을 부르고 있네요.<br/>
+Laravel 프레임워크와 마찬가지로 `CSRF`로 요청을 보호하고 있네요.<br/>
 
-**※CSRF**: POST 요청에 `CSRF token`을 추가함으로써 서버에서 안전한 요청인지를 파악할 수 있게 해줍니다.
-실제로 요청을 보내면 다음 같은 값이 `form data`에 추가됩니다.
-서버는 제출된 토큰과 브라우저가 보낸 `csrftoken`를 일치하는 지를 확인합니다. 
+※ CSRF: POST 요청에 CSRF 토큰을 넣어 두면 서버가 요청이 신뢰할 수 있는 출처인지 판단하는 데 쓸 수 있습니다.
+실제로 요청을 보내면 다음과 같은 값이 form data에 추가됩니다.
+서버는 제출된 토큰과 브라우저가 보낸 `csrftoken` 쿠키 등이 일치하는지 확인합니다. 
 ```
 csrfmiddlewaretoken: ltpKQu7l9c8y81LJtAUL9f5fNqeaFDes2lpw4KLV2aC1p7Xw5TpPArIQ0xZsaqRt
 ```
 
-이제 `urlsConf`에 등록한 vote view를 만듭니다.
+이제 URLconf에 등록한 vote 뷰를 만듭니다. <br/>
+`polls/urls.py`에 아래처럼 등록해 두었죠.
+```python
+path("<int:question_id>/vote/", views.vote, name="vote")
+```
+이걸 구현해 봅시다. `polls/views.py`
+```python
+from django.db.models import F
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, Http404, HttpResponseRedirect
+from django.template import loader
+from django.urls import reverse
+
+from polls.models import Question, Choice
+
+...
+
+def vote(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    try:
+        # request로 요청 데이터 접근, request.GET도 존재
+        selected_choice = question.choice_set.get(pk=request.POST['choice'])
+    # except로 두 가지 예외 처리
+    # - KeyError: 존재하지 않는 키 접근
+    # - Choice.DoesNotExist: Choice 데이터가 존재하지 않는 경우
+    except (KeyError, Choice.DoesNotExist):
+        # 다시 detail로
+        return render(request, 'polls/detail.html', {
+            'question': question,
+            'error_message': "You didn't select a choice.",
+        })
+    else:
+        # F로 DB에 저장된 모델 필드 값을 메모리로 가져오지 않고 DB 쪽에서 참조하게 함
+        selected_choice.votes = F('votes') + 1
+        selected_choice.save()
+        # POST 요청이 성공하면 HttpResponseRedirect를 반환해야 함
+        #  reverse로 `URLconf`기반 url 생성 ex: "/polls/3/results/"
+        return HttpResponseRedirect(reverse("polls:results", args=(question.id,)))
+
+# vote POST 요청이 성공하면 results 페이지로 가서 투표 현황을 볼 수 있음
+def results(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    return render(request, "polls/results.html", {"question":question})
+```
+위 코드에서 유독 눈이 가는 부분은 `F`입니다. Django는 추상화가 하도 많아서 작은 것 하나도 그냥 넘기면 안 되겠더군요.
+
+해당 개념은 [Query Expressions](https://docs.djangoproject.com/en/6.0/ref/models/expressions/)로 `F`말고도 다른 표현식도 많습니다.
+
+여기서는 관련 필드 값을 Python 메모리에서 꺼내 계산하는 대신, SQL에서 DB가 직접 계산하게 합니다.
+그 덕분에 DB 쪽에서 처리하므로 원자적 연산에 유리합니다.
+이런 방식은 필드 값을 기준으로 한 갱신이 필요한 경우(카운터, 재고, 통계 등)에 유용하게 쓰입니다.
+
+핵심은 다음과 같습니다.
+- 일반 방식(읽고 → 파이썬에서 계산 → 저장)
+    - 최소 `SELECT` 후 `UPDATE`로 DB를 두 번 다녀올 수 있음
+    - 동시성에서 lost update(둘 다 읽은 뒤 나중에 저장한 쪽이 앞선 변경을 덮어쓰는 현상) 위험이 커질 수 있음
+- F 방식(DB에서 바로 갱신)
+    - 경우에 따라 `UPDATE` 한 번으로 처리하는 쪽에 가깝게 갈 수 있음
+    - 원자적 갱신에 유리하고, 트래픽·락 측면에서도 대체로 유리한 경우가 많음
+    - 다만 계산이 무겁거나 쿼리가 커지면 DB 부담이 커질 수 있으니 부하는 항상 염두에 두어야 합니다
 
 
+이제 다시 본론으로 와 `polls/templates/polls/results.html`를 만듭니다.
+```html
+<h1>{{ question.question_text }} </h1>
 
+<ul>
+    {% for choice in question.choice_set.all %}
+    {# `|`는 Django 템플릿에서 파이프로 왼쪽 값을 오른쪽 필터로 넘깁니다. #}
+    {# pluralize는 값이 1이 아니면 기본으로 "s"를 붙입니다 #}
+        <li>{{ choice.choice_text }} -- {{ choice.votes }} vote{{ choice.votes|pluralize}}</li>
+    {% endfor %}
+</ul>
+
+<a href="{% url 'polls:detail' question.id %}">
+    Vote again?
+</a>
+```
+
+여기까지 구현하면 `Question` 목록을 들어가서 `Question`과 관련된 `Choice`에 투표를 할 수 있게 됩니다.
+
+### Generic Views
+`index`, `results` 등은 비슷한 패턴이 자주 발생합니다, 그래서 Django는
+이런 패턴들을 [Generic Views](https://docs.djangoproject.com/en/6.0/topics/class-based-views/generic-display/)로 올려 추상화해 두었습니다. 라라벨을 다룰 때와 비슷하게 추상화를 직접 만든 적이 있는데 그래서 반갑네요.
+
+Django는 대략 다음과 같은 범주의 제네릭 뷰를 둡니다.
+- 단일 모델에 대한 목록·상세 표시(이번에 적용해 볼 부분)
+- 날짜 기반으로 연/월/일 아카이브, 최신 항목 등
+- 생성·수정·삭제를 위한 편집용 뷰
+
+여기서는 다음 순서로 코드를 줄입니다.
+1. URLConf 변환
+2. 불필요한 View 삭제
+3. Django의 Generic View 기반으로 뷰 도입
+
+
+`polls/urls.py`
+```python
+from . import views
+from django.urls import path
+
+app_name = 'polls'
+urlpatterns = [
+    # /polls/
+    path("", views.index, name="index"),
+    # /polls/:id
+    path("<int:question_id>/", views.detail, name="detail"),
+    # /polls/:id/results
+    path("<int:question_id>/results/", views.results, name="results"),
+    # /polls/5/vote
+    path("<int:question_id>/vote/", views.vote, name="vote"),
+]
+```
+를 다음과 같이 바꿉니다.
+```python
+from . import views
+from django.urls import path
+
+app_name = 'polls'
+urlpatterns = [
+    # /polls/
+    path("", views.IndexView.as_view(), name="index"),
+    # /polls/:id
+    path("<int:pk>/", views.DetailView.as_view(), name="detail"),
+    # /polls/:id/results
+    path("<int:pk>/results/", views.ResultsView.as_view(), name="results"),
+    # /polls/5/vote
+    path("<int:question_id>/vote/", views.vote, name="vote"),
+]
+```
+이제 `View`에 `Generic View`를 적용해 봅시다.<br/>
+
+파이썬에서 클래스 선언 뒤 괄호 `()` 안에는 생성자에 넘기는 인자가 아니라, 이 클래스가 이어받을 부모 클래스(베이스 클래스)를 씁니다. 
+
+한 개만 쓰면 `class 자식(부모):` 한 줄이 곧 상속 관계입니다. <br/>
+자식은 부모에 정의된 메서드·속성을 그대로 쓸 수 있고, 같은 이름의 메서드를 다시 정의하면 그 부분만 부모의 것을 덮어써(오버라이드) 씁니다. 아래 `IndexView(generic.ListView)`도 같은 문법이며, `ListView`가 가진 목록을 꺼내 템플릿에 넘기는 흐름을 이어받는 것입니다.
+
+```python
+class Animal:
+    def speak(self):
+        return "..."
+
+class Dog(Animal):
+    def speak(self):
+        return "멍"
+
+# Dog는 Animal의 서브클래스, speak만 다시 정의(오버라이드)
+```
+
+문법 틀만 보면 이렇게 생겼습니다.
+
+```python
+class 부모클래스:
+    ...
+
+class 자식클래스(부모클래스):
+    ...
+```
+`polls/views.py`
+```python
+from django.db.models import F
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.views import generic
+
+from polls.models import Question, Choice
+
+# Generic View 상속: generic.ListView가 제공하는 get/list 로직을 이어받음
+class IndexView(generic.ListView):
+    # ListView는 model(또는 get_queryset)을 알면 기본으로 <앱>/<모델>_list.html
+    # 여기서는 template_name으로 경로를 고정
+    template_name = "polls/index.html"
+    # context 변수 이름을 바꿈(기본은 object_list)
+    context_object_name = "latest_question_list"
+
+    # 목록에 쓸 queryset만 오버라이드
+    def get_queryset(self):
+        """Return the last five published questions."""
+        return Question.objects.order_by("-pub_date")[:5]
+
+class DetailView(generic.DetailView):
+    # model, template 지정
+    model = Question
+    template_name = "polls/detail.html"
+
+class ResultsView(generic.DetailView):
+    model = Question
+    template_name = "polls/results.html"
+
+def vote(request, question_id):
+    ...
+```
+이렇게 하면 CRUD 흐름에 맞춰 뷰 쪽 코드도 더 줄일 수 있습니다.
+다만 프레임워크 추상화가 과하면 읽기 어려워질 수 있으니, 늘 읽기 쉬운 쪽이 낫다고 봅니다.
 ## part 5
 ## part 6
 ## part 7
