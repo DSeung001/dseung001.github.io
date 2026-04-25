@@ -1062,6 +1062,316 @@ def vote(request, question_id):
 이렇게 하면 CRUD 흐름에 맞춰 뷰 쪽 코드도 더 줄일 수 있습니다.
 다만 프레임워크 추상화가 과하면 읽기 어려워질 수 있으니, 늘 읽기 쉬운 쪽이 낫다고 봅니다.
 ## part 5
+### Automated Testing
+테스트로 코드의 작동 여부를 확인할 수 있습니다. 이 작업은 part 2에서 `shell`로 확인한 것과 본질은 비슷하지만, 자동화 테스트로 수동 테스트의 수고를 줄일 수 있습니다.
+
+이렇게 테스트를 빨리 다뤄주는 게 마음에 드네요. <br/>
+해당 파트는 테스트가 필요한 이유를 설명하며 시작됩니다.
+- 테스트로 인한 시간 절약
+- 문제를 식별할 뿐만 아니라 예방도 가능
+- 코드 품질 향상
+- 팀 협업에 도움
+
+현재 설문지 시스템은 `bug`가 존재합니다.
+```bash
+py manage.py shell
+>>> import datetime
+>>> from django.utils import timezone
+>>> # Question을 한달 후 발행일로 생성
+>>> future_question = Question(pub_date=timezone.now() + datetime.timedelta(days=30))
+>>> # 조건절에서는 이 글도 최근 글로 인식
+>>> future_question.was_published_recently()
+True
+```
+이는 `was_published_recently`를 만들었을 때 의도와 달라집니다.
+방금 작업을 `shell`이 아닌 자동 테스트로 해봅시다.
+
+이미 `polls/tests.py` 테스트 파일이 있으니 아래처럼 내용을 채웁시다.
+```python
+import datetime
+
+from django.test import TestCase
+from django.utils import timezone
+
+from polls.models import Question
+
+class QuestionModelTest(TestCase):
+    def test_was_published_recently_with_future_questions(self):
+        """
+        Python docstring으로 함수/클래스 설명을 남길 수 있음
+        was_published_recently()는 pub_date가 먼 미래일 경우 False를 반환
+        """
+        # 데이터 생성
+        time = timezone.now() + datetime.timedelta(days=30)
+        future_question = Question(pub_date=time)
+        # assertIs로 실행 결과가 False인지 확인
+        self.assertIs(future_question.was_published_recently(), False)
+```
+다음 명령어로 테스트를 실행할 수 있죠.
+```bash
+(venv) jiseunglyeol@jiseunglyeol-ui-MacBookAir django_tutorial % python manage.py test polls
+Found 1 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F
+======================================================================
+FAIL: test_was_published_recently_with_future_questions (polls.tests.QuestionModelTest.test_was_published_recently_with_future_questions)
+python Docstring으로 Django 관례에서는 여기에 함수나 클래스 설명이 위치함
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/jiseunglyeol/code/django_tutorial/polls/tests.py", line 16, in test_was_published_recently_with_future_questions
+    self.assertIs(future_question.was_published_recently(), False)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not False
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'.
+```
+아직 `bug`를 수정하지 않았으므로 테스트 결과에서 `FAILED (failures=1)`로 하나가 실패한 것을 확인할 수 있습니다.
+
+`self.assertIs(future_question.was_published_recently(), False)`에서 False를 기대했는데, 해당 로직에서는 True를 반환했기 때문이죠.
+`FAIL`로 실패한 위치와 `Traceback`으로 함수 위치와 라인까지 자세하게 알려주는 걸 확인할 수 있습니다.
+
+문제점은 알고 있었으니 `polls/models.py`를 수정해봅시다.
+```python
+...
+    def was_published_recently(self):
+        """
+            최근 글은 오늘 기준으로 하루 간격
+        """
+        now = timezone.now()
+        return now - datetime.timedelta(days=1) <= self.pub_date <= now
+...
+```
+그러고 나서 테스트를 실행하면, 다음처럼 성공한 걸 확인할 수 있습니다.
+```
+(venv) jiseunglyeol@jiseunglyeol-ui-MacBookAir django_tutorial % python manage.py test polls
+Found 1 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+Destroying test database for alias 'default'...
+```
+참고로 테스트에 쓰이는 DB는 테스트 실행 시 생성되었다가 삭제됩니다. `Destroying test database for alias 'default'...`
+
+보다 다양한 테스트를 위해 테스트를 2개 더 추가합시다. 하나의 `bug`를 잡다가 다른 `bug`가 생기는 상황은 매우 흔하니까요.
+
+`polls/tests.py`
+```python
+    def test_was_published_recently_with_old_questions(self):
+        """
+            1일보다 오래된 질문에는 False를 반환
+        """
+        time = timezone.now() - datetime.timedelta(days=1)
+        old_question = Question(pub_date=time)
+
+        self.assertIs(old_question.was_published_recently(), False)
+
+    def test_was_published_recently_with_recent_questions(self):
+        """
+            1일 이내인 질문은 True를 반환
+        """
+        time = timezone.now() - datetime.timedelta(hours=23, minutes=59, seconds=59)
+        recent_question = Question(pub_date=time)
+
+        self.assertIs(recent_question.was_published_recently(), True)
+```
+이들도 잘 통과하는 걸 확인할 수 있습니다.
+```bash
+(venv) jiseunglyeol@jiseunglyeol-ui-MacBookAir django_tutorial % python manage.py test polls
+Found 3 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+### View 테스트
+Django는 View 레벨 테스트도 지원합니다.
+```bash
+# setup_test_environment로 템플릿 렌더링 관련 테스트 환경을 설정합니다.
+# 이때 `shell`에서 확인하는 방식이므로 테스트 러너처럼 별도의 테스트 DB/트랜잭션을 관리하지는 않습니다.
+>>> from django.test.utils import setup_test_environment
+>>> setup_test_environment()
+```
+`shell`에서는 `Client` 클래스를 직접 가져와야 합니다.
+```bash
+>>> from django.test import Client
+# 클라이언트 인스턴스 생성
+>>> client = Client()
+```
+이제 다음처럼 실제 사용자처럼 요청을 보낼 수 있습니다.
+```bash
+# / 는 존재하지 않으니 404를 반환합니다.
+>>> response = client.get("/")
+Not Found: /
+>>> response.status_code
+404
+# view 동작처럼 reverse를 사용해 URL을 가져올 수 있고
+>>> from django.urls import reverse
+>>> response = client.get(reverse("polls:index"))
+>>> response.status_code
+200
+# response로 콘텐츠를 확인하거나
+>>> response.content
+b'\n<ul>\n    \n    <li>\n        <a href="/polls/1/">\n            What is up?\n        </a>\n    </li>\n    \n</ul>\n'
+# context의 값을 확인할 수 있죠.
+>>> response.context["latest_question_list"]
+<QuerySet [<Question: What is up?>]>
+```
+이제 다시 설문지 앱으로 돌아와 아직 발행되지 않은 글은 표시되지 않게 수정합시다.<br/>
+`polls/views.py`
+```python
+from django.utils import timezone
+...
+    def get_queryset(self):
+        """
+            발행일이 지난 글에서 최신 글을 가져옵니다.
+        """
+        return Question.objects.filter(pub_date__lte=timezone.now()).order_by("-pub_date")[:5]
+...
+```
+`pub_date__lte`에서 `__lte`(Less Than or Equal) 조건을 써서 `timezone.now()`보다 같거나 작은 값만 반환합니다.
+
+이제 변경된 기능을 확인하는 테스트를 추가합시다. 예상대로 미래 글이 표시되지 않는지 `View` 테스트를 추가해 확인해봅시다.<br/>
+
+`polls/tests.py`
+```python
+...
+from django.urls import reverse
+... 
+def create_question(question_text, days):
+    """ 질문 생성 함수 """
+    time = timezone.now() + datetime.timedelta(days=days)
+    return Question.objects.create(question_text=question_text, pub_date=time)
+
+class QuestionIndexViewTests(TestCase):
+    def test_no_questions(self):
+        """질문이 없는 경우"""
+        response = self.client.get(reverse('polls:index'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No polls are available")
+        self.assertQuerySetEqual(response.context['latest_question_list'], [])
+
+    def test_past_questions(self):
+        """pub_date가 지난 글은 보이는지"""
+        question = create_question("Past question", days=-30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerySetEqual(response.context['latest_question_list'], [question])
+
+    def test_future_questions(self):
+        """pub_date가 지나지 않은 미래 글은 보이지 않는지"""
+        create_question("Future question", days=30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerySetEqual(response.context['latest_question_list'], [])
+
+    def test_future_question_and_past_question(self):
+        """pub_date가 지난 글과 지나지 않은 글이 함께 있을 경우"""
+        question = create_question("Past question", days=-30)
+        create_question("Future question", days=30)
+        response = self.client.get(reverse('polls:index'))
+        self.assertQuerySetEqual(response.context['latest_question_list'], [question])
+
+    def test_two_past_questions(self):
+        """표시해야 할 question이 복수개 이상일 경우"""
+        question1 = create_question("Past question 1", days=-30)
+        question2 = create_question("Past question 2", days=-5)
+        response = self.client.get(reverse('polls:index'))
+        # 정렬 순서상 question2가 최신 글
+        self.assertQuerySetEqual(response.context['latest_question_list'], [question2, question1])
+```
+
+테스트 실행 시 다음처럼 잘 동작합니다. 이런 식으로 `view`와 맞닿는 테스트를 지원하는 점이 흥미롭네요.
+```bash
+(venv) jiseunglyeol@jiseunglyeol-ui-MacBookAir django_tutorial % python manage.py test polls
+Found 8 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.012s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+현재 `DetailView`는 `IndexView`에서 표시하지 않는 설문지 주소를 임의로 입력해 들어오는 경우를 막는 코드가 없습니다. 이를 추가해보죠. <br/>
+`polls/views.py`
+```python
+...
+class DetailView(generic.DetailView):
+    model = Question
+    template_name = "polls/detail.html"
+
+    def get_queryset(self):
+        """아직 발행 시각이 지나지 않은 경우 제외"""
+        return Question.objects.filter(pub_date__lte=timezone.now())
+...
+```
+새로 추가한 기능의 테스트 코드를 다음과 같이 추가합니다. <br/>
+`polls/tests.py`
+```python
+...
+class QuestionDetailViewTests(TestCase):
+    def test_future_question(self):
+        """pub_date가 지나지 않은 건 404로 표시되어야 합니다."""
+        future_question = create_question("Future question", days=5)
+        url = reverse('polls:detail', args=(future_question.pk,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_past_question(self):
+        """pub_date가 지나면 표시"""
+        past_question = create_question("Past question", days=-5)
+        url = reverse('polls:detail', args=(past_question.pk,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, past_question.question_text)
+```
+이를 실행하면 이제 10개의 테스트를 통과하는 것을 볼 수 있습니다.
+```bash
+(venv) jiseunglyeol@jiseunglyeol-ui-MacBookAir django_tutorial % python manage.py test polls
+Found 10 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.015s
+
+OK
+Destroying test database for alias 'default'...
+```
+이렇게 `View`를 통해 response를 검증하는 테스트를 해봤습니다.
+Django Introduction에서는 Test로 추가할 다양한 케이스도 설명합니다.
+- Question과 엮이지 않는 Choice(또는 그 반대)
+- 권한별 Question 접근
+
+여러 케이스를 점검하다 보면 비슷한 형태의 테스트 코드가 많아지고 코드가 비대해집니다.
+하지만 Django는 테스트가 많을수록 좋다는 입장을 취합니다.
+테스트 코드가 서비스 로직보다 많아져 미관상 덜 좋아 보이더라도, 테스트를 계속 작성하는 쪽이 낫다는 의미입니다.
+
+테스트 구성은 다음을 참고하면 좋습니다.
+- TestClass는 각 모델 또는 뷰별로 분리
+- 테스트하려는 각 조건 세트에 대해 별도의 테스트 방법을 사용
+- 테스트 메서드 이름은 해당 메서드의 기능을 설명
+
+여태까지 나온 테스트 방법 외에도 `Selenium` 기반 브라우저 테스트가 가능하고, 다른 도구를 쓰면 `JS` 코드 동작도 확인할 수 있습니다.
+Django는 `LiveServerTestCase`와 `Selenium` 같은 도구로 이를 용이하게 해줍니다.
+
+추가로 [coverage.py](https://docs.djangoproject.com/en/6.0/topics/testing/advanced/#topics-testing-code-coverage)와 통합해 테스트되지 않은 부분을 확인하는 것을 권합니다.
+
+[Testing in Django](https://docs.djangoproject.com/en/6.0/topics/testing/)에서 테스트 관련한 정보를 볼 수 있습니다.
 ## part 6
 ## part 7
 ## part 8
