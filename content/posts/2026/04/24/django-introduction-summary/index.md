@@ -717,8 +717,8 @@ Django의 View는 다음 역할들을 기대할 수 있습니다.
 - Django 시스템에서는 반환으로 `HttpResponse`나 `Exception`만 주면 됨
 
 ### Template, Dynamic Page
-지금까지는 정적 페이지에 가까웠습니다. 이제 View, Template을 연결하여 동적 페이지로 바꿔봅시다.
-우선 Template을 2개 추가합니다.
+지금까지는 정적 페이지에 가까였습니다, 페이지의 내용을 바꾸려면 코드 자체를 건드려야했죠.
+이제 View, Template을 연결하여 동적 페이지로 바꿔봅시다. 우선 Template을 2개 추가합니다.
 <br/><br/>
 `polls/templates/polls/index.html`<br/>
 설문지 "색인" 페이지입니다. View에서 전달할 `latest_question_list` 딕셔너리를 for in 문과 HTML을 이용해 리스트로 뿌려주고 있죠.
@@ -802,7 +802,7 @@ def vote(request, question_id):
 마지막으로 현재는 앱이 `polls` 하나 뿐이라 상관이 없지만 후에 여럿 앱이 추가될 경우 URLconf에서 정한 `name`이 중복될 수 있습니다.
 
 ### Namespace
-그럴 때는 Namespace를 지정해서 해결할 수 있습니다. <br/>
+여러 앱이 생길 때는 `Namespace`를 지정해서 앱의 `URLconf` 이름 충돌을 해결할 수 있습니다. <br/>
 `polls/urls.py`
 ```python
 from . import views
@@ -833,6 +833,43 @@ urlpatterns = [
 ```
 
 ## part 4
+### Form 
+여기서는 간단한 form 처리와 소스코드를 줄이는데 중점을 둡니다, detail 페이지를 수정해서 연관된 choice 목록을 불러와 체크할 수 있는 페이지로 바꿉니다.<br/>
+`polls/templates/polls/detail.html`
+```html
+<form action="{% url 'polls:vote' question.id %}" method="post">
+    {# CSRF(Cross Site Request Forgeries) 방지 #}
+    {% csrf_token %}
+    <fieldset>
+        <legend><h1>{{ question.question_text }}</h1></legend>
+        {% if error_message %}
+            <p><strong>{{ error_message }}</strong></p>
+        {% endif %}
+        {# 연결된 choice 목록을 `type=radio`로 선택할 수 있음 #}
+        {% for choice in question.choice_set.all %}
+            {# forloop tag, 현재 loop의 index를 출력(1부터 시작)#}
+            {# forloop.counter0는 0부터 시작#}
+            <input type="radio" name="choice" id="choice{{ forloop.counter }}" value="{{ choice.id }}" />
+            <label for="choice{{ forloop.counter }}">{{ choice.choice_text }}</label>
+        {% endfor %}
+    </fieldset>
+    <input type="submit" value="Vote" />
+</form>
+```
+
+Laravel 프레임워크랑 동일하게 `CSRF`로 요청을 부르고 있네요.<br/>
+
+**※CSRF**: POST 요청에 `CSRF token`을 추가함으로써 서버에서 안전한 요청인지를 파악할 수 있게 해줍니다.
+실제로 요청을 보내면 다음 같은 값이 `form data`에 추가됩니다.
+서버는 제출된 토큰과 브라우저가 보낸 `csrftoken`를 일치하는 지를 확인합니다. 
+```
+csrfmiddlewaretoken: ltpKQu7l9c8y81LJtAUL9f5fNqeaFDes2lpw4KLV2aC1p7Xw5TpPArIQ0xZsaqRt
+```
+
+이제 `urlsConf`에 등록한 vote view를 만듭니다.
+
+
+
 ## part 5
 ## part 6
 ## part 7
