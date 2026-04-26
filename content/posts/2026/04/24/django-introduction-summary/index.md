@@ -1726,6 +1726,7 @@ urlpatterns = [
 
 # What to read next
 현재 버전에서 권장하는 상황별 문서입니다. Django 역사만큼이나 상당히 방대하군요.
+여태까지 진행한 부분이 전체의 5%라고 언급해줍니다. 할게 많아요.
 
 - [introductory material](https://docs.djangoproject.com/en/6.0/intro/): 이번에 쭉 정리해본 자료
 - [topic guides](https://docs.djangoproject.com/en/6.0/topics/): Django의 주요 기능(Model, template, forms…)
@@ -1736,3 +1737,25 @@ urlpatterns = [
 - [Django Meta-documentation](https://docs.djangoproject.com/en/6.0/misc/)
 - [Django Release notes](https://docs.djangoproject.com/en/6.0/releases/)
 - 문서는 [Django 개발버전 문서](https://docs.djangoproject.com/en/dev/)와 Django 프로젝트 내 [DOCS](https://github.com/django/django/tree/main/docs)로 확인할 수 있습니다.
+
+# Contribution for Django
+Django 소스 기여를 다루는 토픽이며, 일반 오픈소스 기여와 비슷한 흐름으로 진행됩니다.
+신규 기능은 [Requesting features](https://docs.djangoproject.com/en/6.0/internals/contributing/bugs-and-features/#requesting-features)를 따르며, 아래는 기여를 위한 절차를 정리한 것입니다.
+
+1. Git 설치
+2. [django/django](https://github.com/django/django) 저장소를 포크한다. (GitHub의 Fork 버튼)
+3. 포크한 `repository`를 로컬에 클론(clone)한다.
+4. [이슈 트래커](https://github.com/django/django/issues)에서 작업할 티켓(이슈)을 가져온 뒤 댓글로 맡는다(담당 의사를 밝힘 등). 절차는 [Contributing to Django](https://docs.djangoproject.com/en/6.0/internals/contributing/)를 따른다.
+5. Django 테스트 스위트에 맞게 `requirements/py3.txt`로 의존성을 설치한 뒤 `./runtests.py`로 전체를 한 번 돌려 환경을 확인함(출력에 E·F 등이 보이는데, 보통 E는 오류, F는 실패를 뜻함함).
+    ```bash
+    python -m pip install -r requirements/py3.txt
+    ./runtests.py
+    ```
+6. 작업용 브랜치를 만든다.
+7. TDD를 준수하며 테스트 코드를 먼저 쓰고, `tests/shortcuts/`에 테스트를 추가하는 식으로 진행한다.
+    - [Writing and running tests](https://docs.djangoproject.com/en/6.0/topics/testing/overview/)
+    - [Unit testing](https://diveintopython3.net/unit-testing.html)
+8. 예시 범위만 검증: `./runtests.py shortcuts`
+9. 검증이 통과되면 `shortcuts.py`에 구현을 맞추고, 7에서 추가한 테스트와 함께 맞는지 다시 본다(순서는 TDD·이슈에 따라 다를 수 있음).
+10. 필요하면 문서에 반영: `docs/topics/http/shortcuts.txt` 등
+11. 변경 사항을 PR로 보낸다.
