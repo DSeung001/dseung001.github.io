@@ -1725,3 +1725,14 @@ urlpatterns = [
 [배포](https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives )도 가능합니다
 
 # What to read next
+현재 버전에서 권장하는 상황별 문서입니다. Django 역사만큼이나 상당히 방대하군요.
+
+- [introductory material](https://docs.djangoproject.com/en/6.0/intro/): 이번에 쭉 정리해본 자료
+- [topic guides](https://docs.djangoproject.com/en/6.0/topics/): Django의 주요 기능(Model, template, forms…)
+- [자주 필요로 하는 작업](https://docs.djangoproject.com/en/6.0/howto/): 예를 들어 [generating PDFs with Django](https://docs.djangoproject.com/en/6.0/howto/outputting-pdf/), [writing custom template tags](https://docs.djangoproject.com/en/6.0/howto/custom-template-tags/)
+- [API Reference](https://docs.djangoproject.com/en/6.0/ref/): 여기서 각 클래스, 함수, 메서드, 모듈에 대한 정보를 볼 수 있습니다.
+- 배포의 경우 다음 두 문서를 참고하면 됩니다. [How to deploy Django](https://docs.djangoproject.com/en/6.0/howto/deployment/), [Deployment checklist](https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/)
+- [Django 내부 동작](https://docs.djangoproject.com/en/6.0/internals/)
+- [Django Meta-documentation](https://docs.djangoproject.com/en/6.0/misc/)
+- [Django Release notes](https://docs.djangoproject.com/en/6.0/releases/)
+- 문서는 [Django 개발버전 문서](https://docs.djangoproject.com/en/dev/)와 Django 프로젝트 내 [DOCS](https://github.com/django/django/tree/main/docs)로 확인할 수 있습니다.
