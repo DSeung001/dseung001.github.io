@@ -1586,6 +1586,142 @@ py -m pip install django-debug-toolbar
 - Time, SQL, Cache, Signals, Profiling 등등
 
 이런 식으로 개발 편의성을 높이거나 앱 기능을 확장하는 데 서드파티 패키지를 유용하게 쓸 수 있습니다.
-[Django Pacakges](https://djangopackages.org/)에서 패키지를 찾아볼 수 있습니다. 
+[Django Packages](https://djangopackages.org/)에서 패키지를 찾아보고 `pypi`로 설치할 수 있죠.
 
 패키지 선정 기준은 커뮤니티가 활발하고 잘 관리되고 있는 프로젝트인지가 가장 중요하죠.
+
+# Reusable apps
+## Packaging
+패키징하여 나중에 쉽게 설치할 수 있게 해서 공유할 수 있습니다.
+`django-`로 Django 패키지(배포)임을 알리고, 안에서 쓰는 파이썬 패키지(모듈)는 `django_`를 접두어로 사용하는 것이 일반적입니다.
+- `package`는 배포 단위(pip로 설치하는 것)
+- `module`은 보통 파이썬 파일 단위(.py), import 단위
+파이썬에서 `package`는 코드 구조 관점에서 `모듈들을 담은 디렉터리(네임스페이스)` 의미를 가지기도 해서, 문맥에 따라 배포 단위와 코드 구조 뜻이 섞여 쓰일 수 있습니다.
+
+`polls`를 루트 폴더 아래에 만든 `django-polls`의 하위로 이동시킨 후 이름을 `django_polls`로 바꿉니다.
+
+`django-polls/django_polls/apps.py`
+```python
+from django.apps import AppConfig
+
+class PollsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "django_polls"
+    label = "polls"
+```
+
+그 다음 `django-polls/README.rst`를 만들어 `README`에 설명문을 넣을 수 있죠.
+```
+============
+django-polls
+============
+
+django-polls is a Django app to conduct web-based polls. For each
+question, visitors can choose between a fixed number of answers.
+
+Detailed documentation is in the "docs" directory.
+
+Quick start
+-----------
+
+1. Add "polls" to your INSTALLED_APPS setting like this::
+
+    INSTALLED_APPS = [
+        ...,
+        "django_polls",
+    ]
+
+2. Include the polls URLconf in your project urls.py like this::
+
+    path("polls/", include("django_polls.urls")),
+
+3. Run ``python manage.py migrate`` to create the models.
+
+4. Start the development server and visit the admin to create a poll.
+
+5. Visit the ``/polls/`` URL to participate in the poll.
+```
+`django-polls/pyproject.toml`
+```
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-polls"
+version = "0.1"
+dependencies = [
+    "django>=6.0",
+]
+description = "A Django app to conduct web-based polls."
+readme = "README.rst"
+license = "BSD-3-Clause"
+requires-python = ">= 3.12"
+authors = [
+    {name = "Your Name", email = "yourname@example.com"},
+]
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 6.0.4",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
+[project.urls]
+Homepage = "https://www.example.com/"
+```
+
+`Sphinx`로 문서를 빌드할 수 있습니다. 이를 쓸 경우 `intersphinx_mapping`도 설정해야죠.
+위치는 패키지의 `docs` 폴더입니다.
+
+그 다음에 `django-polls/MANIFEST.in`을 추가합니다.
+```
+recursive-include django_polls/static *
+recursive-include django_polls/templates *
+```
+
+패키지로 바꿨으니 맞춰서 `import`도 수정해줍시다.
+```python
+# from polls.models import Question, Choice
+from django_polls.models import Question, Choice
+```
+
+이제 [build](https://pypi.org/project/build/) 작업을 합시다.
+```
+pip install build
+cd django-polls
+python -m build
+```
+해당 작업을 진행하면 `dist`에 보통 `django-polls-0.1.tar.gz`(sdist), `django_polls-0.1-py3-none-any.whl`(wheel)이 생깁니다(빌드 도구·버전에 따라 파일명은 달라질 수 있음).
+이 파일을 토대로 튜토리얼 앱에 설치하면 구현한 대로 사용이 가능하죠.
+```bash
+python -m pip install --user dist/django-polls-0.1.tar.gz
+```
+`mysite/settings.py`
+```python
+INSTALLED_APPS = [
+    ...,
+    "django_polls.apps.PollsConfig",
+]
+```
+`mysite/urls.py`
+```python
+urlpatterns = [
+    path("polls/", include("django_polls.urls")),
+    ...,
+]
+```
+
+이제 이 빌드한 패키지를 공유해서 `Reusable apps`로 사용할 수 있습니다.
+[배포](https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives )도 가능합니다
+
+# What to read next
