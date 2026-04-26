@@ -1412,6 +1412,160 @@ body {
 나중에 배포할 때 정적 파일을 한 디렉터리로 모아서 웹 서버/스토리지에 올기 위해 `collectstatic`를 사용합니다. 
 
 ## part 7
-작성 예정
+### Customize the admin form
+`Question` 모델을 `admin.site.register(Question)`로 등록하면 `admin`에서 기본 폼으로 생성할 수 있었죠.
+이런 `admin`의 경우 필요에 따라 작동 방식을 바꿔주고 싶을 때가 있습니다.
+
+`polls/admin.py`를 다음처럼 바꾸면 `input`의 위치를 바꾸거나 `Date information` 같은 섹션 제목으로 필드를 묶을 수 있습니다.
+그리고 `Choice Model`도 `admin`에 등록해줍시다.
+```python 
+from django.contrib import admin
+from polls.models import Question, Choice
+
+class QuestionAdmin(admin.ModelAdmin):
+    # fieldset 나 fields 값을 바꿔서 순서 지정 가능
+    # fields = ["pub_date", "question_text"]
+    fieldsets = [
+        (None, {"fields": ["question_text"]}),
+        ("Date information", {"fields": ["pub_date"]}),
+    ]
+
+
+# 모델과 admin class 연결
+admin.site.register(Question, QuestionAdmin)
+# admin에서 Choice도 등록 가능, Choice에서는 Question을 select box로 선택 가능
+admin.site.register(Choice)
+```
+
+하지만 이렇게만 하면 `Choice`를 별도로 등록해야 하는데, `Question`을 등록할 때 `Choice` 여러 개를 한 번에 등록하면 더 효율적이겠죠.
+그러기위해해 다음처럼 `inlines` 값을 지정하면 됩니다. <br/>
+`polls/admin.py`
+```python
+from django.contrib import admin
+from polls.models import Question, Choice
+
+class ChoiceInline(admin.StackedInline):
+    model = Choice
+    # 추가 input으로 표시되는 Choice 개수
+    extra = 3
+
+class QuestionAdmin(admin.ModelAdmin):
+    # fieldset 나 fields 값을 바꿔서 순서 지정 가능
+    # fields = ["pub_date", "question_text"]
+    fieldsets = [
+        (None, {"fields": ["question_text"]}),
+        ("Date information", {"fields": ["pub_date"]}),
+    ]
+    # inlines로 `ForeignKey` 관계의 객체를 여러 개 등록할 수 있습니다.
+    inlines = [ChoiceInline]
+
+# 모델과 admin class 연결
+admin.site.register(Question, QuestionAdmin)
+```
+이제 `Question` 등록 페이지나 수정 페이지에서 `Choices` 항목이 추가된 것을 확인할 수 있습니다.
+굉장히 편리하지만 해당 영역이 화면 공간을 많이 차지할 수 있는데, 이때는 부모 `class`를 바꿔서 해결할 수 있죠.
+`polls/admin.py`
+```python
+# class ChoiceInline(admin.StackedInline):
+class ChoiceInline(admin.TabularInline):
+```
+### Customize the admin list
+Django는 기본적으로 `__str__()`의 값으로 객체를 표현해서 데이터를 파악하기 좋지만, 경우에 따라서는 좀 더 많은 데이터가 필요할 때가 있습니다.
+
+`polls/admin.py`
+```
+class QuestionAdmin(admin.ModelAdmin):
+    ...
+    # Question 모델의 was_published_recently()도 포함 시킬 수 있음
+    list_display = ["question_text", "pub_date", "was_published_recently"]
+```
+
+이제 다음처럼 목록에 표시되어 더 자세한 정보를 알 수 있죠.
+| Question text | Date published | Was published recently |
+| --- | --- | --- |
+| What's up? | April 24, 2026, 7:57 p.m. | False |
+
+
+현재 `Was published recently` 컬럼의 정렬은 `@admin.display(ordering="pub_date")` 같은 **decorator**로 연결할 수 있습니다.
+즉, `was_published_recently` 메서드 자체를 정렬하는 것이 아니라 `pub_date` 필드를 기준으로 정렬하도록 지정하는 방식입니다.
+
+가끔 `decorator`와 `annotation`이 헷갈리는데, Django에서는 둘의 차이를 아래처럼 구분하면 됩니다.
+
+| 구분 | decorator (`@admin.display`) | annotation (`annotate`) |
+| --- | --- | --- |
+| 목적 | Admin 표시 방식/정렬/컬럼명 설정 | QuerySet에 계산된 필드 추가 |
+| 적용 위치 | 모델 메서드 위 | ORM 조회 구문 (`Question.objects.annotate(...)`) |
+| 현재 예시와의 관계 | `ordering="pub_date"`로 컬럼 정렬 연결 | 이 케이스에서는 필수 아님 |
+
+다시 본론으로 돌아와 `admin display` 관련 정보는
+[ModelAdmin.list_display](https://docs.djangoproject.com/en/6.0/ref/contrib/admin/#django.contrib.admin.ModelAdmin.list_display)에서 확인할 수 있죠.
+
+`polls/models.py`를 다음처럼 바꾸면 admin list에서의 표시 형식이 바뀌고, `Was published recently` 정렬이 가능해지며 컬럼명도 바꿀 수 있죠.
+```python
+class Question(models.Model):
+    ...
+
+    # boolean=True이면 Django admin에서 아이콘(체크/엑스)으로 표시됨
+    # ordering은 정렬 기준 필드, description은 목록 컬럼 헤더 텍스트
+    @admin.display(boolean=True, ordering="pub_date", description="Published recently")
+    def was_published_recently(self):
+        """
+            최근 글은 오늘 기준으로 하루 간격
+        """
+        now = timezone.now()
+        return now - datetime.timedelta(days=1) <= self.pub_date <= now
+```        
+
+`polls/admin.py`에서 filter 조건과 search 대상을 추가해봅시다.
+```python
+class QuestionAdmin(admin.ModelAdmin):
+    ...
+    list_filter = ["pub_date"]
+    search_fields = ["question_text"]
+```
+`pub_date`는 `DateTimeField` 타입이라 Any date, Today, Past 7 days, This month, This year 등 다양한 필터가 추가됩니다.
+`search_fields`로 `question_text` 값을 기준으로 `LIKE` 검색이 가능해집니다.
+
+마지막으로 `admin` 화면 단의 `template`를 수정할 수 있습니다.
+밋밋한 기본 페이지에서 원하는 페이지로 바꿀 수 있죠.
+
+`mysite/settings.py`에 `templates` 폴더의 위치를 아래처럼 지정하면 프로젝트 루트 경로 아래에 `templates`를 만들어 템플릿을 덮어쓸 수 있습니다.
+```python
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        "DIRS": [BASE_DIR / "templates"],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+```
+
+예를 들어 `/templates/admin/base_site.html`을 다음처럼 만들어두면
+```html
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">Polls Administration</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+```
+관리자 상단 브랜드 영역이 `Polls Administration`으로 출력됩니다.
+관련된 template 기본 정보는 [django/contrib](https://github.com/django/django/tree/main/django/contrib/admin/templates)에서 찾으면 됩니다. 
+
+해당 페이지에 있는 파일이 기본 Django 템플릿이고, `setting.py`에서 경로를 지정하고 그 위치에 기본 템플릿을 대체할 파일을 만드는 것이죠.
+
 ## part 8
 작성 예정
