@@ -1568,4 +1568,24 @@ TEMPLATES = [
 해당 페이지에 있는 파일이 기본 Django 템플릿이고, `setting.py`에서 경로를 지정하고 그 위치에 기본 템플릿을 대체할 파일을 만드는 것이죠.
 
 ## part 8
-작성 예정
+### Third-party packages
+이 파트에서는 Django의 강점 중 하나인 서드파티 패키지 생태계에 대해 설명합니다.
+이 패키지들은 커뮤니티에서 개발되며, 앱 기능을 빠르게 확장하는 데 사용할 수 있죠.
+여기서는 Django 타사 패키지 상위 3위 안에 드는 [django-debug-toolbar 6.3.0](https://pypi.org/project/django-debug-toolbar/)를 적용해봅시다.
+
+**Django Debug Toolbar**는 함수 실행 과정에서 발생하는 문제를 파악하는 데 도움을 줍니다.
+또한 request/response에 대한 디버그 정보를 패널로 제공해줘서 유용하죠.
+
+다음 명령어로 설치해봅시다.
+```bash
+py -m pip install django-debug-toolbar
+```
+
+해당 파트에서는 아무래도 타사 패키지다 보니 설정법이 달라지므로 언급만 하고 지나갑니다.<br/>
+다음 [Install Guide](https://django-debug-toolbar.readthedocs.io/en/latest/installation.html)를 따라 설정하면 화면 사이드에 `DJDT` 버튼이 생긴 것을 확인할 수 있고, 여기서 다양한 동작을 확인할 수 있습니다.
+- Time, SQL, Cache, Signals, Profiling 등등
+
+이런 식으로 개발 편의성을 높이거나 앱 기능을 확장하는 데 서드파티 패키지를 유용하게 쓸 수 있습니다.
+[Django Pacakges](https://djangopackages.org/)에서 패키지를 찾아볼 수 있습니다. 
+
+패키지 선정 기준은 커뮤니티가 활발하고 잘 관리되고 있는 프로젝트인지가 가장 중요하죠.
