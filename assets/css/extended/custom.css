@@ -1,3 +1,31 @@
 :root {
-  --main-width: 860px; /* 원하는 값으로 변경 */
+    --main-width: 860px; /* 원하는 값으로 변경 */
+}
+
+/* Home index: 좌측 카테고리 목록 + 우측 글 목록 */
+.list-with-sidebar {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap);
+}
+
+.list-sidebar {
+    flex: 0 0 150px;
+    width: auto;
+    font-weight: 500;
+}
+
+.list-sidebar-terms {
+    list-style: none;
+}
+
+.list-sidebar-terms li {
+    display: block;
+    padding: 3px 10px;
+}
+
+@media screen and (max-width: 768px) {
+    .list-sidebar {
+        display: none;
+    }
 }
