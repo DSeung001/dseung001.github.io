@@ -343,3 +343,217 @@ smartpqi (4)         - Microsemi Smart Family SCSI driver
 sysv_signal (3)      - signal handling with System V semantics
 x86_64-linux-gnu-as (1) - the portable GNU assembler.
 ```
+
+# Homework
+
+원문 과제는 C 바이너리에 대해 `helgrind`를 돌려 보는 형태입니다. 이 글에서는 `c`가 아닌 `python`으로 대체하기에 개념만을 학습하기 위해
+- **※helgrind: C, C++, Fortran**에서 POSIX pthreads를 사용하는 멀티스레드 프로그램의 동기화 오류를 탐지합니다. 데이터 경쟁(Data Race), 데드락(Deadlock) 위험, 잘못된 스레드 API 사용 등을 찾아내어 프로그램의 안정성을 높이는 데 필수적입니다.
+
+파이썬에서 쓰는 **Flake8**, **Pylint**, **Mypy**, **Amazon CodeGuru Reviewer** 같은 도구들만으로도 `helgrind`처럼 수준—저수준에서 가능한 접근 순서를 넓게 가정하고 동시성 결함을 체계적으로 잡아 내기까지는 어렵습니다. 대신 정적 분석과 리뷰 도구는 동시성 **안티패턴**과 규약 위반 **징후**를 보는 데는 활용할 수 있습니다. 디버깅 단계에서는 교착이 이미 발생한 뒤 어느 스레드가 어디에서 대기하는지 브레이크포인트와 호출 스택으로 좁히기 쉽습니다. 
+또 `cProfile`, `py-spy` 같은 프로파일링으로 시간·CPU 사용을 보면 바쁜 대기(폴링·스핀) 처럼 비효율에 대한 근거를 들 수 있습니다. 
+다만 “결과가 깨졌는지”와 “느린지”는 별 문제로 제약이 존재합니다.
+
+`threading`과 CPython GIL 때문에, 교재에서처럼 한 프로세스 안에 여러 스레드가 공유 메모리를 두고 레이스를 극적으로 재현하기는 어려울 때가 많습니다. 
+C나 Rust 확장(GIL 바깥 네이티브 코드)이나 **`multiprocessing`** 으로 프로세스를 나누고 프로세스 간 공유 메모리(Shared Memory) 등 공유 저장을 명시하면 비슷한 논리의 버그를 더 볼 수 있지만 이 역시도 `multiprocessing`만으로 과제 코드와 실행 모델이 완전히 같아지지는 않죠. (기본적으로 프로세스는 주소 공간이 다름).
+
+<hr/>
+
+아래 코드에서는
+```python
+import threading
+import time
+
+counter = 0
+lock = threading.Lock()
+
+def worker():
+    global counter
+    for _ in range(100_000):
+        time.sleep(0) # data race 의도
+        counter += 1
+
+def main_race():
+    global counter
+    t = threading.Thread(target=worker)
+    t.start()
+    for _ in range(100_000):
+        time.sleep(0) # data race 의도
+        counter += 1
+    t.join()
+    print(counter)
+
+
+main_race()
+```
+
+결과는 `data race` 때문에 `95437`, `128159`처럼 매번 달라질 수 있습니다.
+이때 상호 배제(`Lock`)를 쓰면 안정적으로 수행할 수 있습니다.
+```python
+def worker():
+    global counter
+    for _ in range(100_000):
+        with lock:
+            counter += 1
+
+def main_race():
+    global counter
+    t = threading.Thread(target=worker)
+    t.start()
+    for _ in range(100_000):
+        with lock:
+            counter += 1
+    t.join()
+    print(counter)
+```
+---
+
+서로 다른 두 락을 두 스레드가 서로 다른 순서로 잡으면 **순환 대기(교착)** 가 생길 수 있습니다.
+
+아래 코드는 `a`→`b`와 `b`→`a`로 락 획득 순서가 엇갈립니다.
+실행하면 `thread1`은 `a`를 잡은 뒤 `b`를 기다리고, `thread2`는 `b`를 잡은 뒤 `a`를 기다려 서로가 서로를 기다리는 **교착**이 날 수 있습니다.
+
+```python
+import threading
+import time
+
+a = threading.Lock()
+b = threading.Lock()
+
+def thread1_deadlock_pattern():
+    with a:
+        time.sleep(0.1)  # 강제로 기다리게 해서 교착 유도
+        with b:
+            pass
+
+def thread2_deadlock_pattern():
+    with b:
+        time.sleep(0.1)  # 강제로 기다리게 해서 교착 유도
+        with a:
+            pass
+
+
+thread1 = threading.Thread(target=thread1_deadlock_pattern)
+thread2 = threading.Thread(target=thread2_deadlock_pattern)
+thread1.start()
+thread2.start()
+thread1.join()
+thread2.join()
+
+print("end")
+```
+아래처럼 두 스레드 모두 **`a`를 먼저 잡고 `b`를 잡는** 같은 순서를 쓰면 순환 대기가 생기지 않아 교착이 나지 않습니다.
+```python
+def thread1_deadlock_pattern():
+    with a:
+        time.sleep(0.1)
+        with b:
+            pass
+
+def thread2_deadlock_pattern():
+    with a:
+        time.sleep(0.1)
+        with b:
+            pass
+```
+
+파이썬에서는 프로그램이 멈춰 `join()`이 돌아오지 않는 현상 자체가, 실행 관점에서 본 교착에 해당합니다.
+
+---
+
+아래처럼 플래그를 두고 스핀(spin) 대기를 하면, 작업 소요 시간이 길어질수록 **CPU**를 헛도는 비율이 커집니다.
+
+```python
+import threading
+import time
+
+done = False
+
+def child_busywait():
+    global done
+    time.sleep(2) # 작업이 오래 걸리는 상황
+    done = True
+
+def parent_busywait():
+    global done
+    while not done:
+        pass # spin 대기
+    print("child finished")
+
+t = threading.Thread(target=child_busywait)
+t.start()
+parent_busywait()
+t.join()
+```
+이를 **조건 변수**(`threading.Condition`)로 바꾸면 같은 통지·대기 논리를 유지하면서 **CPU**를 헛도는 스핀 없이 기다릴 수 있습니다.
+```python
+cv = threading.Condition()
+done = False
+
+def child_busywait():
+    global done
+    with cv:
+        time.sleep(2) # 작업이 오래 걸리는 상황
+        done = True
+        cv.notify_all()
+
+def parent_busywait():
+    global done
+    with cv:  # notify와 같은 임계 구역
+        while not done:  # 깨어난 뒤에도 조건 재확인
+            cv.wait()
+    print("child finished")
+```
+처리에 걸리는 시간은 비슷해 보여도, **CPU** 사용 방식에서는 차이가 납니다.
+
+
+`Lock`, 조건 변수, `while` 재검사까지 갖추면 동기화 패턴이 정돈되고, 레이스·스핀 문제는 **API 사용 규약**으로 해소할 수 있습니다.
+
+---
+
+인자를 여러 개 넘기려면 튜플로 묶어 `Thread(..., args=...)`에 전달하면 됩니다.
+```python
+import threading
+
+def worker(args: tuple[int, int]):
+    a, b = args
+    print(a, b)
+
+packed = (10, 20)
+t = threading.Thread(target=worker, args=(packed,))
+t.start()
+t.join()
+print("done")
+```
+
+스칼라 인자와 반환값을 함께 쓰려면, `Thread.join()`이 반환값을 주지 않으므로 **리스트**처럼 가변 컨테이너를 만들어 **같은 객체를 참조로** 넘기면 됩니다.
+- 가변 컨테이너(Mutable Container): 객체 생성 후 내용을 변경할 수 있는 리스트(list), 딕셔너리(dict), 세트(set) 등
+```python
+import threading
+
+def worker_scalar(n: int, out: list):
+    print(n)
+    out.append(n + 1)
+
+out_box: list = []
+t = threading.Thread(target=worker_scalar, args=(100, out_box))
+t.start()
+t.join()
+print("returned", out_box[0])
+```
+
+인자와 결과가 모두 복합적이면, 입력용·출력용 딕셔너리를 각각 두고 `args=(arg, result)`처럼 **튜플로 묶어** 넘기면 됩니다.
+```python
+import threading
+
+def worker_bundle(arg: dict, out: dict):
+    print("args", arg["a"], arg["b"])
+    out["x"] = 1
+    out["y"] = 2
+
+arg = {"a": 10, "b": 20}
+result: dict = {}
+t = threading.Thread(target=worker_bundle, args=(arg, result))
+t.start()
+t.join()
+print("returned", result["x"], result["y"])
+```
