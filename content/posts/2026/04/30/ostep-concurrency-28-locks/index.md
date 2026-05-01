@@ -356,7 +356,7 @@ void unlock(lock_t *lock) {
 # A Simple Approach: Just Yield, Baby
 하드웨어 도움으로 많이 진전되었지만 아직 `Lock`의 획득에 대한 공정성에 문제가 있고, 위에서 언급한 `spin` 문제도 여전히 존재하죠.
 
-이에 대한 접근 방식의 첫 번째는 `spin`하려 할 때 CPU를 다른 스레드에게 양보하는 것입니다. "Just yield, baby!"를 실천하는 거죠.
+이를 다루는 첫 접근으로, `spin`하려 할 때 CPU를 다른 스레드에게 양보하는 방식을 떠올릴 수 있습니다. "Just yield, baby!"를 실천하는 거죠.
 
 파이썬에도 `yield`가 존재하지만, 이는 함수의 진행을 멈추고 값을 순차적으로 내보내는 `generator`를 만들기 위한 문법이므로 여기서 말하는 의미와는 완전히 다른 개념입니다.
 ```c
@@ -381,6 +381,135 @@ void unlock() {
 이 방식의 가장 치명적인 단점은 기아(`starvation`)를 해결하지 못한다는 점입니다. 한 스레드는 무한 양보 루프에 갇힐 수 있고, 다른 스레드는 임계 구역에 반복적으로 들어갔다 나오는 상황이 계속될 수 있습니다. 그래서 기아 문제를 해결하기 위한 다른 접근이 필요합니다.
 
 # Using Queues: Sleeping Instead Of Spinning
+이전 방식의 문제는 우연에 너무 많이 맡긴다는 데 있습니다. 스케줄러가 잘못된 선택을 하면 실행 중인 스레드는 `Lock`을 기다리며 `spin`하거나 CPU를 `yield`로 양보하게 되고, 어느 쪽이든 낭비가 커지며 기아를 완전히 막기는 어렵습니다.
+
+이를 개선하면 어떤 스레드가 `lock`을 획득할지 명시적으로 제어할 수 있습니다. 큐와 약간의 OS 지원만 있으면 되죠.
+<u>기아를 줄이는 공정한 순서</u>라는 점에서는 티켓 방식과도 맞닿아 있지만, 여기서는 큐와 커널 호출로 더 직접 제어할 수 있다는 점, 그리고 사용자 락을 기다릴 때 `spin`이 아니라 `park`/`unpark`으로 스레드를 잠재웠다가 깨운다는 점이 다릅니다.
+
+`park`과 `unpark`은 OS마다 API 이름은 다르지만, 한쪽은 호출 스레드를 스케줄링과 연결된 대기(차단) 상태로 만들고, 다른 쪽은 잠든 스레드를 특정해 깨우는 식으로 짝을 이루는 동기화 원시 연동입니다.
+아래는 그에 대한 의사코드입니다.
+
+```c
+void park(void) {
+    // 호출한 스레드를 차단(blocked)으로 표시하고 CPU를 다른 스레드에 넘긴다.
+    // 나중에 `unpark`으로 깨워지면 여기 다음부터 실행을 이어 간다.
+}
+
+void unpark(tid_t t) {
+    // 스레드 t가 park()로 잠들어 있으면 준비(ready) 상태로 만들고 스케줄 큐에 올린다.
+    // 어떤 락 대기 채널과 연결하는지 등은 커널/OS 설계마다 다르다.
+}
+```
+
+```c
+typedef struct __lock_t {
+    int flag;        // 사용자 락: 1이면 누군가 임계 구역(또는 다음 대기자)이 락을 쥔 상태
+    int guard;       // 가드: flag·큐 등 내부 상태를 바꿀 때만 잠깐 쓰는 짧은 스핀 락
+    queue_t *q;      // 락 경쟁에서 밀린 스레드 ID를 순서대로 넣는 대기열
+} lock_t;
+
+void lock_init(lock_t *m) {
+    m->flag = 0;
+    m->guard = 0;
+    queue_init(m->q);
+}
+
+void lock(lock_t *m) {
+    // TestAndSet으로 guard==1까지 스핀: 한 번에 하나의 스레드만 아래 크리티컬 섹션 진입
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+
+    if (m->flag == 0) {
+        m->flag = 1;       // 바로 사용자 락 획득
+        m->guard = 0;
+    } else {
+        queue_add(m->q, gettid());  // 대기열에 등록한 뒤
+        m->guard = 0;               // 다른 스레드가 unlock 등을 진행할 수 있게 가드 해제
+        park();                     // 커널에 블록: CPU 스핀 없이 잠듦(unpark 때까지)
+    }
+}
+
+void unlock(lock_t *m) {
+    while (TestAndSet(&m->guard, 1) == 1)
+        ;
+    if (queue_empty(m->q))
+        m->flag = 0;                // 대기자 없으니 lock 반납
+    else
+        // 대기 중인 다음 스레드 깨움
+        // flag는 1로 유지(다음 스레드가 이미 락을 물려받은 것으로 간주)
+        unpark(queue_remove(m->q));
+    m->guard = 0;
+}
+```
+이 방식에서는 락을 아직 잡지 못한 스레드만 큐에 넣고 `park`으로 재우며, `unlock` 시 대기 순서대로 `unpark`으로 깨울 수 있습니다. 이로써 다음 `lock`을 받을 스레드가 누굴지 정하고 기아 상태를 피합니다.
+
+`while`으로 도는 건 `guard` 잡는 아주 짧은 구간뿐이고, 못 잡은 쪽은 `park`으로 가니 사용자 임계 구역만큼 `spin`을 오래하지 않습니다.
+`guard = 0`은 `park()` 앞에 둬야 합니다. 순서를 뒤집으면 `unpark`과 `park` 타이밍이 안 맞아 깨워도 안 깨지거나, 늦게 `park`에 들어가 깨워짐을 놓치는 식으로 버그가 날 수 있습니다.
+
+---
+**[ASIDE]**
+
+`spin`을 줄여야 하는 또 다른 이유로 우선순위 역전(`priority inversion`)이 있습니다.
+스핀 방식만으로도 동작 자체가 막히는(correctness 차원의) 상황이 생길 수 있다는 것입니다. 그 패턴을 **우선순위 역전**이라 부릅니다.
+
+**`spin lock` + 우선순위**<br/>
+우선순위가 높은 `T2`, 낮은 `T1`만 있다고 합니다. 스케줄러는 둘 다 실행 가능하면 항상 `T2`를 줍니다. `T2`가 I/O 등으로 한동안 막혀 있는 사이 `T1`이 `spin lock`을 잡고 임계 구역에 진입합니다.<br/>
+그다음 `T2`가 깨어나면 바로 CPU를 받아 같은 락을 요청하지만, 락은 여전히 `T1`이 쥔 상태입니다. `T1`이 `T2`보다 후순위라 다시 실행되지 못하면 `unlock`이 나오지 않고, `T2`는 스핀만 하다 결국 멈춘 것처럼 보일 수 있습니다.
+
+**`spin`을 없애도 남는 역전**<br/>
+우선순위 `T3` > `T2` > `T1`이라 할 때, `T1`이 어떤 `lock`을 쥔 채 `unlock` 하기 전인 상태에서 `T3`가 깨어나 `T1`보다 우선이라 CPU를 가져와 같은 `lock`을 요청합니다. 
+락은 여전히 `T1`이 잡고 있으므로 `T3`는 락 때문에 차단(blocked)되고, 락이 풀리지 않은 채 CPU는 다른 스레드로 넘어갈 수 있습니다.<br/>
+
+이때 스케줄러가 고르는 것은 지금 실행 가능한(runnable) 스레드인데, `T3`는 blocked라 후보가 아니고, `T2`는 `T1`보다 우선이므로 `T3`보다 순위는 낮아도 실행 후보인 `T2`가 실행되고, `T3`는 계속 대기합니다.<br/>
+
+그 결과 `lock`은 가장 순위 낮은 `T1`이 아직 붙들고 있는데 `T1`은 `T2` 등에 밀려 임계 구역을 끝내 `unlock`을 할 차례를 못 얻고, 높은 `T3`는 `T1`의 `unlock`을 기다리느라 blocked인 상태에서 중간 순위인 `T2`만 줄곧 runnable으로 돈다는 그림입니다. (락은 안 풀린 상태로 실행권만 `T2` 쪽으로 가 있다고 이해하면 됩니다. `T3`가 깨워지려면 결국 `T1`이 락을 풀어야 하는데 그게 막힌 것이 `PRIORITY INVERSION(우선순위 역전)`입니다.)
+
+스핀이 직접 원인인 경우에는 스핀 대기 자체를 줄이거나 없애는 쪽이 도움이 됩니다. 
+더 일반적으로는 높은 우선순위 스레드가 낮은 쪽을 `lock` 때문에 대기할 때 그 낮은 스레드의 우선순위를 잠시 높여(또는 같은 수준까지) `lock`을 빨리 놓게 한 뒤 다시 원래대로 되돌리는 **우선순위 상속(`priority inheritance`)** 같은 기법으로 우선순위 역전(`priority inversion`)을 풉니다.
+
+---
+
 # Different OS, Different Support
+지금까지는 OS가 제공하는 한 가지 유형만을 봤죠. 다른 OS들도 비슷한 자원을 주지만 세부는 다릅니다. 예를 들어 Linux는 `futex` 를 두는데, 앞선 `park`/`unpark` 같은 그림과 겹치지만 주소별로 커널 큐와 맞물리는 쪽으로 더 기능이 많습니다.
+각 `futex`는 물리적 메모리와 더 연관되어 사용되죠.
+```c
+void mutex_lock(int *mutex) {
+    int v;
+
+    // Bit 31 was clear, we got the mutex (fastpath)
+    if (atomic_bit_test_set(mutex, 31) == 0)
+        return;
+    atomic_increment(mutex);
+    while (1) {
+        if (atomic_bit_test_set(mutex, 31) == 0) {
+            atomic_decrement(mutex);
+            return;
+        }
+        // Have to wait first to make sure futex value
+        // we are monitoring is negative (locked).
+        v = *mutex;
+        if (v >= 0)
+            continue;
+        futex_wait(mutex, v);
+    }
+}
+
+void mutex_unlock(int *mutex) {
+    // Adding 0x80000000 to counter results in 0 if and
+    // only if there are no other interested threads
+    if (atomic_add_zero(mutex, 0x80000000))
+        return;
+
+    // There are other threads waiting for this mutex,
+    // wake one of them up.
+    futex_wake(mutex);
+}
+```
+
+`futex`는 메모리 주소 하나마다 커널 안에 대기 큐를 두고, `futex_wait(주소, 기댓값)`으로 “그 칸 값이 여전히 `기댓값`이면 잠들고, 이미 바뀌었으면 곧바로 돌아온다”처럼 쓸 수 있습니다.
+`futex_wake(주소)`로 그 주소 대기 줄에 선, 대기 스레드 하나만 깨울 수 있습니다. 위 코드는 glibc의 NPTL `lowlevellock.h` 쪽 패턴입니다.
+
 # Two-Phase Locks
+
+
 # Summary
