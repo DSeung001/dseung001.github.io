@@ -220,7 +220,7 @@ void unlock() {
 
 또한 성능 측면에서도 단일 CPU에서는 오버헤드가 크게 느껴질 수 있습니다. `Lock`을 보유한 스레드가 임계 구역에 있는 동안 나머지 `N - 1`개 스레드는 `Lock` 획득을 시도하며 계속 스핀합니다.
 
-이 지점에서 `Compare-And-Swap`(CAS)이 유용합니다. CAS는 "값이 기대한 상태일 때만 변경"을 원자적으로 수행하므로, 검사와 갱신 사이의 경쟁 조건을 줄일 수 있습니다.
+이 때 `Compare-And-Swap`(CAS)이 유용합니다. CAS는 "값이 기대한 상태일 때만 변경"을 원자적으로 수행하므로, 검사와 갱신 사이의 경쟁 조건을 줄일 수 있습니다.
 - `test-and-set`은 시도할 때마다 쓰기를 유발할 수 있지만, CAS는 비교에 실패하면 값을 바꾸지 않습니다.
 - 따라서 경쟁이 심한 상황에서 불필요한 메모리 쓰기와 캐시 무효화를 줄이는 데 도움이 됩니다.
 - 결과적으로 다중 CPU 환경에서 더 나은 확장성을 기대할 수 있습니다.
@@ -470,17 +470,23 @@ void unlock(lock_t *m) {
 ---
 
 # Different OS, Different Support
-지금까지는 OS가 제공하는 한 가지 유형만을 봤죠. 다른 OS들도 비슷한 자원을 주지만 세부는 다릅니다. 예를 들어 Linux는 `futex` 를 두는데, 앞선 `park`/`unpark` 같은 그림과 겹치지만 주소별로 커널 큐와 맞물리는 쪽으로 더 기능이 많습니다.
-각 `futex`는 물리적 메모리와 더 연관되어 사용되죠.
+지금까지는 OS가 제공하는 한 가지 유형만을 봤죠. 다른 OS들도 비슷한 자원을 주지만 세부는 다릅니다. 예를 들어 Linux는 `futex`를 두는데, 앞선 `park`/`unpark` 같은 그림과 겹치지만 주소별로 커널 큐와 맞물리는 쪽으로 더 기능이 많습니다.
+즉, `futex`는 물리적 메모리와 더 밀접하게 연관되어 쓰이죠.
 ```c
 void mutex_lock(int *mutex) {
     int v;
 
     // Bit 31 was clear, we got the mutex (fastpath)
+    // atomic_bit_test_set: 31번 비트가 원자적으로 1로 바뀜
+    // 아래 조건문에서는 그 결과로 반환된 이전 값이 0인지를 체크
+    // 예전 값이 0이면 `lock` 획득
     if (atomic_bit_test_set(mutex, 31) == 0)
         return;
+
+    // `lock` 획득 실패 시 대기자 카운터를 증가
     atomic_increment(mutex);
     while (1) {
+        // 재시도 `spin`
         if (atomic_bit_test_set(mutex, 31) == 0) {
             atomic_decrement(mutex);
             return;
@@ -490,6 +496,8 @@ void mutex_lock(int *mutex) {
         v = *mutex;
         if (v >= 0)
             continue;
+
+        // v < 0이면 커널에서 대기
         futex_wait(mutex, v);
     }
 }
@@ -498,18 +506,31 @@ void mutex_unlock(int *mutex) {
     // Adding 0x80000000 to counter results in 0 if and
     // only if there are no other interested threads
     if (atomic_add_zero(mutex, 0x80000000))
-        return;
+        return; // 락 해제, 깨울 대기자 없음
 
     // There are other threads waiting for this mutex,
     // wake one of them up.
-    futex_wake(mutex);
+    futex_wake(mutex); // 대기 큐에서 하나를 깨움
 }
 ```
 
-`futex`는 메모리 주소 하나마다 커널 안에 대기 큐를 두고, `futex_wait(주소, 기댓값)`으로 “그 칸 값이 여전히 `기댓값`이면 잠들고, 이미 바뀌었으면 곧바로 돌아온다”처럼 쓸 수 있습니다.
-`futex_wake(주소)`로 그 주소 대기 줄에 선, 대기 스레드 하나만 깨울 수 있습니다. 위 코드는 glibc의 NPTL `lowlevellock.h` 쪽 패턴입니다.
+`futex`는 메모리 주소 하나마다 커널 안에 대기 큐를 둡니다.
+`futex_wait(주소, 기댓값)`은 그 메모리 값이 여전히 `기댓값`이면 잠들고, 이미 바뀌었다면 곧바로 돌아오게 쓸 수 있습니다.
+`futex_wake(주소)`로 그 주소의 대기 큐에 있는 스레드 하나만 깨울 수 있습니다.
+위 코드는 `glibc`의 NPTL `lowlevellock.h` 쪽 패턴입니다.
+- **lowlevellock**: NPTL(Native POSIX Thread Library)에서 스레드 동기화를 위해 사용하는 핵심 하위 레벨 락 메커니즘
 
 # Two-Phase Locks
+리눅스에서는 1960년대 초에 쓰이던 `Dahm Locks`의 맛을 볼 수 있습니다.
+이는 다음과 같은 동작을 하며, 이런 `Two-Phase Locks`는 하이브리드 접근의 다른 예로, 두 가지 아이디어를 결합해 더 나은 결과를 낼 수 있습니다.
 
+1. `lock`을 얻기 위해 잠시 동안(고정된 시간) `spin` 합니다.
+2. 1번을 마친 뒤에도 `lock`을 획득하지 못하면 `futex`로 CPU는 대기 상태가 됩니다.
+3. 2번에서 잠든 CPU는 `lock`을 획득할 수 있을 때 깨어납니다.
+
+모든 상황에서 범용적으로 돌아가는 `Lock`을 만드는 일은 만만치 않은 과제이죠.
 
 # Summary
+여기까지 오늘날 `lock`이 어떻게 구축되는지 확인했습니다.
+더 강력한 명령어 형태의 하드웨어 지원과 `park/unpark` 같은 `primitives`나 `Linux`의 `futex` 같은 OS 지원이 결합된 형태죠.
+물론 세부 사항이나 정확한 코드는 매우 다양하고 고도화되었겠지만, 상호 배제를 위해 `lock`이 어떤 개념으로 만들어지고 하드웨어와 OS에 어떻게 결합되었는지를 엿볼 수 있었네요.
