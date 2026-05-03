@@ -1,15 +1,84 @@
 ---
-title: "더미 타이틀 — 29강 메모"
-date: 2026-05-03T12:00:00+09:00
-categories: [ "Memo", "Dummy" ]
-tags: [ "dummy", "OSTEP", "Concurrency", "placeholder" ]
+title: "Operating Systems: Three Easy Pieces - Lock-based Concurrent Data Structures"
+date: 2026-05-02T00:00:00+09:00
+categories: [ "Memo", "Digging", "OSTEP" ]
+tags: [ "OSTEP", "Operating Systems", "Concurrency", "Lock", "Data structures", "Synchronization" ]
 draft: false
-description: "더미 설명: 근사 카운터 메모용 페이지. 나중에 다른 글과 병합 예정."
-keywords: [ "dummy", "approximate counter", "concurrency" ]
+description: "OSTEP Concurrency 29강 Lock-based Concurrent Data Structures 정리"
+keywords: [ "OSTEP", "Concurrency", "Lock", "Concurrent data structures", "Linked list", "Queue", "Scalability" ]
 author: "DSeung001"
-lastmod: 2026-05-03T12:00:00+09:00
+lastmod: 2026-05-02T00:00:00+09:00
 ---
 
+`Lock`을 다음 주제로 넘어가기 전에 일반 데이터 구조에 `Lock`을 얹어 쓰는 방법을 다룹니다.<br/>
+모든 상황에 두루 통하는 방법을 찾기 어렵기 때문에 시나리오별로 나눠 살펴봅니다.
+
+# Concurrent Counters
+가장 단순한 데이터 구조 중 하나가 카운터입니다.<br/> 이 데이터 구조는 간단하게 아래처럼 표현됩니다.
+```c
+typedef struct __counter_t {
+    int value;
+} counter_t;
+
+void init(counter_t *c) {
+    c->value = 0;
+}
+
+void increment(counter_t *c) {
+    c->value++;
+}
+
+void decrement(counter_t *c) {
+    c->value--;
+}
+
+int get(counter_t *c) {
+    return c->value;
+}
+```
+
+위 코드에 `lock`과 동시성을 추가해서 멀티 스레드로 돌려 봅시다.
+
+OSTEP에서는 이 벤치마크를 `Intel 2.7 GHz i5`(4코어)가 달린 `iMac`에서 돌렸고, 동기화된 카운터에 대해 스레드 수만 바꿔 스레드마다 공유 카운터를 백만 번씩 증가하는 로직을 측정하면 대략 아래처럼 나옵니다.
+- 단일 스레드: 약 0.03초
+- 스레드 2개로 동시에 돌림: 약 5초
+
+다음 코드처럼 `lock`을 추가하고 로직을 진행하면 스레드가 늘수록 더 나빠집니다. 같은 카운터를 같은 락 하나로만 보호하면 갱신이 직렬화되고, 대기 비용과 캐시 라인 경합 비용이 커지기 때문입니다.
+
+```c
+typedef struct __counter_t {
+    int value;
+    pthread_mutex_t lock;
+} counter_t;
+
+void init(counter_t *c) {
+    c->value = 0;
+    Pthread_mutex_init(&c->lock, NULL);
+}
+
+void increment(counter_t *c) {
+    Pthread_mutex_lock(&c->lock);
+    c->value++;
+    Pthread_mutex_unlock(&c->lock);
+}
+
+void decrement(counter_t *c) {
+    Pthread_mutex_lock(&c->lock);
+    c->value--;
+    Pthread_mutex_unlock(&c->lock);
+}
+
+int get(counter_t *c) {
+    Pthread_mutex_lock(&c->lock);
+    int rc = c->value;
+    Pthread_mutex_unlock(&c->lock);
+    return rc;
+}
+```
+이상적으로는 여러 프로세서에서 코어와 스레드가 늘어도, 단일 스레드일 때처럼 전체 시간이 크게 불어나지 않는 확장성(scalability)을 기대합니다. 
+그런데 위와 같은 단일 글로벌 락 카운터만으로는 그 기대를 충족하기 어렵기 때문에, 한계를 보완할 방법을 사람들이 추구했고 찾아 냈죠.
+
+`approximate counter`(근사 카운터)가 그 중 하나입니다.
 근사 카운터는 각 CPU 코어당 하나의 로컬 물리적 카운터와 글로벌 카운터를 두어, 단일 논리 카운터를 나타내는 방식으로 동작합니다.
 구체적으로 CPU가 네 개인 머신에서는 로컬 카운터 네 개와 글로벌 카운터 하나가 있는 셈이죠.
 
@@ -94,7 +163,7 @@ int get(counter_t *c) {
 다음 29.5 그림은 전통적인 카운터와 근사치 카운터를 스레드 개수와 시간을 두고 비교한 지표입니다.<br/>
 29.6은 근사치 카운터에서 임계값(threshold)에 따른 비교죠, 위에서 언급했던 특징이 잘 드러납니다.
 
-![Comparison Counter](./Counter-Compare.png)
+![Comparison Counter](../../02/ostep-concurrency-29-lock-based-concurrent-data-structures/Counter-Compare.png)
 
 이러한 아이디어에서 중요한건 결국 성능 테스트입니다.<br/>
 내가 생각해낸 아이디어는 빠르거나 느리거나 하나의 결과를 도출하기 때문이죠.
