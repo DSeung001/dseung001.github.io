@@ -378,3 +378,132 @@ class ConcurrentHashTable:
 # Summary
 카운터, 리스트, 큐, 해시 테이블까지 데이터 구조에 동시성을 적용하면 어떻게 달라지는지 살펴봤습니다. 
 살펴본 바와 같이 제어 흐름에서 `lock`을 얻고 놓는 방식을 어떻게 설계하느냐에 따라 확장성이 크게 달라집니다.
+
+# Homework
+
+벤치마크로 성능을 체크할 때, PC 환경과 측정하는 함수의 오버헤드를 고민해야 합니다.
+```python
+import time
+
+def bench(name, fn, n=300_000):
+    # perf_counter_ns: 코드 실행 시간 측정에 최적화
+    t0 = time.perf_counter_ns()
+    for _ in range(n):
+        fn()
+    t1 = time.perf_counter_ns()
+    dt = t1 - t0
+    print(f"{name:20s}  n={n:>7}  total={dt:>12} ns  per_call={dt / n:>8.2f} ns")
+
+if __name__ == "__main__":
+    print(time.get_clock_info("perf_counter"))
+    bench("perf_counter_ns", time.perf_counter_ns)
+
+    print(time.get_clock_info("monotonic"))
+    bench("time_ns (wall)", time.time_ns)
+```
+
+위 코드는 파이썬의 코드 정밀 측정용인 `perf_counter_ns`와 실제 시간을 참조하는 `time_ns`를 300,000번 반복해서 부르면서 시간 측정하는 함수를 측정했죠. 일반적으로는 `perf_counter_ns`가 오버헤드가 적게 발생할 가능성이 높습니다만 실제 결과로 확인해보면
+
+```bash
+namespace(implementation='mach_absolute_time()', monotonic=True, adjustable=False, resolution=4.166666666666666e-08)
+perf_counter_ns       n= 300000  total=    26977458 ns  per_call=   89.92 ns
+namespace(implementation='mach_absolute_time()', monotonic=True, adjustable=False, resolution=4.166666666666666e-08)
+time_ns (wall)        n= 300000  total=    18927500 ns  per_call=   63.09 ns
+```
+
+이 로그처럼 `per_call`이 `perf_counter_ns` 쪽이 더 클 수도 있습니다. CPython 루프·바이트코드·OS 구현이 섞여 있어서, OS나 CPU, 파이썬 버전에 따라 두 함수의 상대 속도는 바뀔 수 있습니다. 
+
+즉 마이크로벤치 결과도 OS·런타임에 종속된다는 것이고 우리가 짠 벤치마크조차 결국 그 위에서 돌아갑니다.
+
+참고로 `time_ns`는 os와 동일하게 하기 위해 수치 보정이 들어가기 떄문에 알고리즘 시간 측정에서는 `perf_counter_ns`를 쓰느 겁니다.
+
+---
+
+다음 코드는 여러 개의 스레드를 동시에 돌릴 때 `lock`을 쓰는지 여부가 성능과 데이터 정확도(`count`)에 어떤 영향을 주는지 실험하는 멀티스레딩 벤치마크입니다.
+
+```python
+import os
+import threading
+import time
+import statistics
+from array import array
+
+N_TOTAL = 500_000
+
+def run_once(num_threads, use_lock):
+    # // = floor div
+    iters = N_TOTAL // num_threads
+    # L = unsigned long
+    counter = array("L", [0])
+    # 파라미터에 따라 락 사용 여부
+    lock = threading.Lock() if use_lock else None
+
+    def worker():
+        local_lock = lock
+        for _ in range(iters):
+            if local_lock is not None:
+                with local_lock:
+                    counter[0] += 1
+            else:
+                counter[0] += 1
+
+    t0 = time.perf_counter()
+    threads = [threading.Thread(target=worker) for i in range(num_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return counter[0], time.perf_counter() - t0
+
+def median_seconds(repeats, num_threads, use_lock):
+    times = []
+    last_count = 0
+    for _ in range(repeats):
+        last_count, dt = run_once(num_threads, use_lock)
+        times.append(dt)
+    return statistics.median(times), last_count
+
+if __name__ == '__main__':
+    repeats = 7
+    warmup = 2
+    threads_list = [1, 2, 4, 8, 16]
+
+    # cpu 개수 체크
+    print("logical cpus:", os.cpu_count())
+    if hasattr(os, "process_cpu_count"):
+        print("process cpus:", os.process_cpu_count())
+
+    # 스레드 수 변경해보며 성능 테스트
+    for num_threads in threads_list:
+        # 워밍업: 캐시·인터프리터 상태를 안정시켜 첫 실행 `lag`를 측정값에서 빼기 위함
+        for _ in range(warmup):
+            run_once(num_threads, use_lock=True)
+
+        # lock 여부를 달리해 실행
+        med_lock, c_lock = median_seconds(repeats, num_threads, True)
+        med_nolock, c_nolock = median_seconds(repeats, num_threads, False)
+        print(
+            f"threads={num_threads:2d}  "
+            f"median_sec lock={med_lock:.4f} count={c_lock} | "
+            f"nolock={med_nolock:.4f} count={c_nolock}"
+        )
+
+```
+
+위 코드로 멀티스레드 환경에서 `lock`을 쓰면 `count`는 안정해지지만 시간은 늘어날 수 있고, 스레드 수를 바꿀 때 둘의 차이를 같이 볼 수 있습니다.
+
+아래 로그는 한 대의 PC에서 한 번 찍은 예시일 뿐입니다. 
+이 환경에서는 스레드 1개+`lock` 없음이 가장 빠르게 나왔고, `lock` 없이 스레드를 늘리면 `count`가 `N_TOTAL`보다 작아지는(데이터 손실) 패턴이 보입니다, 환경별로 합리적인 스레드 개수는 다르므로 벤치마크
+테스트가 필요합니다.
+
+```text
+logical cpus: 8
+process cpus: 8
+threads= 1  median_sec lock=0.0760 count=500000 | nolock=0.0320 count=500000
+threads= 2  median_sec lock=0.0917 count=500000 | nolock=0.0815 count=443954
+threads= 4  median_sec lock=0.1033 count=500000 | nolock=0.1393 count=300218
+threads= 8  median_sec lock=0.0983 count=500000 | nolock=0.3472 count=158225
+threads=16  median_sec lock=0.1346 count=500000 | nolock=0.3705 count=145595
+```
+
+참고로 위 코드에서는 멀리 스레드 환경을 위해 `gil`을 끄고 진행했습니다.
