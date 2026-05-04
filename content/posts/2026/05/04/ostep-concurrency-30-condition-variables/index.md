@@ -122,12 +122,103 @@ if __name__ == "__main__":
     main()
 ```
 
-같은 출력 값을 지니만 `cv`를 사용함으로써 cpu 사이클 낭비가 발생하지 않게 되죠.
+위 코드는 같은 출력 값을 지니지만 `cv`를 사용함으로써 CPU 사이클 낭비를 일으키지 않죠.
+
 ```bash
 parent: begin
 child
 parent: end
 ```
+
+스케줄링에 따라 두 가지 경우를 구분해서 보면 위 코드를 이해하기 쉽습니다.
+- 한쪽에서는 부모가 `thr_join()`에서 먼저 `wait()`에 들어가고, 나중에 자식이 끝내면서 `notify()`로 부모를 깨웁니다.
+- 자식 스레드가 생성 직후 곧바로 실행되어 `done`을 참으로 만들고 잠든 스레드가 없으므로 `notify()`는 한 번 시도했다가 특별히 아무 일도 일어나지 않습니다. 그다음 부모가 `thr_join()`에 들어가면 `done`이 이미 참이므로 `wait()` 없이 바로 반환합니다.
+
+부모가 조건 대기 여부를 `if` 한 번만이 아닌 `while not done:`으로 두는 이유는, 다음에 나올 코드처럼 잘못된 코드의 경우 `done` 검사와 `wait()` 사이에 스레드 인터러빙이 생겨서 판단이 틀어질 수 있기 때문입니다.
+허위 기상(spurious wakeup)이 있는 환경에서는 루프 없이 깨어난 뒤 상태를 다시 확인하지 않는 것 자체가 위험합니다.
+그래서 이런 현상을 막기위해 루프를 돕니다.
+- **spurious wakeup**: 대기 중인 스레드가 깨어날 조건이 충족되지 않았음에도 불구하고 스스로 깨어나는 현상
+
+`thr_exit()` / `thr_join()`에서 각 요소가 왜 필요한지 보려면, 상태 변수 없이 컨디션 변수만 쓰거나 `lock`을 잡지 않는 변형을 떠올리면 됩니다. 아래 코드를 보며 `cv`를 이렇게 쓰는 이유를 이해해 봅시다.
+
+**상태 변수 없이 신호만 보내는 경우** <br/>
+공유 상태 `done` 없이 스레드를 `wake`하면 안 됩니다.
+
+```python
+import threading
+
+cv = threading.Condition()
+
+
+def thr_exit_broken_no_state():
+    with cv:
+        cv.notify()
+
+
+def thr_join_broken_no_state():
+    with cv:
+        cv.wait()
+```
+
+이 경우는 자식이 부모보다 먼저 실행되어 `notify()`를 호출했을 때,
+아직 `wait()`에 들어간 스레드가 없으면 그 신호는 소비될 곳 없이 사라집니다.
+그 뒤 부모가 `wait()`에 들어가면 영원히 깨어나지 못하게 되죠. 그래서 스레드들이 공유해야 하는 값이 있어야 원활히 동작합니다.
+
+**`lock` 없이 `signal/wait`로 상태 값을 읽는 경우**<br/>
+또 다른 안 좋은 예로, `signal`/`wait` 호출 자체에는 락이 관여하지 않아도 된다고 가정하고 값만 건드리는 경우입니다. 
+파이썬의 `threading.Condition.notify()`는 호출 스레드가 <u>`lock`을 잡은 채 호출해야 한다고 문서화되어 있지만</u>, 여기서는 교재와 같이 그 규칙을 어기는 실수가 있다고 가정하고 같은 **lost wakeup** 논증을 따라갑니다.
+- **lost wakeup**: 멀티스레딩 환경에서 발생하는 대표적인 동기화 오류 중 하나로, 깨우라는 신호(Signal)를 보냈음에도 불구하고 대기 중인 스레드가 이를 받지 못해 영원히 잠들어 버리는 현상
+
+```python
+import threading
+
+done = False
+cv = threading.Condition()
+
+
+def thr_exit_broken():
+    global done
+    done = True
+    cv.notify()  # 올바른 패턴은 with cv 블록 안에서 호출하는 것이 일반적
+
+
+def thr_join_broken():
+    if not done:  # 락 바깥에서 공유 상태를 읽어 검사와 wait 사이가 원자적이지 않음
+        with cv:
+            cv.wait()
+```
+
+위 코드에서 발생 가능한 인터리빙 시나리오는 다음과 같습니다.
+1. 부모는 `if not done`을 볼 때 `done`이 거짓이었고, `wait()`를 호출하기 전에 다른 스레드에게 실행이 넘어갈 수 있습니다.
+2. 자식이 먼저 돌아가 `done`을 참으로 만들고 `notify()`했지만 아직 `wait()`에 들어간 스레드가 없어 깨울 대상이 없죠.
+3. 부모가 다시 돌아와 `wait()`에 들어가면, 상태는 이미 참인데 앞선 분기 때문에 잠들어 남게 됩니다.
+
+단순 `join` 예제만으로도 조건 변수를 쓸 때 조심할 점을 알 수 있습니다. 그래서 `notify`/`wait` 할 때도 `lock`을 든 채 하는 편이 단순하고 안전합니다.
+
+다음 절에서 다룰 버퍼 문제로 넘어가기 전에, 가장 단순한 형태부터 짚습니다.
+처음에는 버퍼가 비어 있다고 두고(`count == 0`), `put`은 비어 있을 때만 채울 수 있고 `get`은 차 있을 때만 꺼낼 수 있습니다.
+
+```python
+# 단일 슬롯 버퍼: count==0 이면 비어 있음, count==1 이면 가득 참
+buffer = 0
+count = 0
+
+
+def put(value: int) -> None:
+    global buffer, count
+    assert count == 0
+    count = 1
+    buffer = value
+
+
+def get() -> int:
+    global buffer, count
+    assert count == 1
+    count = 0
+    return buffer
+```
+
+실제 코드에서는 위 `put`/`get`을 여러 스레드가 동시에 부르므로 단순 `assert`만으로는 부족합니다. 다음 절에서 `lock`과 `cv`로 동기화 문제를 어떻게 다루는지 볼 수 있습니다.
 
 # The Producer/Consumer (Bounded Buffer) Problem
 # Covering Conditions
