@@ -219,8 +219,125 @@ def get() -> int:
     return buffer
 ```
 
-실제 코드에서는 위 `put`/`get`을 여러 스레드가 동시에 부르므로 단순 `assert`만으로는 부족합니다. 다음 절에서 `lock`과 `cv`로 동기화 문제를 어떻게 다루는지 볼 수 있습니다.
+실제 코드에서는 위 `put`/`get`을 여러 스레드가 동시에 부르므로 단순히 `assert`만으로 값을 구분하는 걸로는 부족합니다. 
+다음 내용에서 `lock`과 `cv`로 동기화 문제를 어떻게 다루는지 볼 수 있습니다.
 
 # The Producer/Consumer (Bounded Buffer) Problem
+하나 이상의 생산자 스레드와 하나 이상의 소비자 스레드를 상상해봅시다.
+생산자는 데이터를 만들어 버퍼에 넣고, 소비자는 버퍼에서 항목을 꺼내 소비합니다.
+이런 형태는 여러 시스템에서 쓰입니다. 예를 들어 다중 스레드 웹 서버에서는 생산자가 HTTP 요청을 작업 큐(제한된 버퍼)에 넣고,
+소비자 스레드는 그 큐에서 요청을 꺼내 처리합니다.
+
+유한 버퍼는 한 프로그램의 출력을 다른 프로그램으로 파이프할 때도 쓰입니다. 예를 들어 `grep`이 있습니다.
+
+```bash
+grep foo file.txt | wc -l
+```
+
+위 명령에서 `grep`은 파일에서 패턴과 맞는 줄을 뽑아 주는 생산자 역할을 하고, `wc -l` 프로세스는 소비자로 표준 입력에 연결되어 있어 앞쪽에서 넘어온 스트림의 줄 수를 세어 출력합니다.
+
+유한 버퍼는 공유 자원이므로 동기화된 접근이 필요합니다. 그렇지 않으면 경쟁 상태가 발생할 수 있습니다.
+
+가장 먼저, 앞에서 정의한 단일 슬롯 버퍼 `put`/`get`을 생산자·소비자가 이렇게 부르는 형태만 짚습니다.
+
+```python
+def producer(loops: int) -> None:
+    for i in range(loops):
+        put(i)
+
+
+def consumer() -> None:
+    while True:
+        tmp = get()
+        print(tmp)
+```
+위 코드는 생산자가 `put(i)`만 반복하고, 소비자는 `while True`로 `get()`·`print`만 돌리는 형태입니다. 다만 앞 절의 `get`은 버퍼가 비어 있으면(`count == 0`) `assert`로 곧장 실패합니다.
+현재 로직에는 두 스레드를 동시에 돌리더라도, 버퍼가 비었을 때는 `get`을, 찼을 때는 `put`을 막고 기다리게 하며 경쟁을 피하게 하는 동기화가 없어서 의미 있는 파이프라인이라 보기 어렵습니다.
+
+그 이유는 대략 다음과 같습니다.
+- 소비자가 버퍼에 값이 들어올 때까지 `get` 안팎에서 바쁜 대기(스핀)나 짧은 간격 폴링으로 버틸 수밖에 없을 때가 있습니다.
+- 생산자가 아무것도 넣지 않는 동안에도 소비자는 CPU를 허비합니다.
+그래서 의미 있는 파이프라인을 만들려면 버퍼 상태를 볼 때 `lock`을 두고, 기다릴 때는 `cv`로 잠들었다가 깨우는 편이 낫습니다.
+
+단일 슬롯 버퍼에 뮤텍스·조건 변수를 얹은 생산자·소비자 루프입니다. `spurious wakeup`을 대비해 `wait` 전 조건 검사에는 `while`을 씁니다.
+
+---
+참고로 `spurious wakeup`의 주된 발생 이유는 다음과 같습니다.
+- OS 수준의 인터럽트나 시그널(프로세스에 OS 시그널로 인한 강제 깨움)
+- 현대의 멀티코어 환경에서도 정확히 신호를 받은 스레드만 깨우는 것은 비용이 크므로, 스레드 스케줄러가 시스템 처리량을 높이려고 조건을 완화해 스레드 중 일부를 느슨하게 깨우는 경우가 존재
+---
+
+유한 버퍼에 `cv`를 추가해 봅시다.
+파이썬의 `threading.Condition()`은 기본으로 내부에 `RLock`을 두므로, 락과 조건 변수를 묶어 쓰는 요구와 잘 맞습니다.
+
+```python
+import threading
+
+# 위의 「단일 슬롯 버퍼」 블록과 같이 두어야 함
+# buffer, count = 0, put, get
+
+loops = 10  # 실제로는 인자 등으로 초기화
+cond = threading.Condition()
+
+def producer() -> None:
+    for i in range(loops):
+        with cond:
+            # 버퍼가 찼으면(count==1) 넣을 수 없으니 wait으로 락을 풀고 대기
+            while count == 1:
+                cond.wait()
+            put(i)
+            # 대기 중인 스레드 하나를 깨움(누가 깨워지는지·순서는 구현/OS에 따름)
+            cond.notify()
+
+
+def consumer() -> None:
+    for _ in range(loops):
+        with cond:
+            while count == 0:
+                cond.wait()
+            tmp = get()
+            cond.notify()
+        print(tmp)
+```
+
+위 코드는 생산자·소비자가 각각 한 스레드일 때는 원활하게 돌아갑니다. `while`으로 재검사하는 부분은 깨어난 직후 락을 잡은 채 공유 상태를 다시 확인해, 안 맞으면 다시 자는 패턴이라 가짜 깨움과 재스케줄 타이밍에도 안전합니다.
+
+위 코드의 문제는 이번에 깨워야 할 역할이 생산자인지 소비자인지를 구분하지 않는다는 점입니다. 소비자가 버퍼를 비운 뒤에는 값을 넣을 생산자를 깨우는 편이 맞는데, `notify()`가 다른 소비자만 깨우면 그 스레드는 `while count == 0`에서 다시 잠들고, 버퍼에 빈 자리가 있어도 생산자는 실행 못한 채 잠든 채로 남을 수 있습니다. 
+
+이를 해결하기 위해 조건 변수를 둘로 나누어 생산자는 `empty`(빈 슬롯), 소비자는 `fill`(채워짐) 쪽 큐에서만 기다리게 하고, 각자 상대 역할 큐로만 신호를 보내도록 고칩니다.
+
+파이썬에서 같은 분리를 쓰려면 두 `Condition`이 같은 뮤텍스를 물려받아야 `wait`와 `notify` 전후로 `count`와 버퍼가 한 락 아래에서만 바뀌게 할 수 있습니다.
+
+```python
+import threading
+
+# 위의 `단일 슬롯 버퍼` 코드 이용
+# buffer, count = 0, put, get
+
+loops = 10  # 실제로는 인자 등으로 초기화
+mutex = threading.Lock()
+empty = threading.Condition(mutex)
+fill = threading.Condition(mutex)
+
+def producer() -> None:
+    for i in range(loops):
+        with empty:
+            while count == 1:
+                empty.wait()
+            put(i)
+            fill.notify()
+
+
+def consumer() -> None:
+    for _ in range(loops):
+        with fill:
+            while count == 0:
+                fill.wait()
+            tmp = get()
+            empty.notify()
+        print(tmp)
+```
+이렇게 하면 같은 공유 상태에 들어가는 임계 구역은 하나의 락으로 묶되, 역할별로 조건 변수만 나뉘어 소비자가 비운 뒤에는 `empty` 쪽만 기다리는 생산자를 깨우고, 생산자가 넣은 뒤에는 `fill` 쪽만 기다리는 소비자를 깨울 수 있어 위에서 말한 문제를 줄입니다.
+
 # Covering Conditions
 # Summary
