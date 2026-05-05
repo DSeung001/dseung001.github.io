@@ -454,3 +454,162 @@ def release(ptr: object, size: int) -> None:
 # Summary
 `lock` 외에도 중요한 `synchronization primitive`인 `condition variables`를 살펴봤습니다.
 프로그램이 원하는 상태가 아닐 때 스레드를 잠들게 하고, `covering conditions` 문제를 다루는 데 도움을 줍니다.
+
+# Homework
+
+## Lock 시간에 따른 오버헤드
+다음 코드로 `lock`을 데이터를 넣거나 가져올 때만 진행하여 최소 범위로 해야 병렬처리가 가능해집니다.
+아래 코드서 Buffer의 크기를 아무리 키워도 `lock`로 잡히는 영역이 크면 `lock`을 못 얻어 병목 현상이 발생됩니다.
+
+```python
+import threading
+import time
+from collections import deque
+
+MAX_BUFFER_SIZE = 100
+N = 2000
+
+def run_test(lock_hold_time=0.0):
+    buffer = deque()
+    mutex = threading.Lock()
+    cv_empty = threading.Condition(mutex)  # 큐가 비었을 때 대기 (소비자 용)
+    cv_full = threading.Condition(mutex)  # 큐가 꽉 찼을 떄 대기 (생산자 용)
+
+    produced = 0
+    consumed = 0
+
+    def producer():
+        nonlocal produced
+        for i in range(N):
+            # with cv_full:과 동일
+            with mutex:
+                while len(buffer) == MAX_BUFFER_SIZE:
+                    cv_full.wait()  # 꽉 차면 대기
+                if lock_hold_time > 0:
+                    time.sleep(lock_hold_time)
+                buffer.append(i)
+                produced += 1
+                cv_empty.notify()
+
+    def consumer():
+        nonlocal consumed
+        for _ in range(N):
+            # with cv_empty:과 동일
+            with mutex:
+                while len(buffer) == 0:
+                    cv_empty.wait()
+                if lock_hold_time > 0:
+                    time.sleep(lock_hold_time)
+                buffer.popleft()
+                consumed += 1
+                cv_full.notify()
+
+    t0 = time.perf_counter()
+    tp = threading.Thread(target=producer)
+    tc = threading.Thread(target=consumer)
+    tp.start()
+    tc.start()
+    tp.join()
+    tc.join()
+    elapsed = time.perf_counter() - t0
+
+    # 초당 작업량량
+    throughput = N / elapsed
+    return elapsed, throughput, produced, consumed
+
+
+for hold in [0, 0.0005, 0.001, 0.005, 0.01]:
+    e, th, p, c = run_test(hold)
+    print(f"hold={hold:>7.4f}s | elapsed={e:>8.3f}s | throughput={th:>10.1f} ops/s | p={p}, c={c}")
+```
+
+이 코드의 결과를 보면 다음과 같습니다.
+```bash 
+hold= 0.0000s | elapsed=   0.004s | throughput=  506136.9 ops/s | p=2000, c=2000
+hold= 0.0005s | elapsed=   4.187s | throughput=     477.7 ops/s | p=2000, c=2000
+hold= 0.0010s | elapsed=   6.251s | throughput=     319.9 ops/s | p=2000, c=2000
+hold= 0.0050s | elapsed=  21.296s | throughput=      93.9 ops/s | p=2000, c=2000
+hold= 0.0100s | elapsed=  42.430s | throughput=      47.1 ops/s | p=2000, c=2000
+```
+위 결과의 핵심은 `time.sleep(lock_hold_time)`이 **락 안에서 실행**된다는 점입니다.  
+즉, 생산자/소비자가 대부분의 시간을 실제 작업보다 `mutex` 획득 대기 상태로 보내게 되고, `hold`가 커질수록 처리량(`throughput = N / elapsed`, 소비 완료 기준)이 크게 감소합니다.  
+여기서 중요한 포인트는 임계 구역이 길어질수록 경합이 커져 처리량이 급격히 악화된다는 점입니다.  
+버퍼 크기를 키우는 것은 일부 상황에서 도움을 줄 수 있지만, 결국 동시성 버퍼에서 중요한 점은 락 보유 시간입니다.
+
+같은 지연 시간을 락 안/밖으로 옮기면 다음과 같은 결과를 줍니다.
+```bash
+hold= 0.0000s | elapsed=   0.004s | throughput=  545836.6 ops/s | p=2000, c=2000
+hold= 0.0005s | elapsed=   2.102s | throughput=     951.3 ops/s | p=2000, c=2000
+hold= 0.0010s | elapsed=   3.082s | throughput=     649.0 ops/s | p=2000, c=2000
+hold= 0.0050s | elapsed=  10.653s | throughput=     187.7 ops/s | p=2000, c=2000
+hold= 0.0100s | elapsed=  20.506s | throughput=      97.5 ops/s | p=2000, c=2000
+```
+
+두 결과의 시간 차이는 지연(sleep)을 락 내부가 아니라 락 외부로 옮기면서 임계 구역 점유 시간이 짧아졌기 때문입니다. 그 결과 생산자/소비자가 `mutex`와 조건 변수 대기열에서 기다리는 시간이 줄어 전체 처리량이 증가합니다. 결론적으로 `lock` 점유 시간을 최소화하면 `cv` 대기 큐 병목과 스레드 레벨 오버헤드가 함께 줄어 성능이 향상됩니다.
+
+---
+
+## One cv일 때 주의점
+위에서 언급했던 상황을 한 번 더 복습하면 다음과 같습니다.<br/>
+하나의 `cv`로 생산자/소비자 패턴을 진행하면 `notify()`(C의 `signal`)를 호출했을 때 어느 스레드가 깨어날지 제어할 수 없습니다. 
+소비자가 데이터를 소비하고 빈 자리가 생겨 생산자를 깨워야 하는데,  다른 소비자를 깨우는 경우가 발생합니다.
+깨어난 소비자는 큐가 비어있어 다시 잠들고, 결국 생산자도 잠들어 있고 소비자도 잠들어버리는 **데드락(Deadlock)** 에 빠지게 됩니다. 
+
+```python
+# 조건 변수를 하나만 사용하는 생성자/소비자 패턴
+cv_single = threading.Condition(mutex)
+
+def producer_one_cv():
+    with mutex:
+        while len(buffer) == MAX_BUFFER_SIZE:
+            cv_single.wait()
+        buffer.append(1)
+        # 이때 깨어나는 스레드가 생산자인지 소비자인지 확인할 수 없으므로 데드락 위험이 생김
+        cv_single.notify() 
+```
+
+---
+
+## while 조건 체크의 이유
+또 다른 복습 포인트는 임계 구역의 조건을 `while`문으로 검사해야 한다는 점입니다.<br/>
+스레드가 `notify()` 신호를 받고 깨어났다고 해서 즉시 실행(락 획득)된다는 보장이 없습니다. <br/>
+깨어난 뒤 락을 획득하기 위해 기다리는 짧은 찰나에, 제3의 스레드가 인터리빙하여 큐의 데이터를 먼저 가져갈 수 있기 때문이죠.
+그래서 `if` 문을 쓰면 깨어난 후 큐가 다시 비어버렸는지 확인하지 않고 곧바로 `pop()`을 시도하므로 `IndexError`나 데이터 오염이 발생합니다.
+
+```python
+def consumer_if_bug():
+    with mutex:
+        # if로 검사하면 깨어난 직후의 상태만 확인하게 됩니다.
+        if len(buffer) == 0:
+            cv_empty.wait()  # 잠들었다가 깨어난 뒤 mutex를 다시 가져오기 전에 if 조건이 다시 깨질 수 있습니다.
+            # 이런 상황에 대응하려면 loop로 재검사해야 합니다.
+        
+        # 다른 스레드가 만약 먼저 데이터를 빼갔다면 아래 줄에서 버그가 발생합니다.
+        item = buffer.pop(0) 
+        cv_full.notify()
+```
+
+---
+
+## Lock 해제로 인한 경쟁 상태
+
+데이터를 추가할 때 임계 구역에서 `lock`을 조기에 해제하면, 스레드가 인터리빙하며 데이터를 동시에 수정할 수 있고 그로 인해 데이터가 깨지거나 경쟁 상태가 발생할 수 있습니다.
+
+```python
+def producer_extra_unlock():
+    mutex.acquire()  # mutex 획득
+
+    # 버퍼가 가득 차면 대기
+    while len(buffer) == MAX_BUFFER_SIZE:
+        cv_full.wait()
+    
+    # 데이터를 넣기 전에 `lock` 해제
+    mutex.release() 
+    
+    # 데이터를 버퍼에 넣기 전에 다른 스레드가 인터리빙하면 원자성(Atomicity)이 깨져 Race Condition 발생
+    buffer.append(1) 
+    
+    mutex.acquire()
+    cv_empty.notify()
+    mutex.release()
+```
