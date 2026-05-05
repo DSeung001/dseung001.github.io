@@ -339,5 +339,118 @@ def consumer() -> None:
 ```
 이렇게 하면 같은 공유 상태에 들어가는 임계 구역은 하나의 락으로 묶되, 역할별로 조건 변수만 나뉘어 소비자가 비운 뒤에는 `empty` 쪽만 기다리는 생산자를 깨우고, 생산자가 넣은 뒤에는 `fill` 쪽만 기다리는 소비자를 깨울 수 있어 위에서 말한 문제를 줄입니다.
 
+이제 동작하는 생산자·소비자 솔루션을 만들었지만, 아직 단일 슬롯만 가정한 형태라 완전히 일반적이지는 않습니다.
+아래처럼 바꾸면 슬롯을 여럿 두어 동시에 여러 값을 넣고 꺼낼 수 있어, 다중 슬롯 유한 버퍼에 더 가깝습니다.
+- 버퍼 슬롯을 여러 개 두어 생산 측이 연속으로 넣을 여유가 생김
+- 소비 측도 같은 칸을 돌며 꺼낼 수 있음
+
+```python
+import threading
+import time
+
+# 공유 자원 및 설정
+MAX = 5  # 버퍼 슬롯 수
+buffer = [0] * MAX
+fill_ptr = 0
+use_ptr = 0
+count = 0
+
+# 동기화 객체
+mutex = threading.Lock()
+# 하나의 Lock을 공유하는 두 개의 Condition 객체
+empty_cond = threading.Condition(mutex)
+fill_cond = threading.Condition(mutex)
+
+def put(value):
+    global fill_ptr, count
+    buffer[fill_ptr] = value
+    fill_ptr = (fill_ptr + 1) % MAX # ring 형태로 번갈아가며 할당
+    count += 1
+
+def get():
+    global use_ptr, count
+    tmp = buffer[use_ptr]
+    use_ptr = (use_ptr + 1) % MAX
+    count -= 1
+    return tmp
+
+def producer(loops):
+    for i in range(loops):
+        with empty_cond:
+            # 버퍼가 가득 찼을 경우 대기
+            while count == MAX:
+                empty_cond.wait()
+            put(i)
+            print(f"Producer: put {i} (count={count})")
+            # 소비자에게 신호 전달
+            fill_cond.notify()
+        time.sleep(0.1)
+
+def consumer(loops):
+    for _ in range(loops):
+        with fill_cond:
+            # 버퍼가 비었을 경우 대기
+            while count == 0:
+                fill_cond.wait()
+            tmp = get()
+            print(f"Consumer: got {tmp} (count={count})")
+            # 생산자에 신호 전달
+            empty_cond.notify()
+        time.sleep(0.15)
+
+if __name__ == "__main__":
+    loop_count = 15
+
+    p = threading.Thread(target=producer, args=(loop_count,))
+    c = threading.Thread(target=consumer, args=(loop_count,))
+    p.start()
+    c.start()
+    p.join()
+    c.join()
+    print("Done")
+```
+
+위와 같이 슬롯 다섯 칸짜리 유한 버퍼를 두었습니다.
+`fill_ptr`·`use_ptr`를 모듈러로 증가시키는 링 버퍼라, 칸을 순환하며 쓰고 읽습니다.
+`time.sleep`은 로그가 겹쳐 보이도록 넣은 데모용입니다. 실제로는 버퍼 크기를 키우고, 고정 `loop_count` 대신 요청이 들어오는 동안 돌아가는 워커 루프 같은 형태가 됩니다.
+
 # Covering Conditions
+조건 변수 사용의 또 다른 예제를 살펴보겠습니다.
+이 코드의 특이한 점은, 원하는 크기만큼 빈 공간이 생길 때까지 기다려야 할 수 있다는 것입니다.
+반대로 스레드가 메모리를 해제하면 `bytesLeft`가 늘고, 그때 조건 변수로 신호를 보냅니다.
+
+```python
+import threading
+
+MAX_HEAP_SIZE = 10_000  # 예시
+bytes_left = MAX_HEAP_SIZE
+cv = threading.Condition()
+
+# 메모리 할당
+def allocate(size: int) -> object:
+    global bytes_left
+    with cv:
+        # 요청 크기를 만족할 때까지 대기
+        while bytes_left < size:
+            cv.wait()
+        ptr = object()  # 실제로는 힙·풀에서 블록을 받아옴
+        bytes_left -= size
+        return ptr
+
+# 메모리 반환
+def release(ptr: object, size: int) -> None:
+    global bytes_left
+    with cv:
+        bytes_left += size
+        cv.notify()  # 어떤 대기자를 깨울지는 비결정적
+```
+
+이 코드의 핵심 논점은 `signal` 한 번으로는 어떤 대기자를 깨울지 보장하기 어렵다는 점입니다.
+`Lampson`과 `Redell`이 말한 covering condition 접근은 모든 대기자를 깨운 뒤, 조건이 맞지 않는 스레드는 다시 잠들게 하는 방식입니다.
+다만 이 방식은 불필요한 깨움이 많아 비용이 커질 수 있습니다.
+그래서 실무 구현에서는 조건을 역할별로 쪼개 `cv`를 여러 개 두고, 필요한 대기열만 깨우는 방향을 자주 택합니다.
+- **Condition coverage (조건 커버리지)**: 결정 포인트(if, while 등) 내의 각 개별 논리식(조건)이 참(True)과 거짓(False)을 최소 한 번씩 모두 갖도록 검증하는 구조, 테스트에서도 자주쓰이는 용어
+
 # Summary
+`lock` 외에도 중요한 `synchronization primitive`인 `condition variables`를 살펴봤습니다.
+프로그램이 원하는 상태가 아닐 때 스레드를 잠들게 하고, `covering conditions` 문제를 다루는 데 도움을 줍니다.
