@@ -462,3 +462,208 @@ class Zemaphore:
 그래서 일부 프로그래머는 단순함과 유용성 때문에 `lock`과 `cv`를 피하고 세마포어만 사용하기도 하죠.
 
 결과적으로 세마포어를 잠금(`lock`)과 조건 변수(`condition variable`)의 일반화로 볼 수 있지만, 세마포어 위에 조건 변수를 구현하는 일이 어렵다는 점을 고려하면 이 일반화는 생각만큼 일반적이지는 않습니다.
+
+# Homework
+
+초기값 0인 세마포어는 신호(이벤트) 전달에 적합합니다. 아래 코드처럼 부모가 자식의 특정 시점(예: 종료)을 기다리게 만들면, 부모 스레드는 자식 스레드가 완료된 뒤 작업을 이어갈 수 있습니다.
+
+
+```python
+import threading
+import time
+
+sem = threading.Semaphore(0)
+
+def child():
+    time.sleep(1)
+    sem.release()
+    print("child thread done")
+
+def parent():
+    print("parent thread starting")
+    sem.acquire()
+    print("parent thread done")
+```
+
+---
+
+두 스레드가 특정 지점에 둘 다 도달하기 전에는 누구도 그 지점을 빠져나가지 못하게 하는 rendezvous도 세마포어로 구현할 수 있습니다.
+
+```python
+import threading
+
+a_arrived = threading.Semaphore(0)
+b_arrived = threading.Semaphore(0)
+
+def A():
+    a_arrived.release()
+    b_arrived.acquire()
+
+def B():
+    b_arrived.release()
+    a_arrived.acquire()
+```
+
+---
+
+코드 흐름에 barrier를 두고, 모든 스레드가 특정 작업을 끝내기 전에는 다음 작업을 진행하지 않도록 만들 수도 있습니다. 아래처럼 세마포어와 카운터를 조합해, N개 스레드가 모두 도착해야 다음 단계로 넘어가게 할 수 있죠.
+
+```python
+import threading
+import time
+import random
+
+class SemaphoreBarrier:
+    def __init__(self, n):
+        self.n = n
+        self.count = 0
+        self.mutex = threading.Semaphore(1)  # 카운터 변수 보호
+        self.turnstile = threading.Semaphore(0)  # 스레드 멈추는 장벽
+
+    def wait(self, thread_id):
+        # 도착한 스레드 카운팅
+        self.mutex.acquire()
+        try:
+            self.count += 1
+            print(f"thread = {thread_id}, count = {self.count} : arrived")
+
+            if self.count == self.n:
+                print("all threads arrived")
+                # 모든 스레드가 barrier를 통과할 수 있도록 N번 열어준다
+                for _ in range(self.n):
+                    self.turnstile.release()
+        finally:
+            self.mutex.release()
+        self.turnstile.acquire()
+
+def worker(barrier, thread_id):
+    time.sleep(random.uniform(0.5, 2.0))
+    barrier.wait(thread_id)
+
+if __name__ == "__main__":
+    N_THREADS = 10
+    barrier = SemaphoreBarrier(N_THREADS)
+    threads = []
+
+    for i in range(N_THREADS):
+        t = threading.Thread(target=worker, args=(barrier, i))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    print("done")
+```
+
+이를 실행시키면 다음과 같은 로그가 남는 것을 볼 수 있습니다.
+```bash
+thread = 4, count = 1 : arrived
+thread = 5, count = 2 : arrived
+thread = 0, count = 3 : arrived
+thread = 3, count = 4 : arrived
+thread = 9, count = 5 : arrived
+thread = 2, count = 6 : arrived
+thread = 8, count = 7 : arrived
+thread = 6, count = 8 : arrived
+thread = 1, count = 9 : arrived
+thread = 7, count = 10 : arrived
+all threads arrived
+done
+```
+
+---
+
+기아 없는 mutex를 만들려면, 단순히 `Semaphore(1)`만 쓰는 대신 모든 스레드가 반드시 거쳐야 하는 관문을 둬서 순서를 강제해야 합니다. 아래는 가장 단순한 형태로, turnstile로 진입 순서를 정리한 뒤 실제 mutex를 획득합니다.
+
+```python
+import threading
+
+class NoStarveMutex:
+    def __init__(self):
+        self.turnstile = threading.Semaphore(1)
+        self.mutex = threading.Semaphore(1)
+
+    def acquire(self):
+        self.turnstile.acquire()
+        self.mutex.acquire()
+        self.turnstile.release()
+
+    def release(self):
+        self.mutex.release()
+```
+이 패턴은 새로 들어오는 스레드가 turnstile을 거치게 만들어 경쟁을 정돈하는 방식입니다. 
+그래서 단순 `Semaphore(1)`만 쓰는 것보다 기아 가능성을 줄이는 데 도움이 됩니다.
+
+다만 파이썬의 `threading.Semaphore`는 FIFO 같은 공정성을 보장하지 않기 때문에, 엄밀하게 기아가 절대 발생하지 않는다고 단정하기는 어렵습니다. 기아 없는 동작을 강하게 보장하려면 티켓 기반(대기열) 구현처럼 순서를 명시적으로 관리해야 합니다.
+
+예를 들어 다음처럼 티켓을 쓰면 먼저 온 스레드가 먼저 나가는 형태를 강하게 만들 수 있습니다(세마포어 대신 `Condition`을 씀).
+
+```python
+import threading
+
+class TicketMutex:
+    def __init__(self):
+        self._cond = threading.Condition()
+        self._next_ticket = 0
+        self._serving = 0
+
+    def acquire(self):
+        with self._cond:
+            my = self._next_ticket
+            self._next_ticket += 1
+            while self._serving != my:
+                self._cond.wait()
+
+    def release(self):
+        with self._cond:
+            self._serving += 1
+            self._cond.notify_all()
+```
+
+---
+
+`reader-writer`에서 `reader` 작업이 자주 실행되면 `writer`에 기아가 발생할 수 있습니다.
+기아를 줄이는 흔한 방법은 reader와 writer 모두가 통과해야 하는 입구에 turnstile을 두는 것입니다. writer가 turnstile을 잡으면 이후에 들어오는 reader는 새로 유입되지 못하고 대기하게 됩니다.
+
+```python
+import threading
+
+class ReaderWriterNoStarve:
+    def __init__(self):
+        self.readers = 0
+        self.readers_lock = threading.Semaphore(1)
+        self.resource = threading.Semaphore(1)
+        self.turnstile = threading.Semaphore(1)
+
+    def r_acquire(self):
+        self.turnstile.acquire()
+        self.turnstile.release()
+
+        self.readers_lock.acquire()
+        self.readers += 1
+        if self.readers == 1:
+            self.resource.acquire()
+        self.readers_lock.release()
+
+    def r_release(self):
+        self.readers_lock.acquire()
+        self.readers -= 1
+        if self.readers == 0:
+            self.resource.release()
+        self.readers_lock.release()
+
+    def w_acquire(self):
+        self.turnstile.acquire()
+        self.resource.acquire()
+
+    def w_release(self):
+        self.resource.release()
+        self.turnstile.release()
+```
+
+위 코드에서는 writer가 `w_acquire()`로 turnstile을 잡는 순간부터, 이후에 들어오는 `r_acquire()`들이 대기하게 됩니다. 그 결과 writer가 기아 상태가 되는 상황을 줄일 수 있습니다.
+만약 turnstile이 없다면 OS 스케줄링에 따라 reader가 계속 먼저 실행되어 writer가 오래 기다릴 수도 있습니다.
+
+주의할 점으로로 이 방식은 writer 기아를 줄이는 대신, writer가 계속 몰리면 reader가 오래 기다리는 쪽으로 치우칠 수 있습니다. 즉 공정성의 방향을 바꾼 형태이므로 서비스 목적에 맞춰 적용해야합니다.
+
