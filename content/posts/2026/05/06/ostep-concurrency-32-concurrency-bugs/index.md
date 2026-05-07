@@ -356,3 +356,74 @@ void insert(int value) {
 
 아마도 가장 좋은 해결책은 새로운 동시 프로그래밍 모델을 개발하는 것입니다. 구글의 MapReduce 같은 시스템처럼, 프로그래머가 잠금 없이 특정 유형의 병렬 계산을 표현할 수 있게 하는 접근이죠. 잠금은 본질적으로 문제를 일으키기 쉬우므로, 정말로 필요하지 않다면 사용을 피하는 편이 낫습니다.
 - **MapReduce**: 구글이 개발한, 페타바이트 단위의 대용량 데이터를 저사양 컴퓨터 클러스터 환경에서 병렬로 처리하는 분산 컴퓨팅 프레임워크
+
+# Homework
+`vector add()`를 여러 방식으로 구현해 보면서,
+교착 상태를 만들거나 피하는 방법이 어떤 트레이드오프(성능/공정성/복잡도)를 갖는지 체감해보는 과제입니다, 이 글에서는 파이썬 스레드로 해당 과제를 진행합니다.
+
+```python
+
+import threading
+import time
+from dataclasses import dataclass
+
+@dataclass
+class Vec:
+    name: str
+    data: list[int]
+    lock: threading.Lock = None
+
+    # @dataclass 에서 __init__ 다음 실행
+    def __post_init__(self):
+        if self.lock is None:
+            self.lock = threading.Lock()
+
+def vec_add_deadlock(dst: Vec, src: Vec) -> None:
+    print(f"[{threading.current_thread().name}] {dst.name}: lock 획득 시도..")
+    dst.lock.acquire()
+    print(f"[{threading.current_thread().name}] {dst.name}: lock 획득, {src.name} lock 획득 시도...")
+
+    print(f"[{threading.current_thread().name}] 인터러빙 유도")
+    time.sleep(0.1)
+    src.lock.acquire()
+    try:
+        for i in range (len(src.data)):
+            dst.data[i] += src.data[i]
+    finally:
+        src.lock.release()
+        dst.lock.release()
+
+v1 = Vec("v1", [1,2,3])
+v2 = Vec("v2", [4,5,6])
+
+t1 = threading.Thread(target=vec_add_deadlock, args=(v1, v2))
+t2 = threading.Thread(target=vec_add_deadlock, args=(v2, v1))
+
+t1.start()
+t2.start()
+
+t1.join()
+t2.join()
+
+print("데드락 발생시 문구를 출력하지 않습니다.")
+```
+위 코드 실행시 다음 결과를 줍니다.
+```bash
+[Thread-1 (vec_add_deadlock)] v1: lock 획득 시도..
+[Thread-1 (vec_add_deadlock)] v1: lock 획득, v2 lock 획득 시도...
+[Thread-1 (vec_add_deadlock)] 인터러빙 유도
+[Thread-2 (vec_add_deadlock)] v2: lock 획득 시도..
+[Thread-2 (vec_add_deadlock)] v2: lock 획득, v1 lock 획득 시도...
+[Thread-2 (vec_add_deadlock)] 인터러빙 유도
+```
+로그를 보시면 `v1`의 `lock`을 획득 후 인터러빙이 발생하여 `v2`의 `lock`을 얻은 뒤 `Thread-2`가 `v1`의 `lock`을 획득 시도하여 서로가 서로 가진 `lock`을 요청한 데드락 현상이 일어나 프로세스가 종료되지 않게 되었습니다.
+
+이 데드락이 발생하는 코드를 해결하는 방법은 여러 갈래가 있습니다. 이 글에서 이미 소개한 접근을 기준으로 정리하면 다음과 같습니다.
+- prevention: global lock ordering(순서 강제)
+- prevention: trylock + 재시도(no preemption 완화)
+- prevention: hold and wait 회피
+- detect and recover: 교착 상태를 감지한 뒤 복구
+
+아래 두 접근은 개념적으로는 가능하지만, 파이썬에서 그대로 재현하기는 제약이 있습니다.
+- avoidance(스케줄링을 통한 회피): 범용 OS 스케줄러 수준의 제어가 아니라서 애플리케이션 레벨에서 재현하는 데 제약이 있습니다.
+- mutual exclusion 회피(CAS 등): 파이썬 표준 라이브러리에는 범용 CAS primitive가 없어 그대로 재현하는 데 제약이 있습니다.
