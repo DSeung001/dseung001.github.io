@@ -427,3 +427,128 @@ print("데드락 발생시 문구를 출력하지 않습니다.")
 아래 두 접근은 개념적으로는 가능하지만, 파이썬에서 그대로 재현하기는 제약이 있습니다.
 - avoidance(스케줄링을 통한 회피): 범용 OS 스케줄러 수준의 제어가 아니라서 애플리케이션 레벨에서 재현하는 데 제약이 있습니다.
 - mutual exclusion 회피(CAS 등): 파이썬 표준 라이브러리에는 범용 CAS primitive가 없어 그대로 재현하는 데 제약이 있습니다.
+
+--- 
+**prevention: global lock ordering(순서 강제)** <br/>
+같은 자료 구조를 두 스레드가 서로 다른 `(dst, src)` 조합으로 호출할 때에도 `lock`을 거는 순서를 동일하게 강제하면 문제를 해결할 수 있습니다.
+`vec_add_deadlock` 함수를 다음처럼 바꿔 오브젝트 `id` 같은 전역적으로 일관된 값을 기준으로 `lock` 획득 순서를 정해 `deadlock`을 피합니다.
+```python
+def vec_add_deadlock(dst: Vec, src: Vec) -> None:
+    # 2개의 id를 비교해 항상 동일한 순서로 두 lock을 잡는다 (역순 해제).
+    first, second = (dst, src) if id(dst) < id(src) else (src, dst)
+    print(f"[{threading.current_thread().name}] {first.name} → {second.name} 순으로 lock 획득 시도..")
+    first.lock.acquire()
+    time.sleep(0.1)
+    second.lock.acquire()
+
+    try:
+        for i in range(len(src.data)):
+            dst.data[i] += src.data[i]
+    finally:
+        second.lock.release()
+        first.lock.release()
+```
+--- 
+**prevention: trylock + 재시도(no preemption 완화)**<br/>
+여기서는 `lock` 시도를 해보고 안 되면 가진 `lock`을 풀고 재시도하는 전략을 넣어, 데드락의 **hold and wait**를 깨는 방식에 가깝습니다(한쪽만 `lock`을 쥔 채 다른 쪽을 무한히 기다리지 않음). 비선점 자원을 강제로 빼앗는 것은 아니고, 스스로 놓아 주는 백오프로 **원형 대기(circular wait)** 를 풀어 주는 효과가 납니다.
+마찬가지로 `vec_add_deadlock`을 수정해 봅시다.
+```python
+import random  # 아래 random.uniform 사용
+
+def vec_add_deadlock(dst: Vec, src: Vec) -> None:
+    while True:
+        dst.lock.acquire()
+        print(f"[{threading.current_thread().name}] {dst.name} 획득 성공.")
+        # 인터러빙 유도
+        time.sleep(0.1)
+        print(f"[{threading.current_thread().name}] {src.name} 획득 시도 (trylock)")
+        # 블로킹 없이 두 번째 lock만 시도
+        if src.lock.acquire(blocking=False):
+            try:
+                print(f"[{threading.current_thread().name}] 모든 lock 확보")
+                for i in range(len(src.data)):
+                    dst.data[i] += src.data[i]
+                return  # 작업 완료 후 함수 종료
+            finally:
+                src.lock.release()
+                dst.lock.release()
+        else:
+            print(f"[{threading.current_thread().name}] {src.name} 확보 실패, {dst.name} 포기 후 재시도")
+            dst.lock.release()
+            # 라이브락(Livelock) 방지를 위해 아주 잠시 대기 후 재시도
+            # 두 스레드가 동시에 포기하고 동시에 재시도하면 또 부딪힐 수 있으므로 랜덤 지연을 둠
+            time.sleep(random.uniform(0.01, 0.05))
+```
+---
+**prevention: hold and wait 회피**<br/>
+스레드가 실행할 때 필요한 모든 자원을 한 번에 요청하도록 하는 방법 중 가장 단순한 `Global lock` 방식으로 수정해 봅니다.
+이 방법은 쉽지만 성능에서 손해를 볼 수 있죠.
+```python
+master_lock = threading.Lock()
+def vec_add_deadlock(dst: Vec, src: Vec) -> None:
+    print(f"[{threading.current_thread().name}] 연산 권한 획득 시도...")
+
+    # master_lock이 global lock 역할
+    with master_lock:
+        print(f"[{threading.current_thread().name}] 권한 획득, 자원 점유 시작.")
+
+        # 여기서 발생하는 lock들은 사실상 데드락 위험이 0이 됩니다.
+        dst.lock.acquire()
+        src.lock.acquire()
+
+        try:
+            for i in range(len(src.data)):
+                dst.data[i] += src.data[i]
+        finally:
+            src.lock.release()
+            dst.lock.release()
+
+```
+
+---
+**detect and recover: 교착 상태를 감지한 뒤 복구**<br/>
+보통 운영체제나 데이터베이스(DBMS) 같은 시스템 레벨에서 주로 쓰이는 방식이며, 애플리케이션 레벨에서 구현하려면 `detect`와 `recover`의 정의가 필요합니다. 여기서는 두 번째 `lock`에 **타임아웃**을 두고, 걸리지 않으면 잡았던 `lock`을 풀고 **재시도 횟수**를 두는 식으로 대략적으로 옮겨 본 예시입니다.
+- 감지 단계를 2번째 `lock`을 얻는 시점으로 정의
+- 복구는 `lock` 해제하는 걸로 정의
+```python
+def vec_add_deadlock(dst: Vec, src: Vec) -> None:
+    max_retries = 5
+    attempt = 0
+
+    while attempt < max_retries:
+        dst.lock.acquire()
+        # 인터러빙 유도
+        time.sleep(0.01)
+        # src로 감지
+        # 타임 아웃 추가
+        locked = src.lock.acquire(timeout=0.5)
+
+        if locked:
+            try:
+                # 성공 시 연산
+                for i in range(len(src.data)):
+                    dst.data[i] += src.data[i]
+                return
+            finally:
+                src.lock.release()
+                dst.lock.release()
+        else:
+            # 복구로 모두 풀고 물러남
+            dst.lock.release()
+            attempt += 1
+            print(f"[{threading.current_thread().name}] 데드락 가능성 감지 {attempt}번째 복구 시도...")
+            time.sleep(0.1)
+
+    print(f"[{threading.current_thread().name}] 복구 실패: 최대 시도 횟수 초과")
+```
+이 코드를 실행하면 아래처럼 몇 번은 감지·복구 로그가 나온 뒤 끝나는 경우가 많습니다.
+```
+[Thread-1 (vec_add_deadlock)] 데드락 가능성 감지 1번째 복구 시도...
+[Thread-2 (vec_add_deadlock)] 데드락 가능성 감지 1번째 복구 시도...
+[Thread-2 (vec_add_deadlock)] 데드락 가능성 감지 2번째 복구 시도...
+[Thread-1 (vec_add_deadlock)] 데드락 가능성 감지 2번째 복구 시도...
+[Thread-1 (vec_add_deadlock)] 데드락 가능성 감지 3번째 복구 시도...
+[Thread-2 (vec_add_deadlock)] 데드락 가능성 감지 3번째 복구 시도...
+[Thread-1 (vec_add_deadlock)] 데드락 가능성 감지 4번째 복구 시도...
+데드락 발생시 문구를 출력하지 않습니다.
+```
