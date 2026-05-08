@@ -295,3 +295,118 @@ while True:
 이는 스케줄링 제어를 애플리케이션 단에서 해결할 수 있지만, 시간이 흐르면서 생기는 여러 가지 복잡성과 통합의 어려움으로 다른 트레이드오프가 생기게 되었죠.
 
 스레드 방식과 이벤트 방식은 앞으로도 수년간 공존할 가능성이 크므로 알아두면 좋을 것 같습니다.
+
+# Homework
+
+`accept()`나 `recv()` 같은 호출은 기본적으로 블로킹입니다. <br/>
+한 번 들어가면 데이터가 올 때까지 멈춰 있고, 그 시간 동안 서버는 다른 일을 못 합니다.
+그래서 이벤트 기반에서는 소켓을 `setblocking(False)`로 바꾸고, `select()`가 준비된 소켓을 알려주면 그때 처리를 합니다. 
+이렇게하면 스케줄링을 OS에 맡겨두는 대신 애플리케이션이 직접 처리 순서를 정할 수 있게 되죠.
+
+아래 코드는 `selectors`로 이벤트 루프를 만들고, 간단한 요청 두 가지를 처리합니다.
+- `TIME`은 현재 시간을 돌려줍니다.
+- `GET <name>`은 `files/` 아래의 파일 내용을 돌려줍니다.
+
+```python
+import os
+import selectors
+import socket
+
+sel = selectors.DefaultSelector()
+ROOT = os.path.abspath("files")
+
+
+def safe_path(name: str) -> str:
+    p = os.path.abspath(os.path.join(ROOT, name))
+    if not p.startswith(ROOT + os.sep):
+        raise ValueError("bad path")
+    return p
+
+
+def accept(sock):
+    conn, _addr = sock.accept()
+    conn.setblocking(False)
+    sel.register(conn, selectors.EVENT_READ, handle_get)
+
+
+def handle_get(conn):
+    req = conn.recv(4096)
+    if not req:
+        sel.unregister(conn)
+        conn.close()
+        return
+
+    try:
+        line = req.decode(errors="ignore").strip()
+        parts = line.split(maxsplit=1)
+        cmd = parts[0].upper() if parts else ""
+        arg = parts[1] if len(parts) == 2 else ""
+
+        if cmd == "TIME":
+            import time
+
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            conn.sendall((now + "\n").encode())
+        elif cmd == "GET":
+            path = safe_path(arg)
+            # 파일 읽기는 블로킹이라 느리면 이벤트 루프도 같이 느려질 수 있음
+            with open(path, "rb") as f:
+                conn.sendall(f.read() + b"\n")
+        else:
+            raise ValueError("bad request")
+    except Exception:
+        conn.sendall(b"ERR\n")
+
+
+def serve_files(host="127.0.0.1", port=9000):
+    os.makedirs(ROOT, exist_ok=True)
+    lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    lsock.bind((host, port))
+    lsock.listen()
+    lsock.setblocking(False)
+    sel.register(lsock, selectors.EVENT_READ, accept)
+    print(f"file server on {host}:{port}, root={ROOT}")
+
+    while True:
+        for key, _mask in sel.select(timeout=1.0):
+            key.data(key.fileobj)
+
+
+if __name__ == "__main__":
+    serve_files()
+```
+
+여기서 이벤트 기반의 주의점이 보입니다. <br/>
+
+네트워크는 `select()`로 준비 상태를 깔끔하게 받을 수 있지만 I/O 작업인 `read()`는 다루기 애매한 경우가 많습니다. 
+큰 파일을 읽거나 디스크가 바쁘면, 핸들러가 오래 걸리면서 이벤트 루프가 같이 느려질 수 있습니다.
+파이썬에서는 `OS AIO`를 직접 쓰지 않더라도, `asyncio`에서 파일 읽기를 executor로 넘겨 이벤트 루프를 계속 돌릴 수 있습니다. 
+아래는 핵심 코드입니다.
+
+```python
+import asyncio
+
+cache: dict[str, bytes] = {}
+
+
+async def read_file_cached(path: str) -> bytes:
+    if path in cache:
+        return cache[path]
+
+    loop = asyncio.get_running_loop()
+
+    def blocking_read():
+        with open(path, "rb") as f:
+            return f.read()
+
+    data = await loop.run_in_executor(None, blocking_read)
+    cache[path] = data
+    return data
+```
+
+작은 요청을 여러 개 섞어서 보내다가 중간에 큰 파일 요청을 한 번 테스트해보면 더 명확히 알 수 있습니다.
+
+블로킹 서버는 큰 요청이 들어오는 순간 다른 요청이 같이 밀리는 게 보입니다. <br/>
+이벤트 루프를 써도 파일 읽기를 핸들러에서 해버리면 결국 I/O 작업으로 전체가 느려질 수 있습니다. 
+그래서 이벤트 기반에서는 어디까지를 이벤트로 묶고 어디부터는 다른 방식으로 분리할지 판단하는 일이 중요합니다.
