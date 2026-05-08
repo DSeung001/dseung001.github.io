@@ -9,7 +9,7 @@ keywords: [ "OSTEP", "Event-based Concurrency", "select", "poll", "Async I/O", "
 author: "DSeung001"
 lastmod: 2026-05-08T00:00:00+09:00
 ---
-₩
+
 지금까지 동시성 프로그램을 스레드 기반 동시성만으로 구축하는 것이 유일한 방법인 것처럼 작성해왔습니다.
 이는 당연히 전혀 사실과는 거리가 멀고, 여러 다른 스타일의 동시 프로그래밍이 있습니다.
 
