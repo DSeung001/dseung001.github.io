@@ -214,7 +214,7 @@ Image Vector Shape: (768,)
 | 0.2 미만 (낮음) | 연관성 낮음 | 내용이 불일치하거나 관련 없는 내용 |
 
 정확도가 더 낮은 편으로 알려진 모델인 `clip-ViT-B-32`로 바꿔 돌리면 다음과 같은 결과가 나옵니다. <br/>
-점수는 전반적으로 올라가지만, 1위 후보가 달라지는 등, 전체 순위가가 기대와 안맞는 부분이 보입니다.
+점수는 전반적으로 올라갔지만, 1위 후보가 달라지는 등 전체 순위가 기대와 맞지 않는 부분이 보입니다.
 ```bash
 Loading model 'clip-ViT-B-32' into memory...
 Model loaded in 7.77 seconds on cpu
@@ -236,10 +236,52 @@ Image Vector Shape: (512,)
 Process finished with exit code 0
 ```
 이름에 붙은 32, 14는 ViT가 이미지를 나눌 때 쓰는 패치 한 변의 픽셀 수를 뜻합니다. `clip-ViT-B-32`는 32×32 픽셀 패치, `clip-ViT-L-14`는 14×14 픽셀 패치라서 같은 해상도에서도 후자가 격자를 더 촘촘히 봅니다.<br/>
-제가 사용한 이미지 크기는 890×504입니다. 더 큰 입력 해상도나 패치가 더 잘게 쪼개지는 계열을 쓰면 검색 품질이 나아질 여지가 있습니다.
+제가 사용한 이미지 크기는 890×504입니다.
 
+모델이 한국어보다 영어 텍스트 중심으로 학습되었으므로 이 부분에서 정확도 문제가 생겼을 수도 있습니다.
+결과부터 말하면 `clip-ViT-L-14` 모델을 유지한 채 영어로 `queries`를 바꿔 진행해 보면 점수도 오르고 정확도도 유지되는 걸 확인할 수 있었습니다.
 
+다음처럼 `queries`를 바꿔봅시다. 애매하고 서로 비슷한 쿼리들을 넣어봤습니다.
+```python
+queries = [
+    "A gloomy scene with falling rain", # 비가 내리는 우울한 장면
+    "Flashy action of the protagonist swinging a sword", # 주인공이 검을 휘두르는 화려한 액션
+    "Characters having a meal and laughing together", # 등장인물들이 웃으며 식사하는 일상
+    "The protagonist's party watching an elf jumping while crying", # 울며 점프하는 엘프를 보는 주인공 일행
+    "A scene of someone crying on the bed", # 침대 위에서 울고 있는 장면
+    "A scene inside an inn", # 어느 여관 안에 있는 모습
+    "There are four people inside the inn", # 여관 안에 사람이 4명이 있다
+    "There are three people inside the inn", # 여관 안에 사람이 3명이 있다
+    "There are two people inside the inn", # 여관 안에 사람이 2명이 있다
+    "There is a wardrobe and a bed in the room", # 방 안에 장롱과 침대가 있다
+    "There is a bed and a wardrobe in the room" # 방 안에 침대와 장롱이 있다
+]
+```
+결과는 다음과 같이 나옵니다. 울고 있는 모습을 정확히 캐치한 점이 흥미롭고, `There is a wardrobe and a bed in the room`와 `There is a bed and a wardrobe in the room`의 점수 차이를 보면 이미지를 파악하는 순서나 단어의 위치에 따라 벡터값이 달라지는 걸 볼 수 있습니다.
 
+```md
+Loading model 'clip-ViT-L-14' into memory...
+Model loaded in 7.57 seconds on cpu
+
+--- Extracting Embeddings ---
+Image encoding latency: 552.03 ms
+Text encoding latency: 441.05 ms
+
+Image Vector Shape: (768,)
+
+--- Cosine Similarity Results ---
+1. Score: 0.2711 -> Query: 'A scene of someone crying on the bed'
+2. Score: 0.2227 -> Query: 'A scene inside an inn'
+3. Score: 0.2223 -> Query: 'There is a bed and a wardrobe in the room'
+4. Score: 0.2205 -> Query: 'There are four people inside the inn'
+5. Score: 0.2205 -> Query: 'There are three people inside the inn'
+6. Score: 0.2161 -> Query: 'The protagonist's party watching an elf jumping while crying'
+7. Score: 0.2159 -> Query: 'There are two people inside the inn'
+8. Score: 0.2094 -> Query: 'There is a wardrobe and a bed in the room'
+9. Score: 0.2020 -> Query: 'Characters having a meal and laughing together'
+10. Score: 0.1944 -> Query: 'Flashy action of the protagonist swinging a sword'
+11. Score: 0.1459 -> Query: 'A gloomy scene with falling rain'
+```
 
 ### Colab/Jupyter로 좀 더 깊게 이해하기
 ### Numpy로 DB 없이 검색기 만들기 (50~200장)
