@@ -236,10 +236,10 @@ Image Vector Shape: (768,)
 11. Score: 0.1459 -> Query: 'A gloomy scene with falling rain'
 ```
 
-### Colab에서 OpenAI CLIP 돌려보기
-이전에는 허깅페이스를 사용해 쉽게 모델에 접근했습니다.
-이번에는 `Colab` 환경에서 `OpenAI CLIP`을 사용해서, 즉 `sentence_transformers` 없이 `CLIP`으로 직접 특징 벡터를 추출하고, 이미지와 텍스트가 어떻게 비교되는지 시각화해봅니다.
-`Colab`은 GPU 런타임을 선택하면 `CUDA` 환경에서 모델 추론과 행렬 연산을 더 효율적으로 테스트할 수 있어 편리합니다.
+### Colab 환경에서 OpenAI CLIP 써보기
+이전에는 허깅페이스를 사용해 쉽게 모델에 접근했고 로컬에서 작업을 했습니다.
+이번에는 `Colab` 환경에서 `OpenAI CLIP`을 사용해서 `sentence_transformers` 없이 `CLIP`으로 직접 특징 벡터를 추출하고, 이미지와 텍스트가 어떻게 비교되는지 시각화해봅니다.
+`Colab`은 GPU 런타임을 선택하면 `CUDA` 환경에서 모델 추론과 행렬 연산을 더 효율적으로 테스트할 수 있고 편이해서 이번에는 이 환경에서 진행해보려고 합니다.
 - **Colab**: Google Colab(Colaboratory)로 브라우저 기반의 무료 파이썬(Python) 개발 샌드박스 환경
 - **CUDA(Compute Unified Device Architecture)**: 엔비디아(NVIDIA)가 개발한 병렬 컴퓨팅 플랫폼 및 프로그래밍 모델
 
