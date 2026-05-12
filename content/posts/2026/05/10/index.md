@@ -280,9 +280,13 @@ Image Vector Shape: (768,)
 11. Score: 0.1459 -> Query: 'A gloomy scene with falling rain'
 ```
 
-### Colab/Jupyter로 좀 더 깊게 이해하기
-`Colab/Jupyter`을 사용해 샌드박스 환경으로 제한을 둬 좀 더 정밀하게 예시를 만들고 실험해봅시다.
-그래서 이번에는 데이터를 GPU 환경에서 배치로 처리할 때의 효율성을 따져보고 `CLIP`이 실제로 이미지를 어떻게 이해하고 있는 지를 시각적으로 검증해볼 예정입니다.
+### Colab으로 좀 더 깊게 이해하기
+`Colab` 환경으로 `sentence_transformers` 없이 직접 특징 추출을 해보고 시각화를 해봅니다. 
+`Colab`에서 GPU 런타임을 선택하면 `CUDA` 환경에서 더 효율적으로 테스트할 수 있어서 편리하죠.
+- **Colab**: Google Colab(Colaboratory)로 브라우저 기반의 무료 파이썬(Python) 개발 샌드박스 환경
+- **CUDA(Compute Unified Device Architecture)**: 엔비디아(NVIDIA)가 개발한 병렬 컴퓨팅 플랫폼 및 프로그래밍 모델
+
+이번에는 데이터를 GPU 환경에서 배치로 처리할 때의 효율성을 따져보고 `CLIP`이 실제로 이미지를 어떻게 이해하고 있는지를 시각적으로 검증해볼 예정입니다.
 
 이번 예시로 아래 3가지를 파악합니다.
 - **행렬 연산의 효율성**: 1:1 비교가 아닌 N:M 비교(Similarity Matrix)를 통해 GPU가 행렬 연산을 얼마나 빠르게 처리하는지 체감
@@ -291,9 +295,143 @@ Image Vector Shape: (768,)
 
 이를 위해서 아래 사이트들을 참고할 수 있죠.
 - [OpenAI CLIP 공식 Colab](https://colab.research.google.com/github/openai/clip/blob/master/notebooks/Interacting_with_CLIP.ipynb?authuser=1)
-- [Hugging Face CLIP 가이드](https://huggingface.co/docs/transformers/model_doc/clip)
 
+다음 코드를 `Colab`에 넣어봅시다.
+1. 필요한 라이브러리와 영상을 다운로드해봅시다.
+```python
+!pip install yt-dlp
+!pip install git+https://github.com/openai/CLIP.git
+# yt-dlp로 비디오와 오디오 병합 다운로드
+# 나중에 Whisper를 위해 오디오 포함되게 다운로드
+!yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" "https://www.youtube.com/watch?v=qDFeurdWDNE" -o sample_anime.mp4
+```
+2. 동영상에서 프레임 추출
+```python
+# ffmpeg로 1차 리사이징 및 프레임 추출 (I/O 병목 방지)
+# ViT-L/14 모델의 기본 입력은 224px이므로 scale=-1:224로 맞춤
+!mkdir -p frames
+!ffmpeg -i sample_anime.mp4 -vf "fps=2.5,scale=-1:224" -q:v 2 frames/frame_%04d.jpg
+```
+3. 프레임 이미지 배치 처리와 텍스트의 N:M 유사도 비교 진행
+```python
+import os
+import torch # 딥러닝 프레임워크
+import clip # 신경망
+from PIL import Image # 이미지 가공
+import matplotlib.pyplot as plt # 시각화
+import seaborn as sns # 데이터 통계 시각화
+import matplotlib.gridspec as gridspec # grid 세팅
 
+# CLIP 모델과 이미지 전처리 함수 로드
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Loading ViT-L/14 model...")
+# 이 모델은 224px 이미지를 14px 패치로 나누므로 16 x 16 = 256개 패치를 사용함
+# 이미지 크기를 224에서 336으로 늘리면 패치 수가 증가해 GPU 비용도 함께 증가함
+# 224px이어도 CLIP은 색감, 구도, 객체, 분위기 같은 정보를 의미적 특징 벡터로 인코딩함
+model, preprocess = clip.load("ViT-L/14", device=device)
+model.eval() # 모델을 추론 모드로 설정
+
+# 전체 프레임 중 시각화할 이미지 샘플링
+image_count = 20
+all_frame_files = sorted([os.path.join("frames", f) for f in os.listdir("frames") if f.endswith(".jpg")])
+
+if len(all_frame_files) > image_count and image_count > 1:
+  sampled_indices = [
+      round(i * (len(all_frame_files) - 1) / (image_count - 1))
+      for i in range(image_count)
+  ]
+  frame_files = [all_frame_files[i] for i in sampled_indices]
+else:
+  frame_files = all_frame_files[:image_count]
+print(f"Extracting features for {len(frame_files)} frames...")
+
+# 샘플링한 이미지들을 전처리한 뒤 하나의 배치 Tensor로 묶어 GPU로 이동
+image_tensors = torch.stack([preprocess(Image.open(f)) for f in frame_files]).to(device)
+# 텍스트 토큰화, sentence-transformers를 쓰지 않으므로 CLIP 토크나이저를 직접 사용
+queries = [
+    "Netflix",
+    "Sad scene",
+    "Neon-lit Night City",
+    "Giant Hologram Advertisement",
+    "Rainy Dystopian Street",
+    "Cybernetic Body Enhancements",
+    "Flying Vehicle in the Sky",
+    "Digital Glitch Effect",
+    "High-tech Hacking Interface",
+    "Wires and Cables Underground",
+    "Cyberpunk Techwear Fashion",
+    "Melancholic Loneliness"
+]
+text_tokens = clip.tokenize(queries).to(device)
+
+# 특징 추출 (Feature Extraction & Normalization)
+with torch.no_grad(): # 그래디언트 추적을 꺼서 추론 속도와 VRAM 사용량을 개선
+  # 이미지 배치와 텍스트 배치를 각각 한 번에 인코딩
+  image_features = model.encode_image(image_tensors)
+  text_features = model.encode_text(text_tokens)
+
+  # L2 정규화: 벡터의 길이를 1로 맞춰 방향성(Cosine Similarity)만 비교할 수 있게 함
+  image_features /= image_features.norm(dim=-1, keepdim=True)
+  text_features /= text_features.norm(dim=-1, keepdim=True)
+
+  # 유사도 계산 및 확률 변환
+  # image_features (프레임 수, 768) @ text_features.T (768, 쿼리 수) = logits (프레임 수, 쿼리 수)
+  # @는 행렬곱
+  logit_scale = model.logit_scale.exp()
+  # logits은 코사인 유사도에 CLIP이 학습한 스케일 값을 곱한 점수
+  logits = logit_scale * image_features @ text_features.t()
+
+  # softmax는 전체 정답 확률이 아니라 현재 쿼리 목록 안에서의 상대 점수
+  probs = logits.softmax(dim=-1).cpu().numpy()
+  # 순수 코사인 유사도
+  # cpu().numpy(): GPU 텐서를 CPU 메모리로 옮긴 뒤 NumPy 배열로 변환
+  cos_sim = (image_features @ text_features.t()).cpu().numpy()
+
+# 시각화 설정
+num_frames = len(frame_files)
+fig = plt.figure(figsize=(16, num_frames * 1.5))
+# grid 설정
+gs = gridspec.GridSpec(1, 2, width_ratios=[3, 1])
+
+# 코사인 유사도와 softmax 상대 점수를 함께 표시
+heatmap_labels = [
+    [f"{cos_sim[i, j]:.3f} ({probs[i, j]:.2f})" for j in range(len(queries))]
+    for i in range(num_frames)
+]
+# 히트맵 색상은 cos_sim 기준, 셀 텍스트에는 cos_sim과 probs를 함께 표시
+ax_cos = plt.subplot(gs[0])
+sns.heatmap(cos_sim, annot=heatmap_labels, cmap='Blues', fmt="",
+            xticklabels=queries,
+            yticklabels=[f"Frame {i+1}" for i in range(num_frames)],
+            ax=ax_cos, cbar_kws={"shrink": 0.5})
+ax_cos.set_title(
+    "CLIP Cosine Similarity (Softmax Relative Score)", 
+    fontsize=15, 
+    pad=20
+)
+
+# 오른쪽에 이미지 그리기 
+gs_img = gridspec.GridSpecFromSubplotSpec(num_frames, 1, subplot_spec=gs[1])
+for i, img_path in enumerate(frame_files):
+  ax_img = plt.subplot(gs_img[i])
+  img = Image.open(img_path)
+  ax_img.imshow(img)
+  ax_img.axis('off') # 축 숨기기
+  ax_img.set_title(f"Frame {i+1}", fontsize=9)
+
+plt.tight_layout()
+plt.show()
+```
+
+다음 부분을 적용할 필요가 있음
+- GPU 효율성을 비교하는 지표가 없음 최소한 시간을 측정할게 필요함
+- 전처리와 GPU 추론을 구분해서 설명이 추가될 필요가 있음
+- 전체적인 흐름 이미지 로드 → 전처리 → 배치 텐서화 → GPU 이동 → 모델 인코딩 으로 그래프화필요
+- 카워드 정리
+    - cos_sim: 이미지 벡터와 텍스트 벡터의 방향이 얼마나 비슷한지 보는 값
+    -logits: 코사인 유사도에 CLIP이 학습한 스케일 값을 곱한 점수
+    - softmax: 한 프레임 안에서 여러 쿼리 점수를 상대 비교한 값
+    - N:M 비교: N개의 이미지와 M개의 텍스트를 한 번의 행렬곱으로 비교하는 구조
 
 
 ### Numpy로 DB 없이 검색기 만들기 (50~200장)
