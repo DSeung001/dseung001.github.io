@@ -280,18 +280,25 @@ Image Vector Shape: (768,)
 11. Score: 0.1459 -> Query: 'A gloomy scene with falling rain'
 ```
 
-### Colab으로 좀 더 깊게 이해하기
-`Colab` 환경으로 `sentence_transformers` 없이 직접 특징 추출을 해보고 시각화를 해봅니다. 
-`Colab`에서 GPU 런타임을 선택하면 `CUDA` 환경에서 더 효율적으로 테스트할 수 있어서 편리하죠.
+### Colab에서 돌려보며 이해하기
+`Colab` 환경에서 `sentence_transformers` 없이 `CLIP`으로 직접 특징 벡터를 추출하고, 이미지와 텍스트가 어떻게 비교되는지 시각화해봅니다.
+`Colab`은 GPU 런타임을 선택하면 `CUDA` 환경에서 모델 추론과 행렬 연산을 더 효율적으로 테스트할 수 있어 편리합니다.
 - **Colab**: Google Colab(Colaboratory)로 브라우저 기반의 무료 파이썬(Python) 개발 샌드박스 환경
 - **CUDA(Compute Unified Device Architecture)**: 엔비디아(NVIDIA)가 개발한 병렬 컴퓨팅 플랫폼 및 프로그래밍 모델
 
-이번에는 데이터를 GPU 환경에서 배치로 처리할 때의 효율성을 따져보고 `CLIP`이 실제로 이미지를 어떻게 이해하고 있는지를 시각적으로 검증해볼 예정입니다.
+`CLIP`이 이미지와 텍스트의 유사도를 계산하는 부분은 앞에서 Hugging Face를 통해 간략하게 1:N으로 진행했었는데, 이번에는 이미지와 텍스트를 N:M으로 비교해봅시다.
+
+곧 나올 코드의 흐름은 다음과 같습니다.
+```text
+이미지 파일 로드 → CLIP 전처리 → 배치 Tensor 생성 → GPU 이동 → 이미지 벡터 추출
+텍스트 쿼리 → CLIP 토큰화 → GPU 이동 → 텍스트 벡터 추출
+이미지 벡터 N개 × 텍스트 벡터 M개 → N:M 유사도 행렬 → 히트맵 시각화
+```
 
 이번 예시로 아래 3가지를 파악합니다.
-- **행렬 연산의 효율성**: 1:1 비교가 아닌 N:M 비교(Similarity Matrix)를 통해 GPU가 행렬 연산을 얼마나 빠르게 처리하는지 체감
-- **Zero-shot 가용성 검증**: 애니메이션의 실제 장르(액션, 힐링, 공포 등)나 다양한 상황 키워드를 넣었을 때 모델이 얼마나 정확하게 분류하는지를 평가
-- **시각화(Heatmap)**: 텍스트 쿼리와 이미지 프레임 간의 유사도를 히트맵으로 그려보며, 모델의 판단 근거를 확인
+- **벡터 추출**: 이미지와 텍스트가 각각 어떤 특징 벡터로 바뀌는지 확인
+- **N:M 유사도 비교**: 1:1 반복 비교가 아니라 행렬곱 한 번으로 모든 이미지-텍스트 조합을 비교
+- **시각화(Heatmap)**: 코사인 유사도와 softmax 상대 점수를 함께 보며 쿼리별 반응을 해석
 
 이를 위해서 아래 사이트들을 참고할 수 있죠.
 - [OpenAI CLIP 공식 Colab](https://colab.research.google.com/github/openai/clip/blob/master/notebooks/Interacting_with_CLIP.ipynb?authuser=1)
@@ -312,9 +319,17 @@ Image Vector Shape: (768,)
 !mkdir -p frames
 !ffmpeg -i sample_anime.mp4 -vf "fps=2.5,scale=-1:224" -q:v 2 frames/frame_%04d.jpg
 ```
-3. 프레임 이미지 배치 처리와 텍스트의 N:M 유사도 비교 진행
+3. 프레임 이미지와 텍스트를 벡터로 바꾼 뒤 N:M 유사도 비교 진행
+
+아래 코드는 크게 네 단계로 나뉩니다.
+- 전체 프레임 중 일부를 균등하게 샘플링
+- 이미지와 텍스트를 각각 `CLIP` 입력 형태로 변환
+- `CLIP`으로 이미지/텍스트 특징 벡터 추출
+- 벡터 간 유사도를 행렬곱으로 계산하고 히트맵으로 시각화
+
 ```python
 import os
+import time
 import torch # 딥러닝 프레임워크
 import clip # 신경망
 from PIL import Image # 이미지 가공
@@ -330,6 +345,11 @@ print("Loading ViT-L/14 model...")
 # 224px이어도 CLIP은 색감, 구도, 객체, 분위기 같은 정보를 의미적 특징 벡터로 인코딩함
 model, preprocess = clip.load("ViT-L/14", device=device)
 model.eval() # 모델을 추론 모드로 설정
+
+# CUDA 연산은 비동기로 실행되므로 시간 측정 전후에 사용할 동기화 함수
+def sync_if_cuda():
+  if device == "cuda":
+    torch.cuda.synchronize()
 
 # 전체 프레임 중 시각화할 이미지 샘플링
 image_count = 20
@@ -367,25 +387,61 @@ text_tokens = clip.tokenize(queries).to(device)
 # 특징 추출 (Feature Extraction & Normalization)
 with torch.no_grad(): # 그래디언트 추적을 꺼서 추론 속도와 VRAM 사용량을 개선
   # 이미지 배치와 텍스트 배치를 각각 한 번에 인코딩
+  sync_if_cuda()
+  encode_start = time.perf_counter()
   image_features = model.encode_image(image_tensors)
   text_features = model.encode_text(text_tokens)
+  sync_if_cuda()
+  encode_time = time.perf_counter() - encode_start
 
   # L2 정규화: 벡터의 길이를 1로 맞춰 방향성(Cosine Similarity)만 비교할 수 있게 함
   image_features /= image_features.norm(dim=-1, keepdim=True)
   text_features /= text_features.norm(dim=-1, keepdim=True)
 
-  # 유사도 계산 및 확률 변환
-  # image_features (프레임 수, 768) @ text_features.T (768, 쿼리 수) = logits (프레임 수, 쿼리 수)
-  # @는 행렬곱
+  # 1:1 방식: 각 이미지-텍스트 쌍을 하나씩 비교
+  sync_if_cuda()
+  loop_start = time.perf_counter()
+  loop_scores = []
+  for image_feature in image_features:
+    row = []
+    for text_feature in text_features:
+      row.append(image_feature @ text_feature)
+    loop_scores.append(torch.stack(row))
+  loop_scores = torch.stack(loop_scores)
+  sync_if_cuda()
+  loop_time = time.perf_counter() - loop_start
+
+  # N:M 방식: 행렬곱 한 번으로 전체 유사도 행렬 계산
+  # image_features (프레임 수, 768) @ text_features.T (768, 쿼리 수) = cos_sim (프레임 수, 쿼리 수)
+  sync_if_cuda()
+  matrix_start = time.perf_counter()
+  cos_sim_tensor = image_features @ text_features.t()
+  sync_if_cuda()
+  matrix_time = time.perf_counter() - matrix_start
+
+  # 유사도 점수를 CLIP의 logits와 softmax 상대 점수로 변환
   logit_scale = model.logit_scale.exp()
   # logits은 코사인 유사도에 CLIP이 학습한 스케일 값을 곱한 점수
-  logits = logit_scale * image_features @ text_features.t()
+  logits = logit_scale * cos_sim_tensor
 
   # softmax는 전체 정답 확률이 아니라 현재 쿼리 목록 안에서의 상대 점수
   probs = logits.softmax(dim=-1).cpu().numpy()
   # 순수 코사인 유사도
   # cpu().numpy(): GPU 텐서를 CPU 메모리로 옮긴 뒤 NumPy 배열로 변환
-  cos_sim = (image_features @ text_features.t()).cpu().numpy()
+  cos_sim = cos_sim_tensor.cpu().numpy()
+
+# 이미지/텍스트를 CLIP 벡터로 바꾸는 모델 추론 시간이 어느 정도인지 확인
+print(f"CLIP feature encoding time: {encode_time:.6f}s")
+# 이미지-텍스트 쌍을 하나씩 비교하면 얼마나 걸리는지 확인
+print(f"1:1 loop similarity time: {loop_time:.6f}s")
+# 같은 비교를 N:M 행렬곱 한 번으로 처리하면 얼마나 걸리는지 확인
+print(f"N:M matrix similarity time: {matrix_time:.6f}s")
+# 전체 비교 기준으로 행렬곱 방식이 1:1 반복 방식보다 몇 배 빠른지 확인
+print(f"Matrix speedup: {loop_time / max(matrix_time, 1e-12):.2f}x")
+
+# 두 방식이 같은 코사인 유사도 행렬을 만드는지 최대 오차로 체크
+max_diff = (loop_scores - cos_sim_tensor).abs().max().item()
+print(f"Max difference between two methods: {max_diff:.8f}")
 
 # 시각화 설정
 num_frames = len(frame_files)
@@ -423,21 +479,44 @@ plt.tight_layout()
 plt.show()
 ```
 
-다음 부분을 적용할 필요가 있음
-- GPU 효율성을 비교하는 지표가 없음 최소한 시간을 측정할게 필요함
-- 전처리와 GPU 추론을 구분해서 설명이 추가될 필요가 있음
-- 전체적인 흐름 이미지 로드 → 전처리 → 배치 텐서화 → GPU 이동 → 모델 인코딩 으로 그래프화필요
-- 카워드 정리
-    - cos_sim: 이미지 벡터와 텍스트 벡터의 방향이 얼마나 비슷한지 보는 값
-    -logits: 코사인 유사도에 CLIP이 학습한 스케일 값을 곱한 점수
-    - softmax: 한 프레임 안에서 여러 쿼리 점수를 상대 비교한 값
-    - N:M 비교: N개의 이미지와 M개의 텍스트를 한 번의 행렬곱으로 비교하는 구조
+여기서 시간 비교는 `CLIP` 모델 자체의 성능 벤치마크가 아니라, 이미 추출된 특징 벡터들을 비교하는 방식의 차이를 보기 위한 것입니다. 작은 예제에서는 차이가 크게 보이지 않을 수 있지만, 이미지 수와 쿼리 수가 늘어날수록 1:1 반복 비교보다 N:M 행렬곱의 효율성이 더 커집니다.
 
+정리하면, 이 코드에서 봐야 하는 핵심은 다음과 같습니다.
+- `image_features`: 이미지들을 의미 벡터로 바꾼 결과
+- `text_features`: 텍스트 쿼리들을 같은 공간의 의미 벡터로 바꾼 결과
+- `cos_sim`: 이미지 벡터와 텍스트 벡터의 방향이 얼마나 비슷한지 보는 값
+- `logits`: 코사인 유사도에 `CLIP`이 학습한 스케일 값(`logit_scale`)을 곱한 점수
+- `logit_scale`: softmax에 들어가기 전 점수 차이를 더 명확히 만드는 값
+- `softmax`: 한 프레임 안에서 현재 쿼리 후보들끼리 상대 비교한 값
+- `N:M 비교`: N개의 이미지와 M개의 텍스트를 행렬곱 한 번으로 비교하는 구조
+
+위 코드를 실행한 결과는 다음과 같습니다.
+```
+Loading ViT-L/14 model...
+Extracting features for 20 frames...
+CLIP feature encoding time: 70.832849s
+1:1 loop similarity time: 0.002893s
+N:M matrix similarity time: 0.000110s
+Matrix speedup: 26.31x
+Max difference between two methods: 0.00000007
+```
+
+`CLIP`에서 특징을 추출하는 데 `70.832849s`로 가장 시간이 많이 걸렸는데, 이는 모델 인코딩과 더불어 첫 실행 시 CUDA 초기화나 모델 워밍업 비용이 섞인 결과입니다.
+```python
+    image_features = model.encode_image(image_tensors)
+    text_features = model.encode_text(text_tokens)
+```
+인코딩 후 나온 특징 벡터로 유사도를 계산할 때는 아직 데이터 양이 작아 `0.002893s`와 `0.000110s`로 절대적인 시간 차이가 작게 발생하지만, 데이터가 늘면 시간 차이가 지수적으로 늘어납니다.
+
+1:1 반복 방식과 N:M 행렬곱 방식의 정합성을 확인하기 위해 결과 차이를 비교했을 때 `Max difference`가 `0.00000007`로 매우 작은 걸 확인할 수 있는데, 이는 사실상 같은 코사인 유사도 행렬을 만든다고 볼 수 있습니다.
+이 정도 차이가 발생하는 이유는 GPU/부동소수점 연산 순서 차이에서 생길 수 있는 미세한 오차입니다.
+그리고 N:M으로 행렬곱을 했을 때 1:1 방식보다 `26.31`배 빠르게 동작하는 것도 볼 수 있었습니다.
+
+마지막으로 이를 실행한 시각화 결과는 아래와 같습니다, 유튜브 영상을 다운받고 프레임별로 가장 부합하는 키워드들을 찾아주는 걸 확인할 수 있습니다. 
+<img src="./colab_result_grid.webp" alt="colab_result_grid.webp" style="display: block; width: 700px; height: auto; margin: 0 auto;">
 
 ### Numpy로 DB 없이 검색기 만들기 (50~200장)
 
-- 음.. 가능하면 내 로컬에서 코드로 돌려보고 싶은데 허깅스페이스로 손쉽게 가능하다고 하니 그쪽을 좀 보거나
-- Colab/Jupyter로 본질을 파악하는 편도 좋음 Sentence-Transformers로
 - 간단하게 내가 가진 이미지 50~200 장으로 DB 없이도 numpy로 검색기를 만들 수 있음
 
 
