@@ -1,0 +1,22 @@
+{{- /*
+  커서 팔로워 캐릭터: assets/img 영문 파일명, 캐릭터별 잉크 RGB·표시 너비(0이면 로드 후 비율로 자동).
+  리소스가 있는 항목만 chars에 포함됩니다.
+*/ -}}
+{{- $rows := slice
+  (dict "path" "img/metamon.png" "ink" (dict "r" 168 "g" 152 "b" 220) "width" 0)
+  (dict "path" "img/magikarp.png" "ink" (dict "r" 235 "g" 98 "b" 72) "width" 0)
+  (dict "path" "img/pikachu.png" "ink" (dict "r" 255 "g" 203 "b" 5) "width" 0)
+  (dict "path" "img/slowpoke.png" "ink" (dict "r" 244 "g" 165 "b" 195) "width" 0)
+-}}
+{{- $scratch := newScratch -}}
+{{- $scratch.Set "chars" (slice) -}}
+{{- range $rows -}}
+  {{- $path := .path -}}
+  {{- $ink := .ink -}}
+  {{- $width := .width -}}
+  {{- with resources.Get $path -}}
+    {{- $entry := dict "url" .RelPermalink "ink" $ink "width" $width -}}
+    {{- $scratch.Set "chars" (($scratch.Get "chars") | append $entry) -}}
+  {{- end -}}
+{{- end -}}
+{{- return dict "chars" ($scratch.Get "chars") -}}

@@ -119,6 +119,12 @@
                 {{- end }}
             </div>
         </div>
+        {{- $cf := partialCached "cursor_follower_config.html" site -}}
+        {{- $showCursorSettings := gt (len $cf.chars) 0 -}}
+        <div class="nav-right{{ if $showCursorSettings }} nav-right--cursor-settings{{ end }}">
+        {{- if $showCursorSettings }}
+        {{- partial "cursor_follower_menu_gear.html" site -}}
+        {{- end }}
         {{- $currentPage := . }}
         <ul id="menu">
             {{- range site.Menus.main }}
@@ -145,5 +151,6 @@
             </li>
             {{- end }}
         </ul>
+        </div>
     </nav>
 </header> 

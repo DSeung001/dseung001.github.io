@@ -5,25 +5,110 @@
 </script>
 {{ end }}
 
-{{- with resources.Get "img/cursor.png" -}}
+{{- $cf := partialCached "cursor_follower_config.html" site -}}
+{{- if gt (len $cf.chars) 0 -}}
+{{- $cfgDict := dict "chars" $cf.chars -}}
 <div id="cursor-follower" aria-hidden="true">
-  <img src="{{ .RelPermalink }}" alt="" width="25" decoding="async" fetchpriority="low">
+  <img src="{{ (index $cf.chars 0).url }}" alt="" decoding="async" fetchpriority="low">
 </div>
 <canvas id="cursor-ink-trail" aria-hidden="true"></canvas>
 <script>
 (function () {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  /* jsonify+JSON.parse는 hugo --minify 시 script 본문이 이중 이스케이프되어 깨질 수 있음 → safeJS로 직접 객체 리터럴 삽입 */
+  var cfg = {{ $cfgDict | jsonify | safeJS }};
   var el = document.getElementById("cursor-follower");
-  if (!el) return;
+  if (!cfg || !el) return;
+  var chars = cfg.chars || [];
   var img = el.querySelector("img");
-  if (!img) return;
+  if (!chars.length || !img) return;
 
+  function dispatchReady() {
+    document.dispatchEvent(new Event("cursor-follower:ready"));
+  }
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    window.cursorFollowerApi = {
+      toggleEnabled: function () {},
+      nextImage: function () {},
+    };
+    dispatchReady();
+    return;
+  }
+
+  var LS_ON = "cursor-follower-enabled";
+  var LS_IMG = "cursor-follower-img-idx";
+  var INK_COLOR = { r: 168, g: 152, b: 220 };
+  var imgW = 25;
   var gap = 10;
   var xOffset = 16;
+  var DISPLAY_SCALE = 2 / 3;
+
+  function curIdx() {
+    var v = parseInt(localStorage.getItem(LS_IMG), 10);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function applyInkFromChar(c) {
+    if (c && c.ink) {
+      INK_COLOR.r = Number(c.ink.r);
+      INK_COLOR.g = Number(c.ink.g);
+      INK_COLOR.b = Number(c.ink.b);
+    }
+  }
+
+  function layoutFromImage() {
+    var nw = img.naturalWidth || img.offsetWidth || 24;
+    var nh = img.naturalHeight || img.offsetHeight || 24;
+    var c = chars[curIdx()] || chars[0];
+    var tw = c && Number(c.width);
+    if (tw > 0) {
+      imgW = tw;
+    } else {
+      imgW = Math.min(52, Math.max(22, Math.round(nw)));
+    }
+    imgW = Math.max(14, Math.round(imgW * DISPLAY_SCALE));
+    img.width = imgW;
+    el.style.width = imgW + "px";
+    var scale = imgW / Math.max(1, nw);
+    var dispH = nh * scale;
+    gap = Math.round(2 + dispH * 0.5);
+    xOffset = Math.round(4 + imgW * 0.58);
+  }
+
+  function applyCharacterAtIndex(i) {
+    if (i < 0 || i >= chars.length) return;
+    var c = chars[i];
+    applyInkFromChar(c);
+    var done = function () {
+      layoutFromImage();
+    };
+    img.onload = done;
+    img.src = c.url;
+    if (img.complete) requestAnimationFrame(done);
+  }
+
+  var idx0 = parseInt(localStorage.getItem(LS_IMG), 10);
+  if (isNaN(idx0) || idx0 < 0 || idx0 >= chars.length) idx0 = 0;
+  localStorage.setItem(LS_IMG, String(idx0));
+  applyCharacterAtIndex(idx0);
+
+  function isEnabled() {
+    return localStorage.getItem(LS_ON) !== "0";
+  }
+
+  function applyFromStorage() {
+    var on = isEnabled();
+    document.documentElement.classList.toggle("cursor-follower-off", !on);
+    if (!on) {
+      stopFly();
+      el.classList.remove("is-visible");
+      clearInkVisual();
+    }
+  }
+
   var LEAVE_MS = 7000;
   var edgePad = 72;
   var INK_GAP_PX = 5;
-  var INK_COLOR = { r: 173, g: 143, b: 203 };
 
   var inkCanvas = document.getElementById("cursor-ink-trail");
   var inkCtx = inkCanvas && inkCanvas.getContext("2d");
@@ -38,7 +123,6 @@
   var rafId = 0;
   var lastPhysicsT = 0;
 
-  /* 비행 물리: 뷰포트 좌표(px) 기준, 마우스 추적과 동일한 앵커 */
   var posX = 0;
   var posY = 0;
   var velX = 0;
@@ -54,7 +138,7 @@
   var nextReturnRetarget = 0;
 
   function toTranslate(px, py) {
-    var w = el.offsetWidth || 25;
+    var w = el.offsetWidth || imgW;
     return {
       x: px - w / 2 + xOffset,
       y: py + gap,
@@ -76,12 +160,11 @@
 
   function inkEmitPoint(px, py) {
     var t = toTranslate(px, py);
-    var wEl = el.offsetWidth || 25;
+    var wEl = el.offsetWidth || imgW;
     var hEl = (img.offsetHeight || 26) > 4 ? img.offsetHeight : 26;
     return { x: t.x + wEl * 0.5, y: t.y + hEl * 0.78 };
   }
 
-  /* 메타풍 불규칙 번짐 입자 여러 개 */
   function spawnInk(px, py, heavy) {
     if (!inkCtx) return;
     var p = inkEmitPoint(px, py);
@@ -104,7 +187,6 @@
     inkLoopKick();
   }
 
-  /* forceSplash: 거리 무시하고 한 번 뿌림, heavyCluster: 입자 수·번짐 더 큼 (비행 중에만) */
   function tryInkTrail(px, py, forceSplash, heavyCluster) {
     if (!inkCtx || !flying) return;
     var ep = inkEmitPoint(px, py);
@@ -291,7 +373,6 @@
     var ax = wobX;
     var ay = wobY;
 
-    /* 화면 밖이면 안쪽 목표로 강하게 끌기 (목표 주기적으로 바꿔 꺾임) */
     if (!inView) {
       if (now >= nextReturnRetarget) {
         var t = pickInnerTarget(vw, vh, inset);
@@ -383,6 +464,7 @@
   }
 
   function startFly() {
+    if (!isEnabled()) return;
     leaveTimer = null;
     if (flying || pointerInside) return;
 
@@ -433,6 +515,7 @@
   }
 
   function onDocumentLeave() {
+    if (!isEnabled()) return;
     pointerInside = false;
     if (leaveTimer) {
       window.clearTimeout(leaveTimer);
@@ -457,8 +540,8 @@
   document.addEventListener(
     "pointermove",
     function (e) {
-      if (flying) return;
-      var w = el.offsetWidth || 25;
+      if (!isEnabled() || flying) return;
+      var w = el.offsetWidth || imgW;
       var x = e.clientX - w / 2 + xOffset;
       var y = e.clientY + gap;
       el.style.transform = "translate3d(" + x + "px," + y + "px,0)";
@@ -466,6 +549,28 @@
     },
     { passive: true }
   );
+
+  applyFromStorage();
+
+  window.cursorFollowerApi = {
+    toggleEnabled: function () {
+      if (localStorage.getItem(LS_ON) === "0") {
+        localStorage.removeItem(LS_ON);
+      } else {
+        localStorage.setItem(LS_ON, "0");
+      }
+      applyFromStorage();
+    },
+    nextImage: function () {
+      var cur = parseInt(localStorage.getItem(LS_IMG), 10);
+      if (isNaN(cur) || cur < 0) cur = 0;
+      var next = (cur + 1) % chars.length;
+      localStorage.setItem(LS_IMG, String(next));
+      applyCharacterAtIndex(next);
+    },
+  };
+
+  dispatchReady();
 })();
 </script>
 {{- end -}}

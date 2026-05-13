@@ -1,0 +1,114 @@
+<div class="cursor-follower-nav-slot">
+    <script>
+    try {
+        if (localStorage.getItem("cursor-follower-enabled") === "0") {
+            document.documentElement.classList.add("cursor-follower-off");
+        }
+    } catch (e) {}
+    </script>
+    <div class="cursor-follower-dropdown">
+        <button type="button" id="cursor-follower-settings-btn" class="cursor-follower-settings-btn"
+            aria-haspopup="true" aria-expanded="false" aria-controls="cursor-follower-settings-panel"
+            title="Cursor settings" aria-label="Cursor settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+        </button>
+        <div id="cursor-follower-settings-panel" class="cursor-follower-settings-panel" hidden role="menu">
+            <button type="button" class="cursor-follower-settings-panel__btn" role="menuitem"
+                id="cursor-follower-menu-toggle">Cursor on/off</button>
+            <button type="button" class="cursor-follower-settings-panel__btn" role="menuitem"
+                id="cursor-follower-menu-switch">Cursor switch</button>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var panel = document.getElementById("cursor-follower-settings-panel");
+        var gear = document.getElementById("cursor-follower-settings-btn");
+        var btnToggle = document.getElementById("cursor-follower-menu-toggle");
+        var btnSwitch = document.getElementById("cursor-follower-menu-switch");
+        if (!panel || !gear || !btnToggle || !btnSwitch) return;
+
+        function syncOnOffState() {
+            var on = localStorage.getItem("cursor-follower-enabled") !== "0";
+            btnToggle.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+
+        function positionPanel() {
+            var r = gear.getBoundingClientRect();
+            panel.style.position = "fixed";
+            panel.style.zIndex = "100060";
+            panel.style.top = Math.round(r.bottom + 6) + "px";
+            var pw = panel.offsetWidth || 200;
+            var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+            panel.style.left = Math.round(left) + "px";
+            panel.style.right = "auto";
+        }
+
+        function repositionIfOpen() {
+            if (gear.getAttribute("aria-expanded") === "true") positionPanel();
+        }
+
+        function setOpen(open) {
+            gear.setAttribute("aria-expanded", open ? "true" : "false");
+            if (open) {
+                panel.removeAttribute("hidden");
+                panel.classList.add("is-open");
+                syncOnOffState();
+                positionPanel();
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(positionPanel);
+                });
+            } else {
+                panel.setAttribute("hidden", "");
+                panel.classList.remove("is-open");
+                panel.style.top = "";
+                panel.style.left = "";
+                panel.style.right = "";
+                panel.style.position = "";
+                panel.style.zIndex = "";
+            }
+        }
+
+        function bindApi() {
+            var api = window.cursorFollowerApi;
+            if (!api) return;
+
+            gear.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var open = gear.getAttribute("aria-expanded") === "true";
+                setOpen(!open);
+            });
+
+            btnToggle.addEventListener("click", function () {
+                api.toggleEnabled();
+                syncOnOffState();
+            });
+
+            btnSwitch.addEventListener("click", function () {
+                api.nextImage();
+                setOpen(false);
+            });
+
+            document.addEventListener("click", function () {
+                setOpen(false);
+            });
+            panel.addEventListener("click", function (e) {
+                e.stopPropagation();
+            });
+
+            document.addEventListener("keydown", function (e) {
+                if (e.key === "Escape") setOpen(false);
+            });
+
+            window.addEventListener("resize", repositionIfOpen);
+            window.addEventListener("scroll", repositionIfOpen, true);
+
+            syncOnOffState();
+        }
+
+        if (window.cursorFollowerApi) bindApi();
+        else document.addEventListener("cursor-follower:ready", bindApi, { once: true });
+    })();
+    </script>
+</div>

@@ -2,12 +2,144 @@
     --main-width: 860px; /* 원하는 값으로 변경 */
 }
 
-/* 마우스 커서 아래를 따라다니는 픽셀 캐릭터 (JS: extend_footer.html) */
+/* 헤더 오른쪽: ⚙️ 슬롯(맨 왼쪽) + 메뉴 ul — ul의 overflow-x 때문에 패널은 JS로 fixed 배치 */
+.nav-right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    margin-block: auto;
+    margin-inline: var(--gap);
+    line-height: var(--header-height);
+    gap: 6px;
+}
+
+.nav-right #menu {
+    margin: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.nav-right--cursor-settings {
+    gap: 8px;
+}
+
+.cursor-follower-nav-slot {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 100055;
+    display: flex;
+    align-items: center;
+    align-self: center;
+}
+
+.cursor-follower-dropdown {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.cursor-follower-settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 2px 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    line-height: 0;
+    vertical-align: middle;
+    color: #1a73e8;
+    transform: translateY(3px);
+}
+
+html.cursor-follower-off .cursor-follower-settings-btn {
+    color: #80868b;
+}
+
+.cursor-follower-settings-btn:hover {
+    filter: brightness(1.08);
+}
+
+html.cursor-follower-off .cursor-follower-settings-btn:hover {
+    filter: brightness(1.12);
+}
+
+.cursor-follower-settings-btn svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+}
+
+body.dark .cursor-follower-settings-btn {
+    color: #8ab4f8;
+}
+
+body.dark html.cursor-follower-off .cursor-follower-settings-btn {
+    color: #9aa0a6;
+}
+
+.cursor-follower-settings-panel {
+    min-width: 12rem;
+    padding: 8px 0;
+    margin: 0;
+    list-style: none;
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+}
+
+.cursor-follower-settings-panel.is-open {
+    animation: cursor-follower-pop 0.12s ease-out;
+}
+
+@keyframes cursor-follower-pop {
+    from {
+        opacity: 0.85;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+body.dark .cursor-follower-settings-panel {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+}
+
+.cursor-follower-settings-panel__btn {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--primary);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.cursor-follower-settings-panel__btn:hover {
+    background: var(--code-bg);
+}
+
+.cursor-follower-settings-panel__btn[aria-pressed="false"] {
+    opacity: 0.75;
+}
+
+/* 마우스 커서 아래를 따라다니는 픽셀 캐릭터 (JS: extend_footer.html, 설정: cursor_follower_config.html) */
 #cursor-follower {
     position: fixed;
     left: 0;
     top: 0;
-    width: 25px;
+    width: auto;
+    min-width: 22px;
     height: auto;
     margin: 0;
     padding: 0;
@@ -37,16 +169,26 @@
 
 #cursor-follower img {
     display: block;
-    width: 25px;
+    width: 100%;
+    max-width: 100%;
     height: auto;
     vertical-align: top;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
 }
 
+html.cursor-follower-off #cursor-follower,
+html.cursor-follower-off #cursor-ink-trail {
+    display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     #cursor-follower,
     #cursor-ink-trail {
+        display: none !important;
+    }
+
+    .cursor-follower-nav-slot {
         display: none !important;
     }
 }
