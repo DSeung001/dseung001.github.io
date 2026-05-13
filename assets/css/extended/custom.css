@@ -2,6 +2,40 @@
     --main-width: 860px; /* 원하는 값으로 변경 */
 }
 
+/* 마우스 커서 아래를 따라다니는 픽셀 캐릭터 (JS: extend_footer.html) */
+#cursor-follower {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 25px;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+    z-index: 99999;
+    opacity: 0;
+    will-change: transform;
+}
+
+#cursor-follower.is-visible {
+    opacity: 1;
+}
+
+#cursor-follower img {
+    display: block;
+    width: 25px;
+    height: auto;
+    vertical-align: top;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cursor-follower {
+        display: none !important;
+    }
+}
+
 /* Home index: 좌측 카테고리 목록 + 우측 글 목록 */
 .list-with-sidebar {
     display: flex;

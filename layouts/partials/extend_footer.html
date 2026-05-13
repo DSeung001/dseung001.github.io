@@ -4,3 +4,29 @@
   mermaid.initialize({ startOnLoad: true });
 </script>
 {{ end }}
+
+{{- with resources.Get "img/cursor.png" -}}
+<div id="cursor-follower" aria-hidden="true">
+  <img src="{{ .RelPermalink }}" alt="" width="25" decoding="async" fetchpriority="low">
+</div>
+<script>
+(function () {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var el = document.getElementById("cursor-follower");
+  if (!el) return;
+  var gap = 10;
+  var xOffset = 16;
+  document.addEventListener(
+    "pointermove",
+    function (e) {
+      var w = el.offsetWidth || 25;
+      var x = e.clientX - w / 2 + xOffset;
+      var y = e.clientY + gap;
+      el.style.transform = "translate3d(" + x + "px," + y + "px,0)";
+      el.classList.add("is-visible");
+    },
+    { passive: true }
+  );
+})();
+</script>
+{{- end -}}
