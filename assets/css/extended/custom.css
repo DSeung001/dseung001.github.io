@@ -21,6 +21,11 @@
     opacity: 1;
 }
 
+/* 창 밖으로 나간 뒤 비행 중: requestAnimationFrame 물리 루프 (JS) */
+#cursor-follower.is-flying {
+    opacity: 1;
+}
+
 #cursor-follower img {
     display: block;
     width: 25px;
