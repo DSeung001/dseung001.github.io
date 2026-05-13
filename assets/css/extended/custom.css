@@ -26,6 +26,15 @@
     opacity: 1;
 }
 
+#cursor-ink-trail {
+    position: fixed;
+    left: 0;
+    top: 0;
+    margin: 0;
+    pointer-events: none;
+    z-index: 99998;
+}
+
 #cursor-follower img {
     display: block;
     width: 25px;
@@ -36,7 +45,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #cursor-follower {
+    #cursor-follower,
+    #cursor-ink-trail {
         display: none !important;
     }
 }

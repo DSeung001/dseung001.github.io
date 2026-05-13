@@ -9,6 +9,7 @@
 <div id="cursor-follower" aria-hidden="true">
   <img src="{{ .RelPermalink }}" alt="" width="25" decoding="async" fetchpriority="low">
 </div>
+<canvas id="cursor-ink-trail" aria-hidden="true"></canvas>
 <script>
 (function () {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -21,6 +22,15 @@
   var xOffset = 16;
   var LEAVE_MS = 7000;
   var edgePad = 72;
+  var INK_GAP_PX = 5;
+  var INK_COLOR = { r: 173, g: 143, b: 203 };
+
+  var inkCanvas = document.getElementById("cursor-ink-trail");
+  var inkCtx = inkCanvas && inkCanvas.getContext("2d");
+  var inkDrops = [];
+  var inkRaf = 0;
+  var lastInkAnchorX = null;
+  var lastInkAnchorY = null;
 
   var pointerInside = true;
   var leaveTimer = null;
@@ -49,6 +59,153 @@
       x: px - w / 2 + xOffset,
       y: py + gap,
     };
+  }
+
+  function resizeInkCanvas() {
+    if (!inkCanvas || !inkCtx) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    inkCanvas.width = Math.max(1, Math.floor(vw * dpr));
+    inkCanvas.height = Math.max(1, Math.floor(vh * dpr));
+    inkCanvas.style.width = vw + "px";
+    inkCanvas.style.height = vh + "px";
+    inkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    inkCtx.clearRect(0, 0, vw, vh);
+  }
+
+  function inkEmitPoint(px, py) {
+    var t = toTranslate(px, py);
+    var wEl = el.offsetWidth || 25;
+    var hEl = (img.offsetHeight || 26) > 4 ? img.offsetHeight : 26;
+    return { x: t.x + wEl * 0.5, y: t.y + hEl * 0.78 };
+  }
+
+  /* 메타풍 불규칙 번짐 입자 여러 개 */
+  function spawnInk(px, py, heavy) {
+    if (!inkCtx) return;
+    var p = inkEmitPoint(px, py);
+    var n = heavy ? 6 + Math.floor(Math.random() * 5) : 4 + Math.floor(Math.random() * 4);
+    var jitter = heavy ? 16 : 11;
+    for (var i = 0; i < n; i++) {
+      inkDrops.push({
+        x: p.x + (Math.random() - 0.5) * jitter,
+        y: p.y + (Math.random() - 0.5) * jitter,
+        rx: 1.8 + Math.random() * 5.5,
+        ry: 2.2 + Math.random() * 6.2,
+        rot: Math.random() * Math.PI,
+        a: 0.22 + Math.random() * 0.38,
+        driftX: (Math.random() - 0.5) * 0.35,
+        driftY: (Math.random() - 0.5) * 0.35,
+        grow: 0.12 + Math.random() * 0.22,
+        life: 1,
+      });
+    }
+    inkLoopKick();
+  }
+
+  /* forceSplash: 거리 무시하고 한 번 뿌림, heavyCluster: 입자 수·번짐 더 큼 (비행 중에만) */
+  function tryInkTrail(px, py, forceSplash, heavyCluster) {
+    if (!inkCtx || !flying) return;
+    var ep = inkEmitPoint(px, py);
+    if (forceSplash) {
+      lastInkAnchorX = ep.x;
+      lastInkAnchorY = ep.y;
+      spawnInk(px, py, !!heavyCluster);
+      return;
+    }
+    if (lastInkAnchorX === null) {
+      lastInkAnchorX = ep.x;
+      lastInkAnchorY = ep.y;
+      spawnInk(px, py, false);
+      return;
+    }
+    var dx = ep.x - lastInkAnchorX;
+    var dy = ep.y - lastInkAnchorY;
+    if (dx * dx + dy * dy >= INK_GAP_PX * INK_GAP_PX) {
+      lastInkAnchorX = ep.x;
+      lastInkAnchorY = ep.y;
+      spawnInk(px, py, false);
+    }
+  }
+
+  function inkFrame() {
+    if (!inkCtx || inkDrops.length === 0) {
+      inkRaf = 0;
+      return;
+    }
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    inkCtx.clearRect(0, 0, vw, vh);
+    inkCtx.globalCompositeOperation = "source-over";
+
+    var i;
+    var d;
+    var r = INK_COLOR.r;
+    var g = INK_COLOR.g;
+    var b = INK_COLOR.b;
+    for (i = inkDrops.length - 1; i >= 0; i--) {
+      d = inkDrops[i];
+      d.life -= 0.0085;
+      d.rx += d.grow * 0.45;
+      d.ry += d.grow * 0.38;
+      d.x += d.driftX;
+      d.y += d.driftY;
+      d.rot += (Math.random() - 0.5) * 0.02;
+      if (d.life <= 0) {
+        inkDrops.splice(i, 1);
+        continue;
+      }
+      var alpha = Math.max(0, d.a * d.life);
+      inkCtx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+      inkCtx.save();
+      inkCtx.translate(d.x, d.y);
+      inkCtx.rotate(d.rot);
+      inkCtx.beginPath();
+      inkCtx.ellipse(0, 0, d.rx, d.ry, 0, 0, Math.PI * 2);
+      inkCtx.fill();
+      inkCtx.restore();
+    }
+
+    if (inkDrops.length > 0) {
+      inkRaf = requestAnimationFrame(inkFrame);
+    } else {
+      inkRaf = 0;
+    }
+  }
+
+  function inkLoopKick() {
+    if (!inkRaf && inkDrops.length > 0) {
+      inkRaf = requestAnimationFrame(inkFrame);
+    }
+  }
+
+  function resetInkAnchors() {
+    lastInkAnchorX = null;
+    lastInkAnchorY = null;
+  }
+
+  function clearInkVisual() {
+    if (!inkCtx) return;
+    inkDrops.length = 0;
+    if (inkRaf) {
+      cancelAnimationFrame(inkRaf);
+      inkRaf = 0;
+    }
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    inkCtx.clearRect(0, 0, vw, vh);
+  }
+
+  if (inkCanvas && inkCtx) {
+    resizeInkCanvas();
+    window.addEventListener(
+      "resize",
+      function () {
+        resizeInkCanvas();
+      },
+      { passive: true }
+    );
   }
 
   function randomEdgeSpawn(vw, vh) {
@@ -83,6 +240,8 @@
     el.classList.remove("is-flying");
     el.style.transition = "";
     img.style.transform = "";
+    resetInkAnchors();
+    clearInkVisual();
   }
 
   function steerToward(tx, ty, px, py, strength) {
@@ -170,6 +329,7 @@
       var bump = 1.45 + Math.random() * 0.85;
       velX *= bump;
       velY *= bump;
+      tryInkTrail(posX, posY, true, true);
     }
 
     var speed = Math.sqrt(velX * velX + velY * velY);
@@ -216,6 +376,8 @@
 
     var tr = toTranslate(posX, posY);
     el.style.transform = "translate3d(" + tr.x + "px," + tr.y + "px,0)";
+
+    tryInkTrail(posX, posY);
 
     rafId = requestAnimationFrame(physicsTick);
   }
@@ -265,6 +427,8 @@
       "rotate(" + (smoothHeading * 180) / Math.PI + "deg)";
 
     if (rafId) cancelAnimationFrame(rafId);
+    resetInkAnchors();
+    tryInkTrail(posX, posY, true, false);
     rafId = requestAnimationFrame(physicsTick);
   }
 
