@@ -165,12 +165,40 @@
     return { x: t.x + wEl * 0.5, y: t.y + hEl * 0.78 };
   }
 
+  function clamp255(n) {
+    if (n < 0) return 0;
+    if (n > 255) return 255;
+    return Math.round(n);
+  }
+
+  /** 메인 잉크색 + 2~3개의 살짝 튼 비슷한 색 (한 번의 스플래시마다 팔레트 고정) */
+  function inkPaletteForSplash() {
+    var br = INK_COLOR.r;
+    var bg = INK_COLOR.g;
+    var bb = INK_COLOR.b;
+    var spread = 16 + Math.random() * 24;
+    var out = [{ r: br, g: bg, b: bb }];
+    var extra = 2 + Math.floor(Math.random() * 2);
+    var j;
+    for (j = 0; j < extra; j++) {
+      out.push({
+        r: clamp255(br + (Math.random() - 0.5) * 2 * spread),
+        g: clamp255(bg + (Math.random() - 0.5) * 2 * spread),
+        b: clamp255(bb + (Math.random() - 0.5) * 2 * spread),
+      });
+    }
+    return out;
+  }
+
   function spawnInk(px, py, heavy) {
     if (!inkCtx) return;
     var p = inkEmitPoint(px, py);
     var n = heavy ? 6 + Math.floor(Math.random() * 5) : 4 + Math.floor(Math.random() * 4);
     var jitter = heavy ? 16 : 11;
-    for (var i = 0; i < n; i++) {
+    var palette = inkPaletteForSplash();
+    var pi;
+    for (pi = 0; pi < n; pi++) {
+      var col = palette[Math.floor(Math.random() * palette.length)];
       inkDrops.push({
         x: p.x + (Math.random() - 0.5) * jitter,
         y: p.y + (Math.random() - 0.5) * jitter,
@@ -182,6 +210,9 @@
         driftY: (Math.random() - 0.5) * 0.35,
         grow: 0.12 + Math.random() * 0.22,
         life: 1,
+        cr: col.r,
+        cg: col.g,
+        cb: col.b,
       });
     }
     inkLoopKick();
@@ -223,9 +254,6 @@
 
     var i;
     var d;
-    var r = INK_COLOR.r;
-    var g = INK_COLOR.g;
-    var b = INK_COLOR.b;
     for (i = inkDrops.length - 1; i >= 0; i--) {
       d = inkDrops[i];
       d.life -= 0.0085;
@@ -239,6 +267,9 @@
         continue;
       }
       var alpha = Math.max(0, d.a * d.life);
+      var r = d.cr != null ? d.cr : INK_COLOR.r;
+      var g = d.cg != null ? d.cg : INK_COLOR.g;
+      var b = d.cb != null ? d.cb : INK_COLOR.b;
       inkCtx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
       inkCtx.save();
       inkCtx.translate(d.x, d.y);
@@ -442,7 +473,8 @@
 
     var sp2 = velX * velX + velY * velY;
     if (sp2 > 55) {
-      var want = Math.atan2(velY, velX);
+      /* 스프라이트 기본이 속도 벡터와 반대를 보므로 π 보정 → 진행 방향을 향함 */
+      var want = Math.atan2(velY, velX) + Math.PI;
       if (smoothHeading === null) {
         smoothHeading = want;
       } else {
@@ -485,7 +517,7 @@
     velX = (dx / dist) * base + (Math.random() - 0.5) * 200;
     velY = (dy / dist) * base + (Math.random() - 0.5) * 200;
 
-    smoothHeading = Math.atan2(velY, velX);
+    smoothHeading = Math.atan2(velY, velX) + Math.PI;
     wanderPhase = Math.random() * Math.PI * 2;
     burstLeft = 0;
     nextRoamAt = 0;
