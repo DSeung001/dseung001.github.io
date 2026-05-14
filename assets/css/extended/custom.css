@@ -51,7 +51,7 @@
     line-height: 0;
     vertical-align: middle;
     color: #1a73e8;
-    transform: translateY(3px);
+    transform: translateY(1px);
 }
 
 html.cursor-follower-off .cursor-follower-settings-btn {
