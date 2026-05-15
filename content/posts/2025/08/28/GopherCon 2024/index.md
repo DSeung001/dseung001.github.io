@@ -1,7 +1,7 @@
 ---
 title: "GopherCon 2024 정리"
 date: 2025-08-28T11:58:05+09:00
-categories: [ "Conference", "Diary" ]
+categories: [ "Conference" ]
 tags: [ "GopherCon", "Golang", "Conference" ]
 draft: false
 description: "GopherCon 2024에서 다뤄진 주요 세션과 인사이트를 제멋대로 짤막하게 정리해봤습니다."

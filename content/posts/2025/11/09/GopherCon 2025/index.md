@@ -1,7 +1,7 @@
 ---
 title: "GopherCon 2025 후기 및 25년 회고"
 date: 2025-11-09T16:42:03+09:00
-categories: [ "Conference", "Diary" ]
+categories: [ "Conference" ]
 tags: [ "GopherCon", "Golang", "Conference" ]
 draft: false
 description: "GopherCon 2025를 보며 느낀 점들과 올해 회고입니다."

@@ -43,6 +43,8 @@
 {{- if .IsHome }}
 {{- $pages = where site.RegularPages "Type" "in" site.Params.mainSections }}
 {{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" }}
+{{- $reviewPages := where $pages "Params.categories" "intersect" (slice "회고") }}
+{{- $pages = $pages | complement $reviewPages }}
 {{- end }}
 
 {{- $paginator := .Paginate $pages }}
