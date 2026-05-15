@@ -1,7 +1,7 @@
 ---
 title: "CMS 기능 Digging"
 date: 2025-08-01T23:38:46+09:00
-categories: [ "Memo", "Digging" ]
+categories: [ "Digging" ]
 tags: [ "CMS", "Planning", "functional definition", "Digging" ]
 draft: false
 description: "CMS(Content Management System)의 기능은 가장 간단한 구조이지만 이 구조에서 사실 각각의 기능들은 엄청나게 파볼 여지가 있습니다, 그 중에 동영상 스트리밍 사이트를 기준으로 정리한 글입니다."

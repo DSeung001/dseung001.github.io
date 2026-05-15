@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems: Three Easy Pieces - Concurrency: An Introduction"
 date: 2026-04-28T00:00:00+09:00
-categories: [ "Memo", "Digging", "OSTEP" ]
+categories: [ "Digging", "OSTEP" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "An Introduction", "Thread", "Process" ]
 draft: false
 description: "OSTEP Concurrency 26강 An Introduction 정리"

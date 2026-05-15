@@ -1,7 +1,7 @@
 ---
 title: "Anime Search Project: CLIP으로 멀티모달 검색 엔진 만들기"
 date: 2026-05-10T00:00:00+09:00
-categories: [ "Project", "Anime Search", "Memo", "Digging" ]
+categories: [ "Project", "Anime Search", "Digging" ]
 tags: [ "Anime Search", "Multimodal", "Embedding", "CLIP", "Contrastive Learning", "Shared Embedding Space", "Vector Search" ]
 draft: false
 description: "애니메이션 장면을 자연어 검색해보자"

@@ -1,7 +1,7 @@
 ---
 title: "RFC 6454 — The Web Origin Concept"
 date: 2026-04-22T00:00:00+09:00
-categories: [ "Memo", "Digging", "RFC" ]
+categories: [ "Digging", "RFC" ]
 tags: [ "RFC 6454", "Web Origin", "SOP", "CORS", "브라우저 보안" ]
 draft: false
 description: "RFC 6454의 Origin 개념과 직렬화, same-origin 정책의 판단 기준을 핵심만 정리합니다."

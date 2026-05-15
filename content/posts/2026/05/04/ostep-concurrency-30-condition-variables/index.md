@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems: Three Easy Pieces - Condition Variables"
 date: 2026-05-04T00:00:00+09:00
-categories: [ "Memo", "Digging", "OSTEP" ]
+categories: [ "Digging", "OSTEP" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Condition variable", "Synchronization"]
 draft: false
 description: "OSTEP Concurrency 30강 Condition Variables 정리"

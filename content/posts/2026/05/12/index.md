@@ -1,7 +1,7 @@
 ---
 title: "Anime Search Project: Whisper와 Timestamp Transcript"
 date: 2026-05-12T00:00:00+09:00
-categories: [ "Project", "Anime Search", "Memo", "Digging" ]
+categories: [ "Project", "Anime Search", "Digging" ]
 tags: [ "Anime Search", "Whisper", "STT", "Timestamp Transcript", "Audio", "Speech Recognition" ]
 draft: true
 description: "애니메이션 대사로 검색해보자"

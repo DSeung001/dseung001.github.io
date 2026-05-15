@@ -1,7 +1,7 @@
 ---
 title: "RFC 6749 — The OAuth 2.0 Authorization Framework"
 date: 2026-04-23T00:00:00+09:00
-categories: [ "Memo", "Digging", "RFC" ]
+categories: [ "Digging", "RFC" ]
 tags: [ "RFC 6749", "OAuth 2.0", "인증", "Authorization" ]
 draft: false
 description: "RFC 6749 OAuth 2.0 권한 부여 프레임워크의 핵심 흐름과 역할, 토큰을 정리합니다."

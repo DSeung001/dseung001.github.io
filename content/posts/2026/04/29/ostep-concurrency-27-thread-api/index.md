@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems: Three Easy Pieces - Thread API"
 date: 2026-04-29T00:00:00+09:00
-categories: [ "Memo", "Digging", "OSTEP" ]
+categories: [ "Digging", "OSTEP" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Thread", "Thread API", "Synchronization" ]
 draft: false
 description: "OSTEP Concurrency 27강 Thread API 정리"
