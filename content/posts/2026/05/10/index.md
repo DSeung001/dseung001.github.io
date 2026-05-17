@@ -18,9 +18,10 @@ lastmod: 2026-05-10T00:00:00+09:00
 - [2. 멀티모달 임베딩](#2-멀티모달-임베딩)에서는 모델 사용법을 익히고, 모델에 데이터를 넣어 결과를 받은 뒤 대략 시각화해 봅니다.
 - [3. 대용량 전처리 파이프라인](#3-대용량-전처리-파이프라인)에서는 동영상 전처리 작업을 할 때 가장 빠른 옵션 값을 찾아봅시다.
 - [4. 벡터 검색 엔진 구축 (Qdrant)](#4-벡터-검색-엔진-구축)에서는 모델에서 읽은 값을 벡터 DB에 적재합니다.
-- [5. 대규모 트래픽 대비 API 설계 및 최적화 (DRF & Caching)](#5-대규모-트래픽-대비-api-설계-및-최적화-drf--caching)에서 API 시스템을 만들고 캐싱을 적용해봅니다.
-- [6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)](#6-rag-및-llm-기반-사용자-경험-uxui-연동)은 실제 사람이 사용 가능한 수준으로 올려봅시다. 
-- [7. 모니터링 및 부하 테스트 (Sentry & Datadog)](#7-모니터링-및-부하-테스트-sentry--datadog)에서 부하 테스트를 진행하며 개선점을 찾습니다.
+- [5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서는 3·4장 파이프라인을 HTTP 밖으로 분리하고, Celery 워커·Redis 큐 기반 잡 구조를 잡습니다.
+- [6. API 설계 (Django & DRF)](#6-api-설계-django--drf)에서 검색·ingest 요청 API와 Django 앱 구조를 만듭니다.
+- [7. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)](#7-rag-및-llm-기반-사용자-경험-uxui-연동)은 실제 사람이 사용 가능한 수준으로 올려봅시다.
+- [8. 모니터링 및 부하 테스트 (Sentry & Datadog)](#8-모니터링-및-부하-테스트-sentry--datadog)에서 부하 테스트를 진행하며 개선점을 찾습니다. (캐싱 등 읽기 경로 최적화는 부하 결과를 보고 반영합니다.)
 
 # 2. 멀티모달 임베딩
 **멀티모달 임베딩 공간(Multimodal Embedding Space)** 은 텍스트, 이미지, 동영상 프레임 등 서로 다른 형태의 데이터(모달리티)를 하나의 통일된 다차원 벡터 공간에 매핑하는 기술입니다. 
@@ -636,7 +637,7 @@ curl -X POST http://localhost:6333/collections/test_collection/points/search \
 |------|------|------|
 | `vectors.size` | CLIP 등 선택한 인코더의 출력 차원 | 예: 모델마다 512·768 등으로 고정. 틀리면 upsert 단계에서 바로 깨짐 |
 | `vectors.distance` | `Cosine` | CLIP 계열 벡터는 보통 길이를 맞춰 두고 각도만 비교하는 경우가 많아 코사인을 자주 사용 |
-| 멀티 벡터(`named vectors`) | 필요시 멀티 벡터로 사용 | 벡터 값을 하나가 아닌 여러 개로 두고 싶을 때 사용 |
+| 멀티 벡터(`named vectors`) | 필요 시 멀티 벡터로 사용 | 벡터 값을 하나가 아닌 여러 개로 두고 싶을 때 사용 |
 
 단일 벡터만 쓸 때는 포인트가 `"vector": [0.1, 0.2, ...]`처럼 배열 하나이고, `named vectors`일 때는 `"vector": { "키이름": [...] }` 형태가 됩니다.
 
@@ -644,14 +645,17 @@ curl -X POST http://localhost:6333/collections/test_collection/points/search \
 벡터로 검색한 후 검색 결과가 “어느 작품·몇 화·몇 초 장면인지”로 확인할 때 쓰거나, `Qdrant`의 `filter`로 조건으로 쓸 메타데이터입니다. 
 `RDB`를 어떻게 설계하느냐에 따라 사용법은 많이 달라질 수 있지만, 일단은 아래 형태를 기초로 둡니다.
 
-| 필드(키) 예시 | 용도 | 비고 |
-|---------------|------|------|
-| `anime_id` | 애니메이션(작품) 고유 ID | 내부 숫자·UUID 등으로 작품 구분 |
-| `episode` | 현재 화(에피소드 번호) | 특정 화 안에서만 검색할 때 `filter`로 사용 |
-| `genre` | 장르 | `RDB`와 조인해 장르만 불러와도 되고, Qdrant `filter`에 쓰기 위해 페이로드에도 둠 |
-| `timestamp_sec` | 프레임이 보여지는 시간 | 나중에 검색했을 때 시간을 초를 기준으로 보여줄 예정 |
+| 필드(키) | Qdrant 타입 | 용도 | 비고 |
+|----------|-------------|------|------|
+| `anime_id` | `keyword` | 작품 식별(슬러그) | `filter`로 특정 작품만 검색 |
+| `episode` | `integer` | 에피소드(화) 번호 | 특정 화 안에서만 검색할 때 사용 |
+| `genre` | `keyword` | 장르 슬러그 | `RDB`와 조인해도 되고, Qdrant `filter`에도 사용 |
+| `frame_index` | `integer` | 그 화 안에서의 프레임 순번 | 추출·upsert 시 부여한 인덱스 |
+| `frame_file` | `keyword` | 추출된 프레임 파일 경로 | 디버깅·재처리·원본 장면 추적 |
+| `job_public_id` | `keyword` | ingest 잡 UUID | 한 번의 적재 작업 단위 구분, 포인트 `id` 생성에도 사용 |
+| `timestamp_sec` | (float) | 재생 시각(초) | upsert 시 함께 넣음. 아래 [컬렉션 정보 조회](#컬렉션-정보-조회)의 `payload_schema`에는 인덱스를 건 키만 나타남 |
 
-포인트(`Points`)의 `id`는 컬렉션 안에서 중복 없이 유일해야 합니다. `anime_id`·`episode`·`timestamp_sec`(또는 그 화 안 샘플 순번)를 조합한 정수·문자열을 쓰거나, 그 조합으로 만든 UUID를 사용할 예정입니다.
+포인트(`Points`)의 `id`는 컬렉션 안에서 중복 없이 유일해야 합니다. `job_public_id`와 `frame_index`를 조합해 만든 UUID를 문자열 `id`로 씁니다.
 
 ## 벡터 정보 저장하기
 
@@ -729,7 +733,7 @@ def extract_frames_ffmpeg(
 ```
 
 ### 벡터화
-벡터화하는 작업은 이전의 코드와 비슷합니다.</br>
+벡터화하는 작업은 이전의 코드와 비슷합니다.<br/>
 ```python
 def extract_features(
         self,  # CLIP 서비스(self.model·preprocess·device)
@@ -834,13 +838,14 @@ def upsert_job_frame_vectors(
         raise ValueError(f"vectors 는 (N, D) 형태여야 합니다. N={n}, shape={mat.shape}")
 
     dim = int(mat.shape[1])
+    # 컬랙션 생성 및 페이로드에 대한 인덱스 생성
     ensure_collection_and_indexes(vector_dim=dim)
 
     points: list[Any] = []
     for i in range(n):
         fid = frame_indices[i]
         vec = mat[i]
-        # payload uuid 생성
+        # 포인트 id 생성
         pid = frame_point_uuid(job_public_id, fid)
         payload = build_frame_payload(
             anime_slug=anime_slug,
@@ -862,10 +867,193 @@ def upsert_job_frame_vectors(
 
     client.upsert(collection_name=collection, points=points, wait=True)
 ```
-핵심 로직은 위와 같이 정의했습니다. 위 코드를 실행하면 `Qdrant`에 다음처럼 저장된 것을 확인할 수 있죠.
+핵심 로직은 위와 같이 정의했습니다. <br/>
+현재는 `Qdrant`에 저장하지 않아서 아무런 포인트나 컬렉션이 없는 걸 볼 수 있습니다.
+```bash
+curl -sS 'http://127.0.0.1:6333/collections/anime_clip'
+{"status":{"error":"Not found: Collection `anime_clip` doesn't exist!"},"time":0.000179333}%
+```
+프로세스를 실행해서 값을 저장했을 경우 다음처럼 볼 수 있죠.
 
-# 5. 대규모 트래픽 대비 API 설계 및 최적화 (DRF & Caching)
+### 컬렉션 정보 조회
 
-# 6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
+`Qdrant`의 `GET /collections/{collection_name}`은 컬렉션 전체 상태를 한 번에 보는 관리·점검용 API입니다. 쉽게 확인할 수 있다는 점이 편하죠. 개별 포인트의 벡터 값은 나열되지 않지만, 컬렉션 상태·설정·데이터 수 등을 요약해서 보여 줍니다.
 
-# 7. 모니터링 및 부하 테스트 (Sentry & Datadog)
+```bash
+curl -sS 'http://127.0.0.1:6333/collections/anime_clip' | jq
+```
+
+```json
+{
+  "result": {
+    "status": "green",
+    "optimizer_status": "ok",
+    "indexed_vectors_count": 0,
+    "points_count": 1542,
+    "segments_count": 4,
+    "config": {
+      "params": {
+        "vectors": { "size": 768, "distance": "Cosine" },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "hnsw_config": {
+        "m": 16,
+        "ef_construct": 100,
+        "full_scan_threshold": 10000,
+        "max_indexing_threads": 0,
+        "on_disk": false
+      },
+      "optimizer_config": {
+        "deleted_threshold": 0.2,
+        "vacuum_min_vector_number": 1000,
+        "default_segment_number": 0,
+        "max_segment_size": null,
+        "memmap_threshold": null,
+        "indexing_threshold": 10000,
+        "flush_interval_sec": 5,
+        "max_optimization_threads": null,
+        "prevent_unoptimized": null
+      },
+      "wal_config": {
+        "wal_capacity_mb": 32,
+        "wal_segments_ahead": 0,
+        "wal_retain_closed": 1
+      },
+      "quantization_config": null
+    },
+    "payload_schema": {
+      "frame_index": { "data_type": "integer", "points": 1542 },
+      "frame_file": { "data_type": "keyword", "points": 1542 },
+      "anime_id": { "data_type": "keyword", "points": 1542 },
+      "genre": { "data_type": "keyword", "points": 1540 },
+      "episode": { "data_type": "integer", "points": 1542 },
+      "job_public_id": { "data_type": "keyword", "points": 1542 }
+    },
+    "update_queue": { "length": 0 }
+  },
+  "status": "ok",
+  "time": 0.002697042
+}
+```
+
+위 응답에서 봐야 할 부분은 아래 테이블처럼 정리됩니다. 앞에서 말한 `HNSW` 관련 설정(`hnsw_config`, `indexing_threshold` 등)도 이 JSON에 들어 있습니다.
+
+| 필드 | 예시 값 | 의미 |
+|------|---------|------|
+| `result.status` | `green` | 컬렉션 상태로 `green`이면 읽기·쓰기·검색에 문제 없음 |
+| `result.optimizer_status` | `ok` | 세그먼트 병합·인덱싱 등 백그라운드 최적화가 정상 |
+| `result.points_count` | `1542` | 저장된 포인트 수(벡터 + 페이로드)로 upsert가 반영됐는지 확인할 때 본다 |
+| `result.indexed_vectors_count` | `0` | HNSW 그래프에 올라간 벡터 수로 `points_count`와 다를 수 있음 |
+| `result.segments_count` | `4` | 내부 저장 단위(세그먼트) 개수. 여러 번 upsert하면 늘 수 있음 |
+| `result.config.params.vectors` | `size: 768`, `distance: Cosine` | 이 컬렉션의 벡터 차원·거리 함수(설계 표의 `vectors.size` / `vectors.distance`) |
+| `result.config.optimizer_config.indexing_threshold` | `10000` | 이 개수 미만이면 HNSW 인덱스를 미룸 → `indexed_vectors_count`가 0일 수 있음 |
+| `result.config.hnsw_config.full_scan_threshold` | `10000` | 벡터가 이보다 적으면 검색 시 전수 탐색 |
+| `result.payload_schema` | 아래 표 참고 | 페이로드 인덱스가 걸린 키와 타입·포인트 수. `filter`에 쓸 필드가 맞는지 점검 |
+| `result.update_queue.length` | `0` | 아직 반영 대기 중인 업데이트가 없음 |
+| `status` / `time` | `ok`, `0.002…` | HTTP API 자체 성공 여부·응답 시간 |
+
+`points_count`는 저장된 포인트 수이고 `indexed_vectors_count`가 0인 이유는 벡터 개수(1542)가 `indexing_threshold`(10000)보다 작아 `HNSW` 인덱스를 아직 만들지 않았기 때문입니다.
+벡터만 있고, 인덱스가 없어 전수 탐색으로 데이터를 찾는 게 현재 상태죠.
+
+`payload_schema`는 위 [페이로드](#프로젝트-collection-구조-정하기) 표와 대응합니다.
+`points`는 그 키를 가진 포인트 수입니다.
+
+| `payload_schema` 키 | `data_type` | `points` | 의미 |
+|---------------------|-------------|----------|------|
+| `anime_id` | `keyword` | 1542 | 작품 슬러그가 모든 포인트에 있음 |
+| `episode` | `integer` | 1542 | 화 번호 |
+| `genre` | `keyword` | 1540 | 장르. 2건은 `genre` 없음(또는 빈 값) |
+| `frame_index` | `integer` | 1542 | 프레임 순번 |
+| `frame_file` | `keyword` | 1542 | 프레임 파일 경로 |
+| `job_public_id` | `keyword` | 1542 | ingest 잡 UUID |
+
+위는 전체 구조이고 아래처럼 개별에 대한 [`API endpoint`](https://api.qdrant.tech/api-reference)들이 존재하죠.
+
+`exact`를 요청 데이터 바디에 넣어 근사치가 아닌 정확한 개수를 요청할 수 있습니다.
+```bash
+# 저장 건수만 다시 확인
+curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/count' \
+  -H 'Content-Type: application/json' \
+  -d '{"exact": true}' | jq
+```
+결과는 아래와 같죠.
+```json
+{
+  "result": {
+    "count": 1542
+  },
+  "status": "ok",
+  "time": 0.0015215
+}
+```
+아래 명령어로 개별 `point`를 볼 수 있습니다. `with_vector`를 `true`로 두면 768차원 `float` 배열(예: `0.02366, -0.00133, -0.08224, …`)이 함께 옵니다. 여기서는 payload 확인이 목적이므로 `with_vector: false`로 샘플 3건만 봅시다.
+```bash
+# payload만 샘플 3건 (id 확인용)
+curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
+  -H 'Content-Type: application/json' \
+  -d '{"limit": 3, "with_payload": true, "with_vector": false}' | jq
+```
+```json
+{
+  "result": {
+    "points": [
+      {
+        "id": "0003386b-da20-5cd3-a190-c163c1dd8af7",
+        "payload": {
+          "anime_id": "123",
+          "job_public_id": "0e0f35d4-bdcd-4a08-8f4d-746d861487c5",
+          "frame_index": 1015,
+          "frame_file": "frame_001016.jpg",
+          "timestamp_sec": 42.291666666666664,
+          "episode": 1,
+          "genre": [
+            "g-612048e5"
+          ]
+        }
+      },
+      {
+        "id": "0077db65-24ab-5325-b904-f49ff6937df8",
+        "payload": {
+          "anime_id": "123",
+          "job_public_id": "0e0f35d4-bdcd-4a08-8f4d-746d861487c5",
+          "frame_index": 1393,
+          "frame_file": "frame_001394.jpg",
+          "timestamp_sec": 58.041666666666664,
+          "episode": 1,
+          "genre": [
+            "g-612048e5"
+          ]
+        }
+      },
+      {
+        "id": "00b12149-49e8-505c-9af6-44e0dfd38f5e",
+        "payload": {
+          "anime_id": "123",
+          "job_public_id": "0e0f35d4-bdcd-4a08-8f4d-746d861487c5",
+          "frame_index": 327,
+          "frame_file": "frame_000328.jpg",
+          "timestamp_sec": 13.625,
+          "episode": 1,
+          "genre": [
+            "g-612048e5"
+          ]
+        }
+      }
+    ],
+    "next_page_offset": "00b80937-7c2c-5bb9-9b12-e262b2350f31"
+  },
+  "status": "ok",
+  "time": 0.011248125
+}
+```
+
+# 5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)
+
+# 6. API 설계 (Django & DRF)
+
+# 7. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
+
+# 8. 모니터링 및 부하 테스트 (Sentry & Datadog)
