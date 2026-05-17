@@ -1079,25 +1079,9 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 
 ## Celery와 Redis 큐
 
-임베딩 파이프라인처럼 오래 걸리는 작업은 Django 요청 안에서 돌리지 않고, `Celery` 태스크로 워커에 넘깁니다. 워커가 무엇을 할지 알려 주는 **작업 메시지**는 `Redis` 큐(브로커)에 쌓이고, 떠 있는 `Celery worker` 프로세스가 하나씩 꺼내 실행합니다.
+임베딩 파이프라인처럼 오래 걸리는 작업은 Django 요청 안에서 돌리지 않고, `Celery` 태스크로 워커에 넘깁니다. 워커가 무엇을 할지 알려 주는 작업 메시지는 `Redis` 큐(브로커)에 쌓이고, 떠 있는 `Celery worker` 프로세스가 하나씩 꺼내 실행합니다.
 
-```mermaid
-sequenceDiagram
-    participant Admin as 관리자
-    participant Django as Django API
-    participant Redis as Redis (broker)
-    participant Worker as Celery worker
-    participant Qdrant as Qdrant
-
-    Admin->>Django: 동영상 업로드 / 잡 생성
-    Django->>Django: Job 상태 pending 저장
-    Django->>Redis: embed_task.delay(job_id)
-    Django-->>Admin: job_id 즉시 반환
-    Worker->>Redis: 태스크 가져오기
-    Worker->>Worker: ffmpeg → CLIP → upsert
-    Worker->>Qdrant: 벡터 적재
-    Worker->>Django: Job 상태 running → done / failed
-```
+[프로세스 시퀀스](#프로세스-시퀀스)의 차트처럼 구성됩니다.
 
 | 구성요소 | 역할 |
 |----------|------|
