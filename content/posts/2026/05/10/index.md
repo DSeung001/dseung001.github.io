@@ -1077,9 +1077,106 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 
 4장에서 프레임 추출부터 `Qdrant` 저장까지 검증했다면, 5장에서는 배포 가능한 서비스 형태로 옮기는 단계죠.
 
+## Celery와 Redis 큐
+
+임베딩 파이프라인처럼 오래 걸리는 작업은 Django 요청 안에서 돌리지 않고, `Celery` 태스크로 워커에 넘깁니다. 워커가 무엇을 할지 알려 주는 **작업 메시지**는 `Redis` 큐(브로커)에 쌓이고, 떠 있는 `Celery worker` 프로세스가 하나씩 꺼내 실행합니다.
+
+```mermaid
+sequenceDiagram
+    participant Admin as 관리자
+    participant Django as Django API
+    participant Redis as Redis (broker)
+    participant Worker as Celery worker
+    participant Qdrant as Qdrant
+
+    Admin->>Django: 동영상 업로드 / 잡 생성
+    Django->>Django: Job 상태 pending 저장
+    Django->>Redis: embed_task.delay(job_id)
+    Django-->>Admin: job_id 즉시 반환
+    Worker->>Redis: 태스크 가져오기
+    Worker->>Worker: ffmpeg → CLIP → upsert
+    Worker->>Qdrant: 벡터 적재
+    Worker->>Django: Job 상태 running → done / failed
+```
+
+| 구성요소 | 역할 |
+|----------|------|
+| `Celery` | 파이썬 태스크 큐. 임베딩 파이프라인을 백그라운드에서 실행 |
+| `Redis` (broker) | “어떤 잡을 실행할지” 메시지를 잠깐 보관하는 큐 |
+| `Redis` (result backend, 선택) | 태스크 결과·상태를 잠깐 두는 저장소. 잡 상세는 DB가 source of truth |
+| `Celery worker` | 큐에서 태스크를 꺼내 4장 파이프라인 실행 |
+| `Django` | 업로드 API, 잡 생성, `delay()`로 큐에 넣기 |
+| `Qdrant` | 벡터 저장 (4장과 동일) |
+
+### RabbitMQ 대신 Redis를 쓰는 이유
+
+`Celery` 에 이벤트 메시지를 전달하는 브로커는 `RabbitMQ`, `Redis`, `SQS` 등을 고를 수 있습니다. 
+이 프로젝트는 <u>초당 수만 건의 메시지보다 한 건이 수 분~수십 분 걸리는 임베딩 잡이 중심입니다.</u> 즉 큐에 쌓이는 건 작업 지시 한 줄 수준이고, 무거운 연산은 워커가 따로 합니다.
+
+그래서 `RabbitMQ`가 강한 대량 메시지·복잡한 라우팅·강한 메시지 보장까지 당장 필요하진 않고, 로컬 맥에서 `redis-server` 하나로 브로커를 띄우기 쉬운 `Redis`가 맞다고 봅니다. 같은 `Redis`를 아래 기능을 확장할 때도 사용할 수 있죠.
+- **Cache**: 인기 검색어, 장르별 Top-K 결과처럼 자주 읽히는 응답을 `GET search:query_hash` 형태로 캐싱해두면, `Qdrant`와 CLIP 호출을 줄일 수 있습니다.
+- **Rate limit**: 검색 API에 IP·계정당 분당 N회 제한을 `INCR` + TTL 키(`ratelimit:user:{id}:60s`)로 두면, 임베딩 워커 부하와 별도로 읽기 트래픽 폭주를 막을 수 있습니다.
+
+다만 주의 점은 `Redis`가 브로커일 때는 중간에 `Redis`가 죽거나, 설정·운영 실수가 나면 큐에 넣은 작업 지시가 손실될 수 있습니다.
+`RabbitMQ`는 그런 상황에서도 메시지를 디스크에 남기고, ack·재전달 기능이 있어 더 안정성이 강하죠.
+그래서 더 안정성을 높이고 싶다면 `Redis` 구조를 유지하면서 실서비스로 옮길 시에는 `PostgresSQL`에 핵심 데이터를 남기고 `Redis`는 브로커의 역할에 초점을 두는 게 좋죠.
+여기서는 `PostgresSQL`까지 추가는 하지 않습니다.
+
+### 로컬에서 띄울 프로세스
+
+뭔가 많아졌는데 결국 맥에서 개발할 때 저는 아래 네 가지를 같이 띄웁니다.<br/>
+(`Qdrant`와 `Redis`는 작업 편이를 위해 Docker로)
+
+| # | 프로세스 | 설명 |
+|---|----------|------|
+| 1 | `Redis` | 브로커 |
+| 2 | `Django` (`runserver` 등) | API |
+| 3 | `Celery worker` | 임베딩 실행 |
+| 4 | `Qdrant` | 벡터 DB |
+
+M1 16 GB 기준으로 워커는 메모리를 많이 쓰므로 `--concurrency=1`부터 두는 편이 좋습니다.
+
+```bash
+# Redis Docker
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Celery worker (Django 프로젝트 루트, 가상환경 활성화 후)
+celery -A anime_search worker -l info --concurrency=1
+```
+
+Django 쪽에서는 대략 `embed_job.delay(job_public_id)`처럼 태스크만 큐에 넣고, HTTP 응답은 바로 `job_id`와 `pending` 상태를 돌려주면 됩니다. 워커가 끝나면 DB의 Job 행을 `running` → `done` / `failed`로 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
+
+## 프로세스 시퀀스
+위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다. 사용되는 `API` 부분은 다음 6번장에서 다룰 예정이며 여기선 `Redis`, `Celery` 구조와 로직에 대해 더 집중해봅시다.
+```mermaid
+sequenceDiagram
+    participant Admin as 관리자
+    participant Django as Django (웹/API)
+    participant DB as DB
+    participant Disk as 스테이징·미디어 디스크
+    participant Redis as Redis (Celery)
+    participant Worker as Celery Worker
+    participant Qdrant as Qdrant
+
+    Admin->>Django: 동영상 업로드 (slug, episode 등)
+    Django->>DB: EmbeddingJob 생성 (pending)
+    Django->>Disk: jobs/{uuid}/input/ 에 동영상 저장
+    Django-->>Admin: public_id 즉시 반환
+
+    Note over Django: transaction.on_commit
+    Django->>DB: 스테이징 OK면 processing
+    Django->>Redis: run_embedding_job_task.delay(public_id)
+
+    Redis->>Worker: 태스크 수신
+    Worker->>Disk: ffmpeg → frames/*.jpg
+    Worker->>Disk: media/{slug}/frames/ 로 승격
+    Worker->>Worker: CLIP 임베딩
+    Worker->>Qdrant: 벡터 upsert
+    Worker->>DB: done (실패 시 failed)
+```
+
 # 6. API 설계 (Django & DRF)
 
 # 7. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
 
 # 8. 모니터링 및 부하 테스트 (Sentry & Datadog)
-- 16램을 나누는 기준도 테스트 해봐야함
