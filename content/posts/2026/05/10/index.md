@@ -1107,7 +1107,7 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 그래서 더 안정성을 높이고 싶다면 `Redis` 구조를 유지하면서 실서비스로 옮길 때는 `PostgreSQL`에 핵심 데이터를 남기고 `Redis`는 브로커 역할에 초점을 두는 게 좋죠.
 여기서는 `PostgreSQL`까지 추가하지는 않습니다.
 
-### 로컬에서 띄울 프로세스
+### 필요한 프로세스
 
 뭔가 많아졌는데 결국 맥에서 개발할 때 저는 아래 네 가지를 같이 띄웁니다.<br/>
 (`Qdrant`와 `Redis`는 작업 편이를 위해 Docker로)
@@ -1159,6 +1159,8 @@ sequenceDiagram
     Worker->>Qdrant: 벡터 upsert
     Worker->>DB: done (실패 시 failed)
 ```
+
+
 
 # 6. API 설계 (Django & DRF)
 

@@ -14,6 +14,25 @@
   const dialog = document.getElementById('mermaid-dialog');
   const content = dialog && dialog.querySelector('[data-mermaid-dialog-content]');
   let lastExpandBtn = null;
+  let savedScrollY = 0;
+
+  function lockPageScroll() {
+    savedScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${savedScrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+
+  function unlockPageScroll() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, savedScrollY);
+  }
 
   function isDarkTheme() {
     return document.body.classList.contains('dark');
@@ -78,9 +97,10 @@
   function closeMermaidDialog() {
     if (!dialog || !dialog.open) return;
     dialog.close();
+    unlockPageScroll();
     if (content) content.replaceChildren();
     if (lastExpandBtn) {
-      lastExpandBtn.focus();
+      lastExpandBtn.focus({ preventScroll: true });
       lastExpandBtn = null;
     }
   }
@@ -88,9 +108,16 @@
   function openMermaidDialog(svg, btn) {
     if (!dialog || !content || !svg) return;
     lastExpandBtn = btn;
+    lockPageScroll();
     content.replaceChildren();
     content.appendChild(svg.cloneNode(true));
-    dialog.showModal();
+    if (typeof dialog.showModal === 'function') {
+      try {
+        dialog.showModal({ preventScroll: true });
+      } catch {
+        dialog.showModal();
+      }
+    }
   }
 
   if (dialog) {
