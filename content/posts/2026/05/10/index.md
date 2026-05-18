@@ -1,5 +1,5 @@
 ---
-title: "Anime Search Project: CLIP으로 멀티모달 검색 엔진 만들기"
+title: "Anime Search Project: 자연어로 장면 검색"
 date: 2026-05-10T00:00:00+09:00
 categories: [ "Project", "Anime Search", "Digging" ]
 tags: [ "Anime Search", "Multimodal", "Embedding", "CLIP", "Contrastive Learning", "Shared Embedding Space", "Vector Search" ]
@@ -1166,9 +1166,18 @@ sequenceDiagram
 ```
 
 ### Model 구조
-이 프로젝트는 다음 모델 구조를 사용해서 진행합니다.
-- 장르와 애니메이션은 n:m 관계로 지정합니다. 한 장르는 여러 애니메이션에 포함될 수 있고, 한 애니메이션은 여러 장르를 포함할 수 있기 때문이죠. (나중에 검색 기능을 위함)
-- 
+이 프로젝트는 다음 모델 구조로 진행합니다.
+
+- **장르(`Genre`) ↔ 애니메이션(`Anime`) — N:M**  
+  한 장르에 여러 작품이 속할 수 있고, 한 작품도 여러 장르를 가질 수 있습니다. 장르 필터·검색 확장에도 씁니다.  
+  Django에서는 `Anime`에 `genres = models.ManyToManyField(blank=True, related_name="animes", to="catalog.Genre")`처럼 두면, 조인용 `pivot`(중간) 테이블이 마이그레이션으로 자동 생성되고 역참조는 `genre.animes`로 접근합니다.
+
+- **애니메이션 → 에피소드 — 1:N**  
+  에피소드는 `anime_id` 외래 키로 부모에 종속됩니다. `on_delete=models.CASCADE`이므로 애니메이션을 지우면 해당 에피소드도 함께 삭제됩니다. `(anime_id, number)` 복합 `unique`로 같은 애니메이션에서 화수가 겹치지 않게 합니다.
+
+- **임베딩 잡(`EmbeddingJob`) — `Anime`·`Episode` FK**  
+  업로드·`Celery` 처리 단위이므로 `anime_id`와 `episode_id`를 모두 둡니다. `on_delete=models.PROTECT`로, 잡이 남아 있는 동안에는 연결된 애니메이션·에피소드를 실수로 삭제할 수 없습니다. API·워커·Qdrant payload에서 쓰는 `public_id`(UUID)는 이 테이블의 `UK`입니다.
+
 ```mermaid
 erDiagram
     Genre }o--o{ Anime : "genres M2M(장고에서 pivot 테이블 생성)"
@@ -1218,10 +1227,37 @@ erDiagram
 
 ```
 
+참고로 장르와 애니메이션 M2M 관계로 Django가 자동 생성하는 pivot 테이블(`catalog_anime_genres`) 구조는 다음과 같습니다.
+`id` 값과 `index`, `unique` 제약조건만 가진 최소한의 테이블을 자동으로 만들어줘서 편하네요.
+
+```bash
+sqlite> .schema catalog_anime_genres
+```
+
+```sql
+CREATE TABLE IF NOT EXISTS "catalog_anime_genres" (
+    "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "anime_id" bigint NOT NULL
+        REFERENCES "catalog_anime" ("id")
+        DEFERRABLE INITIALLY DEFERRED,
+    "genre_id" bigint NOT NULL
+        REFERENCES "catalog_genre" ("id")
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE UNIQUE INDEX "catalog_anime_genres_anime_id_genre_id_c8680c2f_uniq"
+    ON "catalog_anime_genres" ("anime_id", "genre_id");
+
+CREATE INDEX "catalog_anime_genres_anime_id_c2f96e25"
+    ON "catalog_anime_genres" ("anime_id");
+
+CREATE INDEX "catalog_anime_genres_genre_id_8b6a7b27"
+    ON "catalog_anime_genres" ("genre_id");
+```
+
 
 ### 업로드 (Django API)
-동영상을 업로드하는 화면을 최대한 핵심 코드만 보면서 진행하죠. <br/>
-`catalog/urls.py`<br/>
+동영상 업로드 흐름은 핵심 코드만 짚어 봅니다. 먼저 `catalog/urls.py`입니다.
 ```python
 ...
 
@@ -1243,10 +1279,10 @@ urlpatterns = [
     ),
     # Job 목록 페이지
     path("jobs/", views.job_console, name="catalog_jobs"),
-    # Job JSON API 
-    # Job 목록 가져오기 
+    # Job JSON API
+    # Job 목록 가져오기
     path("api/jobs/", views.job_api_list, name="catalog_job_api_list"),
-    # Job 실행 요청하기 (워커로 자동으로 수행되는데, 이를 요청도 가능)
+    # Job 수동 실행(자동 enqueue 외에 재실행·지연 실행용)
     path(
         "api/jobs/<uuid:public_id>/run/",
         views.job_api_run,
@@ -1260,11 +1296,367 @@ urlpatterns = [
     ),
 ]
 ```
-장르 등록 기능과 Job 상태를 확인하는 API는 생략하고 동영상 업로드 작업을 중심으로 봅시다.
-업로드 후 잡 등록을 어떻게하고 레디스에 어떻게 잡을 등록하는 지 
+장르 등록과 편의성을 위한 Job 목록 API에 대한 설명은 생략하고, `views.anime_upload` 중심으로 봅니다. POST일 때 `SQLite`에 `Anime`·`Episode`·`EmbeddingJob`을 쓰고, 동영상은 디스크 스테이징(`jobs/…/input/`)에 저장합니다. HTTP 응답을 보낸 뒤 `transaction.on_commit`으로 `schedule_auto_enqueue_on_commit`이 실행되며, 조건이 맞으면 `run_embedding_job_task.delay(job_public_id)`가 Celery 브로커(`Redis`)에 작업 메시지만 넣습니다.
+
+`catalog/views.py`의 `anime_upload`는 유효성 검사 → 스트리밍 저장 → 큐 예약 순입니다. `transaction.atomic()` TODO처럼 DB 행과 파일 저장의 원자성은 아직 완전히 묶지 않았고 추후 보완할 예정입니다.
+
+```python
+@require_http_methods(["GET", "POST"])
+def anime_upload(request: HttpRequest) -> HttpResponse:
+    # 로그인 필요 여부 체크, 개발 단계에서는 체크 안함
+    gate = _ui_gate(request)
+    if gate:
+        return gate
+
+    # 애니메이션 시리즈 구분하기 위한 리스트 가져오기
+    animes = list(Anime.objects.order_by("slug"))
+    # 장르 리스트 가져오기
+    genres = list(Genre.objects.order_by("sort_order", "slug"))
+
+    # 업로드
+    if request.method == "POST":
+        slug = (request.POST.get("anime_slug") or "").strip()
+        # slug 유효성 검사
+        if not is_valid_anime_id(slug):
+            msg = "시리즈 slug는 영문·숫자·_- 만 1~255자여야 합니다."
+            if _wants_json(request):
+                return JsonResponse({"detail": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("catalog_anime_upload")
+
+        # 애니메이션이 없으면 새로 만들고 있으면 그대로 사용
+        title = (request.POST.get("title") or "").strip()
+        anime, _ = Anime.objects.get_or_create(slug=slug, defaults={"title": title})
+        # title은 선택(없으면 slug만으로 생성)
+        if title:
+            anime.title = title
+            anime.save(update_fields=["title", "updated_at"])
+
+        # 장르 N:M 연결
+        ids = [int(x) for x in request.POST.getlist("genre_ids") if x.isdigit()]
+        anime.genres.set(Genre.objects.filter(pk__in=ids))
+
+        # 에피소드 유효성 검사
+        ep_raw = (request.POST.get("episode") or "").strip()
+        if not ep_raw:
+            msg = "episode(화수)는 필수입니다."
+            if _wants_json(request):
+                return JsonResponse({"detail": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("catalog_anime_upload")
+        try:
+            episode_number = int(ep_raw)
+            if episode_number < 1:
+                raise ValueError
+        except ValueError:
+            msg = "episode는 1 이상 정수여야 합니다."
+            if _wants_json(request):
+                return JsonResponse({"detail": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("catalog_anime_upload")
+
+        episode_row = get_or_create_episode(anime=anime, number=episode_number)
+        # Job 생성(anime·episode FK로 연결)
+        job = EmbeddingJob.objects.create(anime=anime, episode=episode_row)
+        # 잡 스테이징 디렉터리(jobs/<id>/frames, input/) 생성
+        frames_leaf = ensure_job_staging_dirs(job)
+        input_dir = staging_input_dir_for_job_frames(frames_leaf)
+
+        dest_name: str | None = None
+        f = request.FILES.get("video")
+        if f:
+            try:
+                dest_name = _safe_video_name(f.name)
+            except ValueError as exc:
+                job.delete()
+                if _wants_json(request):
+                    return JsonResponse({"detail": str(exc)}, status=400)
+                messages.error(request, str(exc))
+                return redirect("catalog_anime_upload")
+            # pathlib로 경로 조합(문자열 split/join 대신)
+            dest = input_dir / dest_name
+            with dest.open("wb") as out:
+                # Django의 chunks()로 스트리밍 저장(기본 청크 64KB)
+                for chunk in f.chunks():
+                    out.write(chunk)
+
+        # TODO: DB·파일 저장을 transaction.atomic() 등으로 묶기
+        # DB 커밋 후 Celery enqueue 예약(on_commit; atomic 블록 안이면 즉시 실행)
+        schedule_auto_enqueue_on_commit(job.public_id)
+
+        if _wants_json(request):
+            payload: dict[str, str | None] = {
+                "public_id": str(job.public_id),
+                "filename": dest_name,
+                "preview_url": _video_preview_url(request, job, dest_name) if dest_name else None,
+                "jobs_url": request.build_absolute_uri(reverse("catalog_jobs")),
+            }
+            if dest_name:
+                payload["message"] = f"작업 생성됨 · {job.public_id} · 동영상 저장됨 · 처리 큐에 넣는 중"
+            else:
+                payload["message"] = (
+                    f"작업 생성됨 · {job.public_id} · input 폴더에 동영상을 넣은 뒤 "
+                    f"/jobs/ 에서 실행하세요"
+                )
+            return JsonResponse(payload)
+
+        if dest_name:
+            messages.success(
+                request,
+                f"작업 생성됨 · {job.public_id} · 동영상 저장됨 · 처리 큐에 넣는 중",
+            )
+        else:
+            messages.success(
+                request,
+                f"작업 생성됨 · {job.public_id} · input 폴더에 동영상을 넣은 뒤 /jobs/ 에서 실행하세요",
+            )
+        return redirect("catalog_jobs")
+
+    # 업로드 페이지 보여주기
+    return render(
+        request,
+        "catalog/anime_upload.html",
+        {"animes": animes, "genres": genres},
+    )
+```
+
+업로드 요청이 커밋(`schedule_auto_enqueue_on_commit`)된 뒤 아래 흐름으로 `Redis`에 메시지가 저장됩니다.
+그리고 메시지 브로커 역할로 비동기 워커가 동작할 수 있게 해주죠.
+
+`schedule_auto_enqueue_on_commit`은 `transaction.on_commit`으로 커밋 후 `try_auto_enqueue_job`을 호출합니다
+```python
+def schedule_auto_enqueue_on_commit(public_id: UUID) -> None:
+    """DB 커밋 후 자동 enqueue."""
+    pid = public_id
+
+    def _enqueue() -> None:
+        try_auto_enqueue_job(pid)
+
+    transaction.on_commit(_enqueue)
+```
+
+`try_auto_enqueue_job`은 `enqueue_run_job`을 호출합니다. `on_commit` 스케줄링과 enqueue 로직을 나눈 구조입니다.
+```python
+def try_auto_enqueue_job(public_id: UUID) -> bool:
+    """
+    pending 잡을 Celery에 넣는다.
+    input/ 동영상 없음 등으로 거부되면 False, enqueue 성공 시 True.
+    """
+    from embeddings.services.job_dispatch import JobDispatchError, enqueue_run_job
+
+    try:
+        enqueue_run_job(public_id)
+    except JobDispatchError as exc:
+        logger.info("auto enqueue skipped public_id=%s: %s", public_id, exc)
+        return False
+    except Exception:
+        logger.exception("auto enqueue failed public_id=%s", public_id)
+        return False
+    return True
+```
+
+실제 enqueue는 `embeddings/services/job_dispatch.py`의 `enqueue_run_job`에서 합니다.
+```python
+...
+
+class JobDispatchError(Exception):
+    """enqueue 거부 (상태·중복 등)."""
+
+    def __init__(self, message: str, *, status_code: int = 400) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+@dataclass(frozen=True)
+class EnqueueResult:
+    public_id: str
+    celery_task_id: str
+    status: str
+
+
+def _save_task_id(job: EmbeddingJob, async_result) -> str:
+    task_id = str(async_result.id)
+    job.celery_task_id = task_id
+    job.save(update_fields=["celery_task_id", "updated_at"])
+    return task_id
+
+
+def _require_input_video(job: EmbeddingJob) -> None:
+    err = check_job_input_video(job)
+    if err:
+        raise JobDispatchError(err, status_code=400)
+
+
+def enqueue_run_job(public_id: UUID) -> EnqueueResult:
+    """
+    pending 잡을 검증·processing 표시 후 Celery에 단건 실행을 넣음
+    """
+    from embeddings.tasks import run_embedding_job_task
+
+    with transaction.atomic():
+        # 잡 조회 (select_for_update로 행 잠금)
+        job = (
+            EmbeddingJob.objects.select_for_update()
+            .filter(public_id=public_id)
+            .first()
+        )
+        if job is None:
+            raise JobDispatchError("작업을 찾을 수 없습니다.", status_code=404)
+
+        # 잡 상태 검증
+        if job.status == EmbeddingJob.Status.PROCESSING:
+            raise JobDispatchError(
+                f"이미 처리 중입니다 (task={job.celery_task_id or '—'})",
+                status_code=409,
+            )
+        if job.status != EmbeddingJob.Status.PENDING:
+            raise JobDispatchError(
+                f"pending 만 실행 가능합니다 (현재 {job.status})",
+                status_code=400,
+            )
+        # 스테이징 폴더(frames/, input/)만 생성
+        ensure_job_staging_dirs(job)
+        # 큐에 넣기 전 input/ 동영상 필수 체크
+        _require_input_video(job)
+
+        # 잡 상태 업데이트(processing)
+        job.status = EmbeddingJob.Status.PROCESSING
+        job.last_error = ""
+        job.save(update_fields=["status", "last_error", "updated_at"])
+
+    # Celery에 해당 작업을 넣음, Redis 브로커에 메시지 적재
+    async_result = run_embedding_job_task.delay(str(public_id))
+    task_id = _save_task_id(job, async_result)
+    return EnqueueResult(
+        public_id=str(public_id),
+        celery_task_id=task_id,
+        status=job.status,
+    )
+```
+여기까지가 Django에서 큐에 넣는 부분입니다.
+처음에는 `pendding`이지만 `enqueue_run_job`이 끝난 시점(동영상이 있어 auto enqueue가 성공한 경우)에는 `SQLite`에 이미 있던 `EmbeddingJob` 행이 `processing`으로 바뀌고, `celery_task_id`가 저장되며, Celery 브로커(`Redis`)에 `run_embedding_job_task` 메시지가 올라갑니다.
+
+이후 실행은 Celery 워커의 `run_embedding_job_task`가 담당하며, 워커가 잡을 집으면 `running`으로 바뀝니다.
+한번 더 `EmbeddingJob` 상태를 정리하면 아래와 같습니다.
+| 상태 | 누가·언제 | 의미 |
+|------|-----------|------|
+| `pending` | 업로드 직후 (Django) | 잡·스테이징 폴더만 있음. 동영상 없으면 수동 실행 대기 |
+| `processing` | `enqueue_run_job` 성공 직후 (Django) | Celery에 넣었고, 워커가 아직 안 집음 |
+| `running` | 워커가 태스크 시작 (Celery) | ffmpeg·CLIP·Qdrant upsert 등 파이프라인 실행 중 |
+| `done` | 워커 완료 | 벡터 적재·스테이징 정리까지 끝 |
+| `failed` | 워커 실패 | `last_error`에 원인 기록 |
 
 ### Celery worker & Redis (임베딩 실행)
-잡 워카가 어덯게 레디스에서 가져가는지
+
+`Celery`는 `task queue library`로 여러 작업(`task`)을 큐(`queue`)에 넣어 워커가 실행하게 해 주는 라이브러리입니다.
+`Redis`는 이 프로젝트에서 메시지 브로커 역할을 하며, Celery가 나중에 실행할 `task`에 대한 작업 지시(태스크 이름·인자 등)를 큐에 보관합니다.
+
+`Redis`가 별도로 필요한 이유는 실제 서비스에서는 서비스 영역과 추론 영역이 분리되고 이 둘이 가져야 할 특징이 다르기 때문입니다.
+서비스 영역에서는 사용자에게 보다 빠른 응답과 안정적인 서비스를 제공해야 하고, 추론 영역은 오래 걸리는 작업을 끝까지 안전하게 돌리는 데 중점을 두기에 두 영역 간의 속도 차이가 날 수 있습니다.
+이 두 영역 사이에서 작업 지시(메시지)를 원활하게 주고받게 해 주는 것이 메시지 브로커이고, 여기서 `Redis`가 그 역할을 합니다.
+`PC`에서 빠른 `CPU`와 느린 저장장치 사이에 `RAM`을 두어 속도 차를 완충하는 것과 비슷한 결이죠.
+
+다음은 작업(`task`) 기준으로 생산자, 메시지 브로커, 소비자 패턴을 나타냈습니다.
+
+```mermaid
+flowchart LR
+    subgraph producer["발행 Producer"]
+        Django["Django\nenqueue_run_job"]
+        CeleryClient["Celery 클라이언트\n.delay()"]
+    end
+
+    subgraph broker["메시지 브로커 Message Broker"]
+        Redis[("Redis\n작업 메시지 큐")]
+    end
+
+    subgraph consumer["소비 Consumer"]
+        Worker["Celery worker\nrun_embedding_job_task"]
+        Pipeline["4장 파이프라인\nffmpeg · CLIP · Qdrant"]
+    end
+
+    DB[("SQLite\nEmbeddingJob 상태")]
+
+    Django --> CeleryClient
+    CeleryClient -->|"publish\n태스크명 + public_id"| Redis
+    Redis -->|"consume\nFIFO에 가깝게"| Worker
+    Worker --> Pipeline
+    Django -.->|"잡 메타·상태"| DB
+    Worker -.->|"running → done/failed"| DB
+```
+
+앞에서 `enqueue_run_job`이 호출한 `run_embedding_job_task.delay(...)`는 지금 당장 `run_embedding_job_task` 본문을 실행하지 않습니다. `Redis`에 이 작업을 실행해라는 메시지만 넣고, 별도 프로세스인 `Celery` 워커가 그 메시지를 읽은 뒤 아래 `run_embedding_job_task`에 선언한 로직을 실행합니다.
+
+`run_embedding_job_task`의 코드는 우리가 `embeddings/tasks.py`에 작성한 일반 함수이지만 `@shared_task` 로 데코레이터를 붙여 `Celery`가 인식하는 작업(`task`)로 등록해 두었습니다.
+- 데코레이터(`@…`): 함수에 특정 기능을 추가하거나 새로운 함수를 더할 수 있습니다.
+
+데코레이터를 쓰면 이름은 그대로 `run_embedding_job_task`이지만, Celery가 `.delay()`·`.apply_async()`같은 메서드를 추가합니다. 그래서 로직에서는 `delay()`로 큐에 넣고, 워커에서는 같은 이름으로 본문이 돌아갑니다. (로컬에서 동기 테스트할 때는 `run_embedding_job_task("uuid")`처럼 괄호만 써서 직접 호출할 수도 있습니다.)
+
+`run_embedding_job_task`의 내부 로직입니다. <br/>
+잡 조회 → 상태·입력 검증 → 파이프라인 실행 → 성공/실패 반환 순으로 진행됩니다.
+```python
+@shared_task(name="embeddings.run_embedding_job")
+def run_embedding_job_task(public_id: str) -> dict[str, str]:
+    """단건 잡: 웹/API에서 이미 processing으로 올린 뒤 호출."""
+    started = time.monotonic()
+    uid = UUID(public_id)
+
+    # job에서 select_related를 통해 anime와 같이 join 해서 가져옴
+    job = EmbeddingJob.objects.select_related("anime").filter(public_id=uid).first()
+
+    if job is None:
+        logger.error("run_embedding_job_task: job not found public_id=%s", public_id)
+        return {"public_id": public_id, "status": "not_found"}
+
+    slug = job.anime.slug
+    logger.info(
+        "embedding job start public_id=%s anime=%s status=%s",
+        public_id,
+        slug,
+        job.status,
+    )
+
+    try:
+        # Job 상태 체크 
+        if job.status != EmbeddingJob.Status.PROCESSING:
+            logger.warning(
+                "embedding job skip unexpected status public_id=%s status=%s",
+                public_id,
+                job.status,
+            )
+            return {"public_id": public_id, "status": job.status}
+
+        # enqueue와 동일: input/ 동영상 필수(ffmpeg 추출 전 재검증)
+        input_err = check_job_input_video(job)
+        if input_err:
+            _mark_failed(job, RuntimeError(input_err))
+            return {"public_id": public_id, "status": EmbeddingJob.Status.FAILED}
+
+        # 4장 파이프라인 (보통 running → done/failed는 여기서 갱신)
+        run_single_embedding_job(job)
+        # 파이프라인이 바꾼 status·필드를 DB에서 다시 읽음
+        job.refresh_from_db()
+        elapsed = time.monotonic() - started
+        logger.info(
+            "embedding job done public_id=%s anime=%s status=%s elapsed_sec=%.2f",
+            public_id,
+            slug,
+            job.status,
+            elapsed,
+        )
+        return {"public_id": public_id, "status": job.status}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(
+            "embedding job failed public_id=%s anime=%s",
+            public_id,
+            slug,
+        )
+        job.refresh_from_db()
+        if job.status != EmbeddingJob.Status.FAILED:
+            _mark_failed(job, exc)
+        return {"public_id": public_id, "status": EmbeddingJob.Status.FAILED}
+```
+위 로직은 작업의 영역이고 `run_single_embedding_job` 통해서 4장에서 만든 임베딩 파이프라인 로직이 실행되게되죠.
+그걸 언급하기에 앞서서 `Redis`와 `Celery`에 메시징 방법에 대해 정리를 더 해봅시다.
 
 # 6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
 

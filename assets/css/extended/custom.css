@@ -273,6 +273,8 @@ html.cursor-follower-off #cursor-ink-trail {
 }
 
 .mermaid-dialog {
+    display: flex;
+    flex-direction: column;
     position: relative;
     width: min(96vw, 1200px);
     max-width: 96vw;
@@ -283,6 +285,7 @@ html.cursor-follower-off #cursor-ink-trail {
     border-radius: var(--radius);
     background: var(--entry);
     color: var(--primary);
+    overflow: hidden;
 }
 
 .mermaid-dialog::backdrop {
@@ -319,9 +322,10 @@ html.cursor-follower-off #cursor-ink-trail {
 }
 
 .mermaid-dialog__content {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 40px 16px 16px;
     overflow: auto;
-    max-height: 92vh;
 }
 
 .mermaid-dialog__content svg {
