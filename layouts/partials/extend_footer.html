@@ -1,7 +1,115 @@
 {{ if .Store.Get "hasMermaid" }}
+<dialog id="mermaid-dialog" class="mermaid-dialog" aria-label="다이어그램 확대">
+  <button type="button" class="mermaid-dialog__close" data-mermaid-close aria-label="닫기" title="닫기">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+  <div class="mermaid-dialog__content" data-mermaid-dialog-content></div>
+</dialog>
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({ startOnLoad: true });
+
+  const dialog = document.getElementById('mermaid-dialog');
+  const content = dialog && dialog.querySelector('[data-mermaid-dialog-content]');
+  let lastExpandBtn = null;
+
+  function isDarkTheme() {
+    return document.body.classList.contains('dark');
+  }
+
+  function getMermaidConfig() {
+    if (isDarkTheme()) {
+      return {
+        startOnLoad: false,
+        theme: 'dark',
+        themeVariables: {
+          background: 'transparent',
+          mainBkg: '#3d3d45',
+          secondBkg: '#2e2e33',
+          textColor: '#dadadb',
+          primaryTextColor: '#dadadb',
+          lineColor: '#9b9c9d',
+          border1: '#9b9c9d',
+          border2: '#9b9c9d',
+        },
+      };
+    }
+    return { startOnLoad: false, theme: 'default' };
+  }
+
+  function stashMermaidSources() {
+    document.querySelectorAll('.mermaid').forEach((el) => {
+      if (!el.dataset.mermaidSrc && el.textContent.trim()) {
+        el.dataset.mermaidSrc = el.textContent.trim();
+      }
+    });
+  }
+
+  function restoreMermaidSources() {
+    document.querySelectorAll('.mermaid').forEach((el) => {
+      const src = el.dataset.mermaidSrc;
+      if (!src) return;
+      el.removeAttribute('data-processed');
+      el.innerHTML = src;
+    });
+  }
+
+  async function renderAllMermaid() {
+    stashMermaidSources();
+    restoreMermaidSources();
+    mermaid.initialize(getMermaidConfig());
+    await mermaid.run({ querySelector: '.mermaid' });
+  }
+
+  function bindExpandButtons() {
+    document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+      const btn = wrap.querySelector('.mermaid-expand');
+      if (!btn || btn.dataset.mermaidBound) return;
+      btn.dataset.mermaidBound = '1';
+      btn.addEventListener('click', () => {
+        const svg = wrap.querySelector('.mermaid svg');
+        if (svg) openMermaidDialog(svg, btn);
+      });
+    });
+  }
+
+  function closeMermaidDialog() {
+    if (!dialog || !dialog.open) return;
+    dialog.close();
+    if (content) content.replaceChildren();
+    if (lastExpandBtn) {
+      lastExpandBtn.focus();
+      lastExpandBtn = null;
+    }
+  }
+
+  function openMermaidDialog(svg, btn) {
+    if (!dialog || !content || !svg) return;
+    lastExpandBtn = btn;
+    content.replaceChildren();
+    content.appendChild(svg.cloneNode(true));
+    dialog.showModal();
+  }
+
+  if (dialog) {
+    dialog.querySelector('[data-mermaid-close]')?.addEventListener('click', closeMermaidDialog);
+    dialog.addEventListener('cancel', closeMermaidDialog);
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) closeMermaidDialog();
+    });
+  }
+
+  await renderAllMermaid();
+  bindExpandButtons();
+
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      requestAnimationFrame(() => renderAllMermaid());
+    });
+  }
 </script>
 {{ end }}
 

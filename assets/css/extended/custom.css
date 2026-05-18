@@ -220,3 +220,113 @@ html.cursor-follower-off #cursor-ink-trail {
         display: none;
     }
 }
+
+/* Mermaid 다이어그램: 인라인 래퍼 + 확대 버튼 (JS: extend_footer.html) */
+.mermaid-wrap {
+    position: relative;
+    margin: 1em 0;
+    overflow-x: auto;
+}
+
+.mermaid-wrap .mermaid {
+    display: flex;
+    justify-content: center;
+}
+
+.mermaid-wrap .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.mermaid-expand {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    margin: 0;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    color: var(--primary);
+    cursor: pointer;
+    line-height: 0;
+    opacity: 0.92;
+}
+
+.mermaid-expand:hover,
+.mermaid-expand:focus-visible {
+    opacity: 1;
+    background: var(--code-bg);
+}
+
+.mermaid-wrap:hover .mermaid-expand,
+.mermaid-wrap:focus-within .mermaid-expand {
+    display: block;
+}
+
+@media (hover: none) {
+    .mermaid-expand {
+        display: block;
+    }
+}
+
+.mermaid-dialog {
+    position: relative;
+    width: min(96vw, 1200px);
+    max-width: 96vw;
+    max-height: 92vh;
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    color: var(--primary);
+}
+
+.mermaid-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.mermaid-dialog__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 4px;
+    border: none;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    line-height: 0;
+    opacity: 0.85;
+}
+
+.mermaid-dialog__close:hover,
+.mermaid-dialog__close:focus-visible {
+    opacity: 1;
+    background: var(--code-bg);
+}
+
+.mermaid-dialog__close svg {
+    display: block;
+}
+
+.mermaid-dialog__content {
+    padding: 40px 16px 16px;
+    overflow: auto;
+    max-height: 92vh;
+}
+
+.mermaid-dialog__content svg {
+    display: block;
+    max-width: none;
+    height: auto;
+    margin: 0 auto;
+}
