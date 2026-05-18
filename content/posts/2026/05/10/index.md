@@ -18,10 +18,9 @@ lastmod: 2026-05-10T00:00:00+09:00
 - [2. 멀티모달 임베딩](#2-멀티모달-임베딩)에서는 모델 사용법을 익히고, 모델에 데이터를 넣어 결과를 받은 뒤 대략 시각화해 봅니다.
 - [3. 대용량 전처리 파이프라인](#3-대용량-전처리-파이프라인)에서는 동영상 전처리 작업을 할 때 가장 빠른 옵션 값을 찾아봅시다.
 - [4. 벡터 검색 엔진 구축 (Qdrant)](#4-벡터-검색-엔진-구축)에서는 모델에서 읽은 값을 벡터 DB에 적재합니다.
-- [5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서는 3·4장 파이프라인을 HTTP 밖으로 분리하고, Celery 워커·Redis 큐 기반 잡 구조를 잡습니다.
-- [6. API 설계 (Django & DRF)](#6-api-설계-django--drf)에서 검색·ingest 요청 API와 Django 앱 구조를 만듭니다.
-- [7. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)](#7-rag-및-llm-기반-사용자-경험-uxui-연동)은 실제 사람이 사용 가능한 수준으로 올려봅시다.
-- [8. 모니터링 및 부하 테스트 (Sentry & Datadog)](#8-모니터링-및-부하-테스트-sentry--datadog)에서 부하 테스트를 진행하며 개선점을 찾습니다. (캐싱 등 읽기 경로 최적화는 부하 결과를 보고 반영합니다.)
+- [5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서는 3·4장 파이프라인을 HTTP 밖으로 분리하고, Celery·Redis·Django(`on_commit`, 태스크)로 잡 구조를 잡습니다.
+- [6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)](#6-rag-및-llm-기반-사용자-경험-uxui-연동)은 실제 사람이 사용 가능한 수준으로 올려봅시다.
+- [7. 모니터링 및 부하 테스트 (Sentry & Datadog)](#7-모니터링-및-부하-테스트-sentry--datadog)에서 부하 테스트를 진행하며 개선점을 찾습니다. (캐싱 등 읽기 경로 최적화는 부하 결과를 보고 반영합니다.)
 
 # 2. 멀티모달 임베딩
 **멀티모달 임베딩 공간(Multimodal Embedding Space)** 은 텍스트, 이미지, 동영상 프레임 등 서로 다른 형태의 데이터(모달리티)를 하나의 통일된 다차원 벡터 공간에 매핑하는 기술입니다. 
@@ -1137,7 +1136,7 @@ celery -A anime_search worker -l info --concurrency=1
 Django 쪽에서는 `run_embedding_job_task.delay(job_public_id)`로 큐에 넣고, HTTP 응답은 `public_id`와 `pending`을 바로 돌려줍니다. 스테이징이 끝나면 `processing`, 워커가 시작하면 `running`, 완료 시 `done`(실패 시 `failed`)로 `SQLite`의 `EmbeddingJob` 행을 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
 
 ## 프로세스 시퀀스
-위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다. 사용되는 `API` 부분은 6장에서 다룰 예정이며, 여기서는 `Redis`, `Celery` 구조와 로직에 더 집중해 봅시다.
+위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다.
 ```mermaid
 sequenceDiagram
     participant Admin as 관리자
@@ -1166,14 +1165,107 @@ sequenceDiagram
     Worker->>DB: done (실패 시 failed)
 ```
 
-### Job 생성
+### Model 구조
+이 프로젝트는 다음 모델 구조를 사용해서 진행합니다.
+- 장르와 애니메이션은 n:m 관계로 지정합니다. 한 장르는 여러 애니메이션에 포함될 수 있고, 한 애니메이션은 여러 장르를 포함할 수 있기 때문이죠. (나중에 검색 기능을 위함)
+- 
+```mermaid
+erDiagram
+    Genre }o--o{ Anime : "genres M2M(장고에서 pivot 테이블 생성)"
+    Anime ||--o{ Episode : "anime_id FK CASCADE"
+    Episode ||--o{ EmbeddingJob : "episode_id FK PROTECT"
+    Anime ||--o{ EmbeddingJob : "anime_id FK PROTECT"
 
-### Job 수행
+    Genre {
+        int id PK
+        string slug UK
+        string label_ko
+        string label_ko_norm UK
+        int sort_order
+    }
 
-### Job 결과
+    Anime {
+        int id PK
+        string slug UK
+        string title
+        datetime created_at
+        datetime updated_at
+    }
 
-# 6. API 설계 (Django & DRF)
+    Episode {
+        int id PK
+        int anime_id FK
+        int number "UK with anime_id"
+        string title
+        datetime created_at
+        datetime updated_at
+    }
 
-# 7. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
+    EmbeddingJob {
+        int id PK
+        uuid public_id UK
+        int anime_id FK
+        int episode_id FK
+        string canonical_key
+        string staging_rel_path
+        string status
+        text last_error
+        string celery_task_id
+        datetime created_at
+        datetime updated_at
+        datetime processed_at
+    }
 
-# 8. 모니터링 및 부하 테스트 (Sentry & Datadog)
+```
+
+
+### 업로드 (Django API)
+동영상을 업로드하는 화면을 최대한 핵심 코드만 보면서 진행하죠. <br/>
+`catalog/urls.py`<br/>
+```python
+...
+
+urlpatterns = [
+    # 메인 페이지, 잡 목록 보기 페이지랑 뷰 겸용
+    path("", views.job_console, name="catalog_home"),
+    # 장르 리스트랑 수정, 등록 기능
+    path("genres/", views.genre_list, name="catalog_genre_list"),
+    path("genres/new/", views.genre_new, name="catalog_genre_new"),
+    path("genres/bulk-new/", views.genre_bulk_new, name="catalog_genre_bulk_new"),
+    path("genres/<int:pk>/edit/", views.genre_edit, name="catalog_genre_edit"),
+    # 업로드
+    path("upload/", views.anime_upload, name="catalog_anime_upload"),
+    # 업로드 후 영상 미리보기
+    path(
+        "jobs/<uuid:public_id>/preview/<str:filename>",
+        views.serve_uploaded_video,
+        name="catalog_job_video_preview",
+    ),
+    # Job 목록 페이지
+    path("jobs/", views.job_console, name="catalog_jobs"),
+    # Job JSON API 
+    # Job 목록 가져오기 
+    path("api/jobs/", views.job_api_list, name="catalog_job_api_list"),
+    # Job 실행 요청하기 (워커로 자동으로 수행되는데, 이를 요청도 가능)
+    path(
+        "api/jobs/<uuid:public_id>/run/",
+        views.job_api_run,
+        name="catalog_job_api_run",
+    ),
+    # Job 삭제하기
+    path(
+        "api/jobs/<uuid:public_id>/delete/",
+        views.job_api_delete,
+        name="catalog_job_api_delete",
+    ),
+]
+```
+장르 등록 기능과 Job 상태를 확인하는 API는 생략하고 동영상 업로드 작업을 중심으로 봅시다.
+업로드 후 잡 등록을 어떻게하고 레디스에 어떻게 잡을 등록하는 지 
+
+### Celery worker & Redis (임베딩 실행)
+잡 워카가 어덯게 레디스에서 가져가는지
+
+# 6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
+
+# 7. 모니터링 및 부하 테스트 (Sentry & Datadog)
