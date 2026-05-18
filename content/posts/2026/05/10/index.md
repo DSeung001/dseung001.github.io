@@ -838,7 +838,7 @@ def upsert_job_frame_vectors(
         raise ValueError(f"vectors 는 (N, D) 형태여야 합니다. N={n}, shape={mat.shape}")
 
     dim = int(mat.shape[1])
-    # 컬랙션 생성 및 페이로드에 대한 인덱스 생성
+    # 컬렉션 생성 및 페이로드에 대한 인덱스 생성
     ensure_collection_and_indexes(vector_dim=dim)
 
     points: list[Any] = []
@@ -963,7 +963,7 @@ curl -sS 'http://127.0.0.1:6333/collections/anime_clip' | jq
 
 | `payload_schema` 키 | `data_type` | `points` | 의미 |
 |---------------------|-------------|----------|------|
-| `anime_id` | `keyword` | 1542 | 작품 슬러그가 모든 포인트에 있음 |
+| `anime_id` | `keyword` | 1542 | 작품 식별(예시 `"123"`은 내부 id) |
 | `episode` | `integer` | 1542 | 화 번호 |
 | `genre` | `keyword` | 1540 | 장르. 2건은 `genre` 없음(또는 빈 값) |
 | `frame_index` | `integer` | 1542 | 프레임 순번 |
@@ -1055,8 +1055,8 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 4장까지로 프레임 추출·벡터화·`Qdrant` 적재 같은 핵심 파이프라인은 갖춰졌습니다. 다만 지금은 HTTP로 직접 돌리거나 로컬에서 한 번에 실행하는 수준이고, 이를 그대로 서비스에 올리기엔 아직 부족한 부분이 많죠.
 실서비스에서 부족한 점은, 관리자가 동영상을 올린 뒤 임베딩이 끝날 때까지 API 요청이 붙잡혀 있으면 타임아웃이 나기 쉽고, 웹 서버와 무거운 추론 작업이 한 프로세스에 섞이면 검색 API까지 같이 느려질 수 있다는 것입니다.
 
-맥북 M1에서 로컬로 돌릴 때도 마찬가지죠. `OS`가 `CPU`·`GPU`를 자동으로 나눠 주는 게 아니기에 `ffmpeg`는 주로 `CPU`, `CLIP`은 `mps`(Metal)로 `GPU`를 씁니다.임베딩 작업과 `HTTP` 서비스 등 여러 프로세스가 동일한 자원을 웹 환경이 임베딩 작업에 영향을 받아 응답이 느려질 수 있습니다.
-그래서 역할 분리하고 응답 지연을 방지하기 위한 해결법이 필요하죠.
+맥북 M1에서 로컬로 돌릴 때도 마찬가지죠. `OS`가 `CPU`·`GPU`를 자동으로 나눠 주는 게 아니라, `ffmpeg`는 주로 `CPU`, `CLIP`은 `mps`(Metal)로 `GPU`를 씁니다. 임베딩 작업과 `HTTP` 서비스 등 여러 프로세스가 동일한 자원을 쓰면 웹 환경이 임베딩 작업에 영향을 받아 응답이 느려질 수 있습니다.
+그래서 역할을 분리하고 응답 지연을 방지하기 위한 해결법이 필요하죠.
 
 참고) 맥북 Air M1 사양
 - 총 코어: 8개(성능 4 + 효율 4)
@@ -1064,19 +1064,21 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 - SoC: CPU·GPU 통합(Unified Memory), `mps`로 GPU 가속
 - MPS(Metal Performance Shaders): Apple Silicon GPU로 딥러닝·ML 연산을 가속하는 PyTorch 백엔드
 
-5장에서는 `Celery` 워커와 `Redis` 큐로 비동기 잡 구조를 구현합니다. 이는 `Task Queue`로, Django가 `public_id`로 넣은 메시지를 워커가 `Redis`에서 꺼내 처리합니다. 로컬에서 워커를 1개만 두면 대기열은 `FIFO`(먼저 넣은 잡부터)에 가깝고, 워커나 `concurrency`를 늘리면 동시에 여러 잡이 돌아가 끝나는 순서는 달라질 수 있습니다. 이 패턴은 로컬뿐 아니라 클라우드에도 그대로 가져갈 수 있고, 분산 환경에서는 임베딩 워커는 늘리기 쉽지만 `Redis` 브로커는 클러스터·관리형 서비스를 고민해 봐야 합니다.
+5장에서는 `Celery` 워커와 `Redis` 큐로 비동기 잡 구조를 구현합니다. 이는 `Task Queue` 방식으로, Django가 `run_embedding_job_task.delay(job_public_id)`로 넣은 메시지를 워커가 `Redis`에서 꺼내 처리합니다. 
+
+임베딩 잡 UUID는 DB·코드에서는 `job_public_id`, API JSON에는 보통 `public_id` 키로 같은 값을 씁니다(4장 `Qdrant` payload의 `job_public_id`와 동일). 로컬에서 워커를 1개만 두면 대기열은 `FIFO`(먼저 넣은 잡부터)에 가깝고, 워커나 `concurrency`를 늘리면 동시에 여러 잡이 돌아가 끝나는 순서는 달라질 수 있습니다. 이 패턴은 로컬뿐 아니라 클라우드에도 그대로 가져갈 수 있고, 분산 환경에서는 임베딩 워커는 늘리기 쉽지만 `Redis` 브로커는 클러스터·관리형 서비스를 고민해 봐야 합니다.
 
 비동기 잡 구조가 필요한 구체적인 이유는 다음과 같습니다.
 
 - **업로드와 처리 분리**: 파일만 먼저 받고, 메타·화수·장르 확인 후 임베딩 실행·취소를 선택.
-- **긴 작업 비동기화**: `ffmpeg`·CLIP은 수 분 걸릴 수 있으니 잡 ID를 바로 반환하고, `pending` / `running` / `done` / `failed`로 단계 확인.
+- **긴 작업 비동기화**: `ffmpeg`·CLIP은 수 분 걸릴 수 있으니 `public_id`(`job_public_id`)를 바로 반환하고, `pending` / `processing` / `running` / `done` / `failed`로 단계 확인.
 - **실행 시점 조절**: 피크 시간엔 스케줄로 미루거나, 한가한 시간에 몰아서 실행. (임베딩 전용 서버 분리는 실서비스 예시.)
 - **작업 묶음 처리**: 여러 화를 모아 큐에 넣고 워커가 처리.
 - **실패·재시도**: `ffmpeg` 오류, OOM 등 잡 단위 로그·재시도·실패 건만 재실행.
 - **부하 조절**: 큐에 쌓아 두고 워커 수만큼만 동시 실행.
 - **확장**: 클라우드로 확장 시 검색 API와 임베딩 워커를 분리해 워커만 늘리기 쉽게 확장 가능.
 
-4장으로 프레임 추출부터 `Qdrant` 저장까지 검증했다면, 5장에서는 배포 가능한 서비스 형태로 옮기는 단계입니다.
+4장에서 프레임 추출부터 `Qdrant` 저장까지 검증했다면, 5장에서는 배포 가능한 서비스 형태로 옮기는 단계입니다.
 
 ## Celery와 Redis 큐
 
@@ -1091,6 +1093,8 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 | `Redis` (result backend, 선택) | 태스크 결과·상태를 잠깐 두는 저장소. 잡 상세는 DB가 source of truth |
 | `Celery worker` | 큐에서 태스크를 꺼내 4장 파이프라인 실행 |
 | `Django` | 업로드 API, 잡 생성, `delay()`로 큐에 넣기 |
+| `SQLite` | Django 기본 DB. 잡 상태·메타데이터 (`EmbeddingJob`) |
+| `Disk` | 업로드 원본·프레임 JPG 스테이징 (`jobs/{uuid}/input/` 등) |
 | `Qdrant` | 벡터 저장 (4장과 동일) |
 
 ### RabbitMQ 대신 Redis를 쓰는 이유
@@ -1105,19 +1109,20 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 다만 주의할 점은 `Redis`가 브로커일 때는 중간에 `Redis`가 죽거나, 설정·운영 실수가 나면 큐에 넣은 작업 지시가 손실될 수 있습니다.
 `RabbitMQ`는 그런 상황에서도 메시지를 디스크에 남기고, ack·재전달 기능이 있어 안정성이 더 강하죠.
 그래서 더 안정성을 높이고 싶다면 `Redis` 구조를 유지하면서 실서비스로 옮길 때는 `PostgreSQL`에 핵심 데이터를 남기고 `Redis`는 브로커 역할에 초점을 두는 게 좋죠.
-여기서는 `PostgreSQL`까지 추가하지는 않습니다.
+5장 로컬 개발에서는 Django 기본 `SQLite`(`db.sqlite3`)로 `EmbeddingJob` 상태만 두고, `PostgreSQL`은 아직 쓰지 않습니다.
 
 ### 필요한 프로세스
 
-뭔가 많아졌는데 결국 맥에서 개발할 때 저는 아래 네 가지를 같이 띄웁니다.<br/>
-(`Qdrant`와 `Redis`는 작업 편이를 위해 Docker로)
+맥에서 개발할 때는 아래 다섯 가지를 같이 띄웁니다.<br/>
+(`Qdrant`와 `Redis`는 작업 편이를 위해 Docker로, DB는 Django가 `SQLite` 파일로 사용)
 
 | # | 프로세스 | 설명 |
 |---|----------|------|
-| 1 | `Redis` | 브로커 |
-| 2 | `Django` (`runserver` 등) | API |
-| 3 | `Celery worker` | 임베딩 실행 |
-| 4 | `Qdrant` | 벡터 DB |
+| 1 | `Redis` | Celery 브로커 |
+| 2 | `Django` (`runserver` 등) | API, 업로드·잡 생성 |
+| 3 | `SQLite` | Django 내부 DB (`db.sqlite3`). `EmbeddingJob` 상태(`pending` / `processing` / `running` / `done` / `failed`) |
+| 4 | `Celery worker` | 임베딩 실행 |
+| 5 | `Qdrant` | 벡터 DB |
 
 M1 16 GB 기준으로 워커는 메모리를 많이 쓰므로 `--concurrency=1`부터 두는 편이 좋습니다.
 
@@ -1129,7 +1134,7 @@ docker run -d --name redis -p 6379:6379 redis:7-alpine
 celery -A anime_search worker -l info --concurrency=1
 ```
 
-Django 쪽에서는 대략 `embed_job.delay(job_public_id)`처럼 태스크만 큐에 넣고, HTTP 응답은 바로 `job_id`와 `pending` 상태를 돌려주면 됩니다. 워커가 끝나면 DB의 Job 행을 `running` → `done` / `failed`로 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
+Django 쪽에서는 `run_embedding_job_task.delay(job_public_id)`로 큐에 넣고, HTTP 응답은 `public_id`와 `pending`을 바로 돌려줍니다. 스테이징이 끝나면 `processing`, 워커가 시작하면 `running`, 완료 시 `done`(실패 시 `failed`)로 `SQLite`의 `EmbeddingJob` 행을 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
 
 ## 프로세스 시퀀스
 위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다. 사용되는 `API` 부분은 6장에서 다룰 예정이며, 여기서는 `Redis`, `Celery` 구조와 로직에 더 집중해 봅시다.
@@ -1146,13 +1151,14 @@ sequenceDiagram
     Admin->>Django: 동영상 업로드 (slug, episode 등)
     Django->>DB: EmbeddingJob 생성 (pending)
     Django->>Disk: jobs/{uuid}/input/ 에 동영상 저장
-    Django-->>Admin: public_id 즉시 반환
+    Django-->>Admin: public_id 즉시 반환 (DB job_public_id)
 
     Note over Django: transaction.on_commit
     Django->>DB: 스테이징 OK면 processing
-    Django->>Redis: run_embedding_job_task.delay(public_id)
+    Django->>Redis: run_embedding_job_task.delay(job_public_id)
 
     Redis->>Worker: 태스크 수신
+    Worker->>DB: running
     Worker->>Disk: ffmpeg → frames/*.jpg
     Worker->>Disk: media/{slug}/frames/ 로 승격
     Worker->>Worker: CLIP 임베딩
@@ -1160,7 +1166,11 @@ sequenceDiagram
     Worker->>DB: done (실패 시 failed)
 ```
 
+### Job 생성
 
+### Job 수행
+
+### Job 결과
 
 # 6. API 설계 (Django & DRF)
 
