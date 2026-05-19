@@ -19,7 +19,7 @@ lastmod: 2026-05-10T00:00:00+09:00
 - [3. 대용량 전처리 파이프라인](#3-대용량-전처리-파이프라인)에서는 동영상 전처리 작업을 할 때 가장 빠른 옵션 값을 찾아봅시다.
 - [4. 벡터 검색 엔진 구축 (Qdrant)](#4-벡터-검색-엔진-구축)에서는 모델에서 읽은 값을 벡터 DB에 적재합니다.
 - [5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서는 3·4장 파이프라인을 HTTP 밖으로 분리하고, Celery·Redis·Django(`on_commit`, 태스크)로 잡 구조를 잡습니다.
-- [6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)](#6-rag-및-llm-기반-사용자-경험-uxui-연동)은 실제 사람이 사용 가능한 수준으로 올려봅시다.
+- [6. 자연어 검색](#6-자연어-검색)에서는 Qdrant 검색 API·UI를 붙이고, 필요하면 LLM으로 결과를 정리합니다.
 - [7. 모니터링 및 부하 테스트 (Sentry & Datadog)](#7-모니터링-및-부하-테스트-sentry--datadog)에서 부하 테스트를 진행하며 개선점을 찾습니다. (캐싱 등 읽기 경로 최적화는 부하 결과를 보고 반영합니다.)
 
 # 2. 멀티모달 임베딩
@@ -1748,10 +1748,25 @@ def run_embedding_job_task(public_id: str) -> dict[str, str]:
 
 정리하자면, Django가 `EmbeddingJob`을 만들고 `enqueue_run_job`으로 Celery·Redis에 넣은 뒤, 워커가 ffmpeg·CLIP·Qdrant까지 이어서 처리합니다.
 
-# 6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
+# 6. 자연어 검색
+이 장의 목표는 사용자가 자연어를 입력하면 일치하는 장면을 찾는 전체 프로세스를 완성시키는 겁니다.
+RAG 시스템답게 프로젝트의 클라이언트 레이어를 씌우는 거죠.
+최종적으로 자연어 입력 → (Retrieval) Qdrant 유사도 검색 → LLM·UI로 표시까지 만드는 겁니다.
 
-6장 본문은 작성 예정입니다. RAG·LLM과 프론트 연동을 이어서 다룰 예정입니다.
+## RAG 
+`RAG(Retrieval-Augmented Generation)`는 LLM에서 데이터를 생성해 주는 것에서 더 나아가 먼저 정해진 영역에서 관련 자료를 찾고(Retrieval) 그 결과를 바탕으로 답하거나 보여 주는(Generation) 구조입니다.
+- **검색 (Retrieval)**: 사용자가 질문하면 AI가 사전에 연결된 문서나 데이터베이스에서 질문과 가장 관련 있는 정보를 찾습니다.
+- **증강 (Augmentation)**: 검색된 정보와 사용자의 질문을 결합하여 AI에게 맥락(Context)을 제공합니다.
+- **생성 (Generation)**: AI가 제공받은 정보를 바탕으로 정확하고 신뢰할 수 있는 답변을 만들어냅니다.
+
+이 프로젝트에서 미리 준비하는 일에 해당하는 것은 장면을 색인하는 작업이었죠. 이 부분은 [4장](#4-벡터-검색-엔진-구축)과 [5장](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서 진행했습니다.
+프레임을 CLIP으로 벡터화하고 `Qdrant`에 `upsert`하면서 검색할 수 있는 형태로 DB에 쌓았죠.
+벡터 DB 맥락에서 이 과정을 색인(indexing)이라고 부르며, `GET /collections/...`의 `points_count`·`payload_schema`로 색인된 데이터의 수를 파악할 수 있었습니다.
+
+후에 추가 학습을 통해 더 검색을 정확히 하건 알맞은 모델을 찾는 과정을보며 퀄리티를 높일 수 있지만 아직은 RAG 시스템을 구현하는 부분까지를 목표로 합시다.
+
+## LLM 연결
+
+## LLM 결과로 색인
 
 # 7. 모니터링 및 부하 테스트 (Sentry & Datadog)
-
-7장 본문은 작성 예정입니다. Sentry·Datadog과 부하 테스트를 다룰 예정입니다.
