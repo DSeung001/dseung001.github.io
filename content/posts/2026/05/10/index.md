@@ -680,7 +680,7 @@ flowchart TB
     end
 ```
 
-테스트는 REST API를 통한 HTTP 요청으로 돌아갑니다. 실제 서비스에서는 비동기로 워커가 돌게끔 구상됩니다.
+테스트는 REST API를 통한 HTTP로 동기적으로 진행되는데 실 서비스에서는 비동기적으로 돌 수도 있습니다. 그래서 5장에서 이 부분을 다룹니다.
 
 ### 프레임 추출
 `subprocess`와 `ffmpeg`를 사용해 프레임을 추출하겠습니다.<br/>
@@ -1133,7 +1133,7 @@ docker run -d --name redis -p 6379:6379 redis:7-alpine
 celery -A anime_search worker -l info --concurrency=1
 ```
 
-Django 쪽에서는 `run_embedding_job_task.delay(job_public_id)`로 큐에 넣고, HTTP 응답은 `public_id`와 `pending`을 바로 돌려줍니다. 스테이징이 끝나면 `processing`, 워커가 시작하면 `running`, 완료 시 `done`(실패 시 `failed`)로 `SQLite`의 `EmbeddingJob` 행을 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
+Django 쪽에서는 `run_embedding_job_task.delay(job_public_id)`로 큐에 넣고, HTTP는 잡 생성 직후 바로 돌려주고 이떄 DB 에서는 `pending`일 수 있으나 작업이 끝나면 `processing`아 되고 워커가 시작하면 `running`, 완료 시 `done`(실패 시 `failed`)로 `SQLite`의 `EmbeddingJob` 행을 갱신하고, 관리 화면에서는 그 상태만 폴링하면 되죠.
 
 ## 프로세스 시퀀스
 위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다.
@@ -1228,7 +1228,7 @@ erDiagram
 ```
 
 참고로 장르와 애니메이션 M2M 관계로 Django가 자동 생성하는 pivot 테이블(`catalog_anime_genres`) 구조는 다음과 같습니다.
-`id` 값과 `index`, `unique` 제약조건만 가진 최소한의 테이블을 자동으로 만들어줘서 편하네요.
+`id` 값과 `index`, `unique` 제약조건만 가진 최소한의 테이블을 자동으로 만들어 줘서 편하네요.
 
 ```bash
 sqlite> .schema catalog_anime_genres
@@ -1423,7 +1423,7 @@ def anime_upload(request: HttpRequest) -> HttpResponse:
 업로드 요청이 커밋(`schedule_auto_enqueue_on_commit`)된 뒤 아래 흐름으로 `Redis`에 메시지가 저장됩니다.
 그리고 메시지 브로커 역할로 비동기 워커가 동작할 수 있게 해주죠.
 
-`schedule_auto_enqueue_on_commit`은 `transaction.on_commit`으로 커밋 후 `try_auto_enqueue_job`을 호출합니다
+`schedule_auto_enqueue_on_commit`은 `transaction.on_commit`으로 커밋 후 `try_auto_enqueue_job`을 호출합니다.
 ```python
 def schedule_auto_enqueue_on_commit(public_id: UUID) -> None:
     """DB 커밋 후 자동 enqueue."""
@@ -1534,10 +1534,10 @@ def enqueue_run_job(public_id: UUID) -> EnqueueResult:
     )
 ```
 여기까지가 Django에서 큐에 넣는 부분입니다.
-처음에는 `pendding`이지만 `enqueue_run_job`이 끝난 시점(동영상이 있어 auto enqueue가 성공한 경우)에는 `SQLite`에 이미 있던 `EmbeddingJob` 행이 `processing`으로 바뀌고, `celery_task_id`가 저장되며, Celery 브로커(`Redis`)에 `run_embedding_job_task` 메시지가 올라갑니다.
+처음에는 `pending`이지만 `enqueue_run_job`이 끝난 시점(동영상이 있어 auto enqueue가 성공한 경우)에는 `SQLite`에 이미 있던 `EmbeddingJob` 행이 `processing`으로 바뀌고, `celery_task_id`가 저장되며, Celery 브로커(`Redis`)에 `run_embedding_job_task` 메시지가 올라갑니다.
 
 이후 실행은 Celery 워커의 `run_embedding_job_task`가 담당하며, 워커가 잡을 집으면 `running`으로 바뀝니다.
-한번 더 `EmbeddingJob` 상태를 정리하면 아래와 같습니다.
+한 번 더 `EmbeddingJob` 상태를 정리하면 아래와 같습니다.
 | 상태 | 누가·언제 | 의미 |
 |------|-----------|------|
 | `pending` | 업로드 직후 (Django) | 잡·스테이징 폴더만 있음. 동영상 없으면 수동 실행 대기 |
@@ -1584,12 +1584,72 @@ flowchart LR
     Worker -.->|"running → done/failed"| DB
 ```
 
-앞에서 `enqueue_run_job`이 호출한 `run_embedding_job_task.delay(...)`는 지금 당장 `run_embedding_job_task` 본문을 실행하지 않습니다. `Redis`에 이 작업을 실행해라는 메시지만 넣고, 별도 프로세스인 `Celery` 워커가 그 메시지를 읽은 뒤 아래 `run_embedding_job_task`에 선언한 로직을 실행합니다.
+앞에서 `enqueue_run_job`이 호출한 `run_embedding_job_task.delay(...)`는 지금 당장 `run_embedding_job_task` 본문을 실행하지 않습니다. `Redis` 브로커에 작업 메시지를 적재합니다.
 
-`run_embedding_job_task`의 코드는 우리가 `embeddings/tasks.py`에 작성한 일반 함수이지만 `@shared_task` 로 데코레이터를 붙여 `Celery`가 인식하는 작업(`task`)로 등록해 두었습니다.
-- 데코레이터(`@…`): 함수에 특정 기능을 추가하거나 새로운 함수를 더할 수 있습니다.
+`delay()` 직후 Redis에서 무엇이 오가는지 보려면 `redis-cli MONITOR`(Docker면 `docker exec -it redis redis-cli MONITOR`)를 켜두면 동영상을 업로드했을 때 `Redis`에서 실행되는 명령어들을 확인할 수 있는데, `PING`·`CLIENT SETINFO`는 연결 유지용이라 무시해도 되고, 임베딩 잡과 직접 관련된 것은 아래 세 가지입니다.
 
-데코레이터를 쓰면 이름은 그대로 `run_embedding_job_task`이지만, Celery가 `.delay()`·`.apply_async()`같은 메서드를 추가합니다. 그래서 로직에서는 `delay()`로 큐에 넣고, 워커에서는 같은 이름으로 본문이 돌아갑니다. (로컬에서 동기 테스트할 때는 `run_embedding_job_task("uuid")`처럼 괄호만 써서 직접 호출할 수도 있습니다.)
+| 순서 | Redis 명령 | 의미 |
+|------|------------|------|
+| 1 | `LPUSH celery …` | 브로커 큐에 태스크 메시지 적재 (`delay()`의 본체)해서 워커가 실행할 일을 넣음 |
+| 2 | `HSET unacked` / `ZREM unacked` … | 워커가 메시지를 가져간 뒤 처리 완료 응답을 주지 않은 상태 |
+| 3 | `SETEX celery-task-meta-<task_id>` | `Celery`가 `task` 상태를 `Redis`에 저장할 때 사용 |
+
+`LPUSH celery`로 적재되는 메시지의 내용은 다음과 같습니다.
+이 내용 전체가 `Redis`에 메시지로 저장됩니다.
+
+```json
+{
+  "body": "W1siMGQzOGFjNjMtZDM5OS00MzcxLWJjM2EtOTRlMjJhMjIyNGQwIl0sIHt9LCB7ImNhbGxiYWNrcyI6IG51bGwsICJlcnJiYWNrcyI6IG51bGwsICJjaGFpbiI6IG51bGwsICJjaG9yZCI6IG51bGx9XQ==",
+  "content-encoding": "utf-8",
+  "content-type": "application/json",
+  "headers": {
+    "lang": "py",
+    "task": "embeddings.run_embedding_job",
+    "id": "2ed7a75a-4c40-459a-9275-7c49f3cddf17",
+    "shadow": null,
+    "eta": null,
+    "expires": null,
+    "group": null,
+    "group_index": null,
+    "retries": 0,
+    "timelimit": [null, null],
+    "root_id": "2ed7a75a-4c40-459a-9275-7c49f3cddf17",
+    "parent_id": null,
+    "argsrepr": "('0d38ac63-d399-4371-bc3a-94e22a2224d0',)",
+    "kwargsrepr": "{}",
+    "origin": "gen32524@jiseunglyeol-ui-MacBookAir.local",
+    "ignore_result": false,
+    "replaced_task_nesting": 0,
+    "stamped_headers": null,
+    "stamps": {}
+  },
+  "properties": {
+    "correlation_id": "2ed7a75a-4c40-459a-9275-7c49f3cddf17",
+    "reply_to": "9950199d-4293-39ea-bd9e-5a400d686cef",
+    "delivery_mode": 2,
+    "delivery_info": {
+      "exchange": "",
+      "routing_key": "celery"
+    },
+    "priority": 0,
+    "body_encoding": "base64",
+    "delivery_tag": "88c17946-d9c8-4704-9035-d8e204de4c28"
+  }
+}
+```
+위 데이터에서 중점적으로 봐야 할 부분은 다음과 같습니다.
+- `headers.task`: `@shared_task(name="embeddings.run_embedding_job")`에 쓰인 값과 동일  
+- `headers.id` / `properties.correlation_id`: Celery 태스크 ID (`EmbeddingJob.celery_task_id`)로 `Celery 고유 ID
+- `headers.argsrepr`: `delay()`에 넘긴 `public_id`를 표시
+- `properties.delivery_info.routing_key`: 기본 큐 이름 `celery`
+
+이제 별도 프로세스로 돌고 있는 `Celery` 워커가 `Redis`의 `celery` 리스트에서 메시지를 가져온 뒤, 아래 `run_embedding_job_task` 본문을 실행합니다.
+
+`run_embedding_job_task`의 코드를 보면 우리가 `embeddings/tasks.py`에 작성한 일반 함수인데 워커의 로직으로 동작할 수 있는 이유는 `@shared_task`로 데코레이터를 붙여 `Celery`가 인식하는 작업(`task`)로 등록해 두었기 때문입니다.
+
+데코레이터를 쓰면 이름은 그대로 `run_embedding_job_task`이지만, Celery가 `.delay()`·`.apply_async()` 같은 메서드를 추가합니다. 
+
+그래서 Django에서는 `delay()`로 큐에 넣고, 워커에서는 같은 이름으로 본문이 돌아가는거죠. 로컬에서 동기 테스트할 때는 `run_embedding_job_task("uuid")`처럼 괄호만 써서 직접 호출할 수도 있습니다.
 
 `run_embedding_job_task`의 내부 로직입니다. <br/>
 잡 조회 → 상태·입력 검증 → 파이프라인 실행 → 성공/실패 반환 순으로 진행됩니다.
@@ -1655,8 +1715,32 @@ def run_embedding_job_task(public_id: str) -> dict[str, str]:
             _mark_failed(job, exc)
         return {"public_id": public_id, "status": EmbeddingJob.Status.FAILED}
 ```
-위 로직은 작업의 영역이고 `run_single_embedding_job` 통해서 4장에서 만든 임베딩 파이프라인 로직이 실행되게되죠.
-그걸 언급하기에 앞서서 `Redis`와 `Celery`에 메시징 방법에 대해 정리를 더 해봅시다.
+워커 프로세스(`celery -A anime_search worker -l info`)가 그 태스크를 찾아 실행하도록 세팅하려면 프로젝트에 `Celery app`(`celery.py`)을 등록해 두어야 합니다. 브로커·타임아웃 등은 Django `settings.py`의 `CELERY_*` 변수로 넘깁니다.
+
+```python
+# --- Celery (임베딩 잡 비동기 실행)
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0").strip()
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL).strip()
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = int(os.environ.get("CELERY_TASK_TIME_LIMIT", "3600"))
+CELERY_WORKER_CONCURRENCY = int(os.environ.get("CELERY_WORKER_CONCURRENCY", "1"))
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+```
+
+`anime_search/celery.py`(경로는 프로젝트마다 다를 수 있음)에서 앱 이름을 `anime_search`로 두고, 설정을 읽은 뒤 `tasks` 모듈을 자동 탐지하도록 해줍니다.<br/>
+자동 탐지하는 방법은 `autodiscover_tasks()`에서 `INSTALLED_APPS` 각 앱의 `tasks.py`를 스캔해 `@shared_task`로 붙인 함수(ex: `embeddings.tasks.run_embedding_job_task`)를 워커에 등록합니다. 
+
+만약 `task`를 직접 제어하려면 `CELERY_IMPORTS` 등으로 지정할 수 있지만, 여기서는 기본 자동 탐지를 씁니다.
+
+```python
+app = Celery("anime_search")
+app.config_from_object("django.conf:settings", namespace="CELERY")
+app.autodiscover_tasks()
+```
 
 # 6. RAG 및 LLM 기반 사용자 경험 (UX/UI 연동)
 
