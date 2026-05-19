@@ -232,7 +232,7 @@
   applyCharacterAtIndex(idx0);
 
   function isEnabled() {
-    return localStorage.getItem(LS_ON) !== "0";
+    return localStorage.getItem(LS_ON) === "1";
   }
 
   function applyFromStorage() {
@@ -725,10 +725,10 @@
 
   window.cursorFollowerApi = {
     toggleEnabled: function () {
-      if (localStorage.getItem(LS_ON) === "0") {
-        localStorage.removeItem(LS_ON);
-      } else {
+      if (isEnabled()) {
         localStorage.setItem(LS_ON, "0");
+      } else {
+        localStorage.setItem(LS_ON, "1");
       }
       applyFromStorage();
     },
