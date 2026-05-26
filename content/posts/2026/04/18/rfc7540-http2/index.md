@@ -2,7 +2,7 @@
 title: "RFC 7540 — HTTP/2"
 date: 2026-04-18T00:00:00+09:00
 categories: [ "Digging", "RFC" ]
-tags: [ "HTTP/2", "RFC 7540", "네트워크", "TLS", "HPACK" ]
+tags: [ "RFC", "HTTP/2", "RFC 7540", "네트워크", "TLS", "HPACK" ]
 draft: false
 description: "RFC 7540을 기준으로 HTTP/2의 바이너리 프레이밍, 스트림 멀티플렉싱, 상태 전이와 주요 고려사항을 핵심만 정리합니다."
 keywords: [ "HTTP/2", "RFC 7540", "멀티플렉싱", "HPACK", "ALPN" ]
