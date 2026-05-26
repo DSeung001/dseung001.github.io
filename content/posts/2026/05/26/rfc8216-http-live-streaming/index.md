@@ -25,7 +25,7 @@ HLS는 [ABR Streaming](https://www.cloudflare.com/ko-kr/learning/video/what-is-a
 이 문서에서는 프로토콜 버전 7을 다룹니다.
 
 # Media playlist and segments
-HLS에서 `Media playlist`(미디어 플레이리스트, 보통 `.m3u8`,`.m3u`)는 `media segment` URI와 재생 메타데이터가 담긴 인덱스 파일입니다. 플레이어가 이 파일을 읽고, 나열된 순서대로 세그먼트를 HTTP로 요청해 이어 붙여 영상을 제공하죠.
+HLS에서 `Media playlist`(미디어 플레이리스트, 보통 `.m3u8`, `.m3u`)는 `media segment` URI와 재생 메타데이터가 담긴 인덱스 파일입니다. 플레이어가 이 파일을 읽고, 나열된 순서대로 세그먼트를 HTTP로 요청해 이어 붙여 영상을 제공하죠.
 - **VOD**: 플레이리스트에 세그먼트가 모두 있고, 끝에는 대부분 `#EXT-X-ENDLIST`로 종료를 표시하는 경우가 많습니다.
 - **Live**: 같은 Media playlist URL을 반복해서 갱신함 (`#EXT-X-MEDIA-SEQUENCE` 등).
     - **Sliding**: 최근 N개 세그먼트만 유지하고 예전 항목은 삭제해 윈도우가 짧아져 지연 부담이 줄어듦
@@ -126,9 +126,9 @@ RFC는 복호화 절차만 명시했을 뿐, 키를 누구에게 줄지(DRM, 로
 
 `URI`는 Key file 주소입니다. `KEYFORMAT`을 생략하면 `identity`로 간주되며, Key file은 DRM 래퍼 없이 128비트 cipher key 바이너리입니다. `identity`가 아닌 `KEYFORMAT`은 FairPlay·Widevine 등 DRM용 키 표현이고, 플레이어는 지원하는 형식만 씁니다.
 
-`IV`(Initialization Vector, 초기화 벡터)는 AES-128 CBC에서 세그먼트마다 쓰는 128비트 값입니다. playlist에 `IV`를 적으면 그 값을 쓰고, 생략하면 `identity`일 때 해당 세그먼트의 Media Sequence Number를 big-endian 16바이트 IV로 씁니다
+`IV`(Initialization Vector, 초기화 벡터)는 AES-128 CBC에서 세그먼트마다 쓰는 128비트 값입니다. playlist에 `IV`를 적으면 그 값을 쓰고, 생략하면 `identity`일 때 해당 세그먼트의 Media Sequence Number를 big-endian 16바이트 IV로 씁니다.
 
-아래는 예시를 분석해보죠.
+아래는 예시를 분석해 보죠.
 ```text
 #EXTM3U
 #EXT-X-VERSION:3
@@ -151,12 +151,168 @@ http://media.example.com/fileSequence53-A.ts
 위 예시를 읽으면 다음과 같습니다.
 - `#EXTM3U`: Extended M3U, Media playlist임을 나타냅니다.
 - `#EXT-X-VERSION:3`: 이 playlist가 따르는 HLS 프로토콜 버전입니다.
-- `#EXT-X-MEDIA-SEQUENCE:7794`: 이 playlist에 나열된 첫 세그먼트의 시퀀스 번호입니다. 이어지는 세그먼트는 7795, 7796가 옵니다.
+- `#EXT-X-MEDIA-SEQUENCE:7794`: 이 playlist에 나열된 첫 세그먼트의 시퀀스 번호입니다. 이어지는 세그먼트는 7795, 7796이 옵니다.
 - `#EXT-X-TARGETDURATION:15`: 세그먼트 재생 길이(`#EXTINF`)의 상한이 15초임을 뜻합니다.
 - `#EXTINF`와 그 아래 URI: 각 세그먼트의 재생 시간(초)과 가져올 `.ts` 주소입니다.
 - 첫 `#EXT-X-KEY`: `METHOD=AES-128`, `KEYFORMAT="identity"`, Key file URI, `IV`를 명시합니다. `IV` 끝의 `1E72`는 첫 시퀀스 7794(0x1E72)에 맞춘 예시 값입니다. 이 태그 아래 `fileSequence52-A.ts`, `fileSequence52-B.ts`는 키 `r=52`와 같은 `IV` 속성 값으로 복호화합니다(`IV`를 적었을 때는 세그먼트마다 시퀀스 번호 IV를 쓰지 않음).
 - 두 번째 `#EXT-X-KEY`: `METHOD`는 여전히 `AES-128`이고, 바뀐 것은 Key file URI(`r=53`)입니다. `IV`를 적지 않았으므로 `fileSequence53-A.ts`(시퀀스 7796)는 Media Sequence Number를 IV로 씁니다.
 
 # Server and client responsibilities
-이 섹션에서는 서버가 Playlist를 생성하고 클라이언트가 미디어 재생을 위해 세그먼트를 다운로드 하는 방법을 다룹니다.
-(작성 중)
+이 섹션에서는 동영상을 HLS 프로토콜에 맞춰 MP4를 인코딩해 보고, 서버는 Media playlist 주소(m3u8)를 클라이언트에 제공하고 클라이언트가 이를 재생하는 흐름을 만들어 봅시다.
+
+로컬에 `sample.mp4`가 있다는 가정 하에 `ffmpeg`로 HLS 프로토콜 형식에 맞춰 인코딩합시다.
+```bash
+ffmpeg -i sample.mp4 -c:v copy -c:a copy -start_number 0 -hls_time 10 -hls_list_size 0 -f hls stream.m3u8
+```
+
+위 명령어 실행 시 같은 폴더에 Media playlist `stream.m3u8`과 `stream0.ts`, `stream1.ts`… 형태의 세그먼트가 생깁니다.
+
+| 옵션 | 설명 |
+|------|------|
+| `-i sample.mp4` | 입력 파일 |
+| `-c:v copy` | 비디오는 다시 인코딩하지 않고 원본 스트림을 그대로 복사합니다(화질을 유지하므로). |
+| `-c:a copy` | 오디오도 동일하게 복사. |
+| `-start_number 0` | 세그먼트 파일 이름에 붙는 번호를 0부터 시작(`stream0.ts`, `stream1.ts`…). |
+| `-hls_time 10` | 세그먼트 목표 길이를 약 10초로 둡니다. 키 프레임 위치에 따라 `#EXTINF` 값은 정확히 10초가 아닐 수 있음. |
+| `-hls_list_size 0` | Media playlist에 넣을 세그먼트 개수 제한이 없습니다. VOD처럼 만든 세그먼트를 playlist에 모두 남김(Live 슬라이딩 윈도우가 아님). |
+| `-f hls` | 출력 형식을 HLS로 지정합니다. `.m3u8` playlist와 `.ts` 세그먼트 생성. |
+| `stream.m3u8` | 출력 Media playlist 파일 이름 지정. |
+
+이제 서버에서 파일을 나눴으니 이를 서비싱하는 걸 `Flask`로 가볍게 띄웁시다.
+```python
+# Flask로 단순히 정적 파일을 클라이언트에 서빙 + HTML 페이지 띄우기
+from flask import Flask, render_template, send_from_directory   
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/video/<filename>')
+def video(filename):
+    video_dir = os.path.dirname(os.path.abspath(__file__))
+    return send_from_directory(video_dir, filename)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=True)
+```
+이제 클라이언트 역할을 할 `index.html`을 다음처럼 만들면
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS 스트리밍 클라이언트</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; background: #222; color: #fff; }
+        video { width: 80%; max-width: 800px; border: 2px solid #444; background: #000; }
+    </style>
+</head>
+<body>
+
+    <h1>HLS Player (Flask Server)</h1>
+    
+    <video id="video" controls autoplay muted></video>
+
+    <script>
+        const video = document.getElementById('video');
+        // Flask 서버의 m3u8 파일 경로
+        const videoSrc = '/video/stream.m3u8'; 
+
+        // PC 브라우저용 (Chrome, Firefox, Edge 등)
+        if (Hls.isSupported()) {
+            console.log('HLS is supported');
+            const hls = new Hls();
+            hls.loadSource(videoSrc);
+            
+            // m3u8 로드 종료 시 이벤트 실행
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play();
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            console.log('Native HLS is supported');
+            video.src = videoSrc;
+            video.addEventListener('loadedmetadata', function() {
+                video.play();
+            });
+        } else {
+            console.log('HLS is not supported');
+        }
+    </script>
+</body>
+</html>
+```
+서버에서는 인코딩해서 만들어진 `stream0.ts` 등 세그먼트가 `stream.m3u8` 파일에 다음처럼 잘 등록된 것을 확인할 수 있습니다.
+```
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-TARGETDURATION:16
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:16.282933,
+stream0.ts
+#EXTINF:6.573233,
+stream1.ts
+#EXTINF:7.907900,
+stream2.ts
+#EXTINF:11.511500,
+stream3.ts
+#EXTINF:9.976633,
+stream4.ts
+#EXTINF:12.479133,
+stream5.ts
+#EXTINF:7.007000,
+stream6.ts
+#EXTINF:12.145467,
+stream7.ts
+#EXTINF:6.840167,
+stream8.ts
+#EXTINF:10.243567,
+stream9.ts
+#EXTINF:9.442767,
+stream10.ts
+#EXTINF:10.910900,
+stream11.ts
+#EXTINF:9.576233,
+stream12.ts
+#EXTINF:13.246567,
+stream13.ts
+#EXTINF:7.907900,
+stream14.ts
+#EXTINF:9.009000,
+stream15.ts
+#EXTINF:12.412400,
+stream16.ts
+#EXTINF:11.611600,
+stream17.ts
+#EXTINF:8.575233,
+stream18.ts
+#EXTINF:7.007000,
+stream19.ts
+#EXTINF:10.010000,
+stream20.ts
+#EXTINF:13.847167,
+stream21.ts
+#EXTINF:11.277933,
+stream22.ts
+#EXTINF:4.604600,
+stream23.ts
+#EXTINF:12.579233,
+stream24.ts
+#EXTINF:9.009000,
+stream25.ts
+#EXTINF:9.676333,
+stream26.ts
+#EXTINF:8.808800,
+stream27.ts
+#EXTINF:11.411400,
+stream28.ts
+#EXTINF:11.745067,
+stream29.ts
+#EXT-X-ENDLIST
+```
+이렇게 HTML에서 `HLS is supported` 로그도 정상적으로 뜨고 영상도 플레이 되는 등, HLS가 동작한 것을 확인해 볼 수 있죠.
