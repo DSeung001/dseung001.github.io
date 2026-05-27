@@ -1,7 +1,7 @@
 ---
 title: "RFC 8216 — HTTP Live Streaming"
 date: 2026-05-26T00:00:00+09:00
-categories: [ "RFC", "VIDEO" ]
+categories: [ "RFC", "Video" ]
 tags: [ "RFC", "HLS", "RFC 8216", "HTTP Live Streaming", "m3u8", "스트리밍", "미디어" ]
 draft: false
 description: "RFC 8216 HTTP Live Streaming(HLS)의 플레이리스트, 세그먼트, 적응형 비트레이트 등 핵심을 정리합니다."
@@ -9,7 +9,6 @@ keywords: [ "HLS", "RFC 8216", "HTTP Live Streaming", "m3u8", "M3U8", "적응형
 author: "DSeung001"
 lastmod: 2026-05-26T00:00:00+09:00
 ---
-
 
 # HLS and ABR
 HLS(HTTP Live Streaming)는 HTTP로 `.m3u8, .m3u` 플레이리스트와 짧은 미디어 세그먼트를 주고받으며 영상을 이어 재생하는 방식입니다. 네트워크나 기기 상황에 맞춰 ABR(Adaptive Bitrate, 적응형 비트레이트)로 화질(Variant)을 바꿔 끊김을 줄입니다.
