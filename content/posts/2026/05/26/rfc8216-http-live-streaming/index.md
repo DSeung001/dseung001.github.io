@@ -315,4 +315,4 @@ stream28.ts
 stream29.ts
 #EXT-X-ENDLIST
 ```
-이렇게 HTML에서 `HLS is supported` 로그도 정상적으로 뜨고 영상도 플레이 되는 등, HLS가 동작한 것을 확인해 볼 수 있죠.
+Client HTML에서도 `HLS is supported` 로그도 정상적으로 뜨고 영상도 플레이 되는 등, HLS가 동작한 것을 확인해 볼 수 있죠.
