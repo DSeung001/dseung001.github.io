@@ -1,7 +1,7 @@
 ---
 title: "RFC 8216 — HTTP Live Streaming"
 date: 2026-05-26T00:00:00+09:00
-categories: [ "Digging", "RFC" ]
+categories: [ "RFC", "VIDEO" ]
 tags: [ "RFC", "HLS", "RFC 8216", "HTTP Live Streaming", "m3u8", "스트리밍", "미디어" ]
 draft: false
 description: "RFC 8216 HTTP Live Streaming(HLS)의 플레이리스트, 세그먼트, 적응형 비트레이트 등 핵심을 정리합니다."

@@ -1,7 +1,7 @@
 ---
 title: "Django 6.0 Introduction Summary"
 date: 2026-04-24T00:00:00+09:00
-categories: [ "Digging", "Django" ]
+categories: [ "Django" ]
 tags: [ "Django", "Python", "Web", "ORM", "MVT", "Tutorial" ]
 draft: false
 description: "Django 6.0 Introduction 문서 흐름 정리"

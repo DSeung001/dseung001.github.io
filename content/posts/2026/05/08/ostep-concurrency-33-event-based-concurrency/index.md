@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems: Three Easy Pieces - Event-based Concurrency"
 date: 2026-05-08T00:00:00+09:00
-categories: [ "Digging", "OSTEP" ]
+categories: [ "OSTEP" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Event-based Concurrency", "select", "poll", "Async I/O", "State Machine" ]
 draft: false
 description: "OSTEP Concurrency 33강 Event-based Concurrency 정리"

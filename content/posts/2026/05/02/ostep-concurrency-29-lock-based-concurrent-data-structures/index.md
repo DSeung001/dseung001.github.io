@@ -1,7 +1,7 @@
 ---
 title: "Operating Systems: Three Easy Pieces - Lock-based Concurrent Data Structures"
 date: 2026-05-02T00:00:00+09:00
-categories: [ "Digging", "OSTEP" ]
+categories: [ "OSTEP" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Lock", "Data structures", "Synchronization" ]
 draft: false
 description: "OSTEP Concurrency 29강 Lock-based Concurrent Data Structures 정리"

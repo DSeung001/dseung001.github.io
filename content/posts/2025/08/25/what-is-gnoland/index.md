@@ -1,7 +1,7 @@
 ---
 title: "Gno.land란?"
 date: 2025-08-25T15:30:05+09:00
-categories: [ "Digging", "Block Chain" ]
+categories: [ "Block Chain" ]
 tags: [ "Block Chain", "Cosmos", "Gno.land" ]
 draft: false
 description: "Gno.land에 대해 알아보고 메모 형태로 정리한 글입니다."

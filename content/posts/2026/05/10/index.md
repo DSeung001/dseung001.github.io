@@ -1,7 +1,7 @@
 ---
 title: "Anime Search Project: 자연어로 장면 검색"
 date: 2026-05-10T00:00:00+09:00
-categories: [ "Project", "Anime Search", "Digging" ]
+categories: [ "Project", "Anime Search" ]
 tags: [ "Anime Search", "Multimodal", "Embedding", "CLIP", "Contrastive Learning", "Shared Embedding Space", "Vector Search" ]
 draft: false
 description: "애니메이션 장면을 자연어 검색해보자"
