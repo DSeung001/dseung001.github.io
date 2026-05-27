@@ -46,7 +46,7 @@ http://media.example.com/third.ts
 #EXT-X-ENDLIST
 ```
 `#EXT-X-TARGETDURATION`은 세그먼트 최대 길이(초)의 상한을 나타내고, `#EXTINF`와 URI로 각 세그먼트의 재생 시간과 가져올 미디어를 적습니다. 그보다 복잡한 태그도 같은 미디어 플레이리스트에 넣을 수 있습니다.
-- **Segment**: 전체 영상을 2~10초 길이의 작은 파일(.ts 포맷)으로 쪼갠 단위, 주로 다음 형식을 지원
+- **Segment**: 전체 영상을 2~10초 길이의 작은 파일(.ts, .m4s)으로 쪼갠 단위, 주로 다음 형식을 지원
     - **MPEG-2 TS** (`.ts`): 영상과 오디오가 mux된 본편 스트림에 많음.
     - **Fragmented MPEG-4** (fMP4): `#EXT-X-MAP`으로 init 세그먼트를 두는 경우가 많음.
     - **Packed Audio**: 오디오만 담은 세그먼트(분리 오디오 Rendition용).
@@ -54,6 +54,31 @@ http://media.example.com/third.ts
 
 세그먼트를 암호화할 때는 `#EXT-X-KEY`로 복호화 방법(`METHOD`)과 키 URI를 선언하고, 필요하면 IV를 함께 둡니다. `Master playlist`에서는 `#EXT-X-SESSION-KEY`로 키를 미리 알려 두기도 합니다 (자세한 내용은 아래 [Encryption and keys](#encryption-and-keys) 참고)
 
+# Segment containers: MPEG-2 TS and fragmented MP4
+위에서 세그먼트(ts)는 `MPEG-2 TS (Transport Stream)` 방식을 통해 데이터가 온다고 적었지만, 해당 방식은 전통적인 포맷 방식입니다.
+현재는 `MPEG-DASH`와 `HLS`에서 둘 다 지원하는 `fMP4 (Fragmented MPEG-4)`도 지원하고 있죠.
+
+2016년부터 애플도 지원하면서 다른 진영의 스트리밍 표준인 `DASH(MPEG-DASH)`와 같이 쓸 수 있는 `fMP4`가 대세가 되었고, 2017년 CMAF(ISO 23000-19)가 HLS와 DASH가 공유하는 fMP4 세그먼트 규칙을 정리했죠.
+- CMAF: HLS·DASH가 같은 fMP4 미디어 세그먼트를 쓰기 위한 공통 조각 포맷(매니페스트는 프로토콜마다 별도)
+
+왜냐하면 이전에는 HLS용(TS)과 DASH용(fMP4)을 각각 패키징해 두는 경우가 많았는데, 이제는 CMAF에 맞춘 fMP4 조각(init·`.m4s` 등)을 하나 정해두면 양쪽에 서비스할 수 있어 스토리지 중복을 줄일 수 있습니다. 미디어 조각과 별도로 매니페스트가 필요해 HLS는 `.m3u8`과 `#EXT-X-MAP`(init URI), DASH는 `.mpd`가 각각 필요합니다.
+
+`fMP4`(Fragmented MPEG-4)는 영상을 짧은 단위(예: 2초~6초)의 조각(Fragment)으로 쪼갠 구조이고, `.m4s`는 그 미디어 세그먼트에 흔히 쓰는 파일 확장자입니다. 패키징하면 재생에 필요한 init 세그먼트(보통 `.mp4`, HLS에서는 `#EXT-X-MAP`으로 지정)와 이어지는 `.m4s` 조각이 생깁니다.
+- fMP4(Fragmented MP4): MP4 파일은 영상의 앞부분(또는 뒷부분)에 Moov atom(메타데이터 고정 영역)이 들어가기에 영상 전체를 다운로드하기 전에는 재생이 어렵다는 단점을 보완한 방식
+
+참고로 실제 동영상 서비스 몇 개의 네트워크를 파보니 다음처럼 돌아가는 걸 알 수 있었습니다.
+
+라프텔은 안정적인 기술 스택을 사용하고, 넷플릭스는 바이트 단위(오디오는 약 130KB, 비디오는 1MB)로 제어해서 최대한의 비용 절감과 고화질을 유지하며, 유튜브는 UMP라는 자체 스트리밍 데이터 방식을 사용하여 라이브에서도 우수한 성능을 만들어 내고 있습니다.
+
+| 비교 항목 | 라프텔 (Laftel) | 넷플릭스 (Netflix) | 유튜브 (YouTube) |
+|-----------|-----------------|--------------------|------------------|
+| 스트리밍 표준 | 정석 MPEG-DASH / HLS | ISO/IEC 기반 커스텀 (CMAF) | ISO/IEC 기반 커스텀 (DASH 변형) |
+| 실제 파일 확장자 | `.m4s` | 없음 (통째 파일 바이트 제어) | 없음 (파라미터 뒤에 숨김) |
+| 네트워크 요청 형태 | `GET .../seg-9.m4s` | `GET .../range/3580684-...` | `POST .../videoplayback?rn=8` |
+| Content-Type | `video/mp4`, `audio/mp4` | `application/octet-stream` | `application/vnd.yt-ump` |
+| 미디어 서빙 방식 | 비디오 / 오디오 완전 분리 | 비디오 / 오디오 완전 분리 | 비디오 + 오디오 + 자막 멀티플렉싱 |
+| 주요 인프라 | Public Cloud (AWS S3 + CDN) | 자체 CDN (Netflix OCA) | 자체 데이터센터 + 엣지 (GGC) |
+| 핵심 지향점 | 구현 편의성, 인프라 유지보수 용이 | 스토리지 비용 절감, 고화질 안정성 | 초저지연 라이브, 대규모 동시 접속 처리 |
 
 # Master playlist and variants
 이전에 언급한 `Media playlist`는 실제 영상과 오디오 데이터 조각을 가리키는 인덱스였습니다.
