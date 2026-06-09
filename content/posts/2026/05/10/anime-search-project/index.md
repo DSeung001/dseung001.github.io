@@ -8,6 +8,7 @@ description: "애니메이션 장면을 자연어 검색해보자"
 keywords: [ "Anime Search", "Multimodal Embedding", "CLIP", "Shared Embedding Space", "Contrastive Learning", "Vector Search", "Qdrant" ]
 author: "DSeung001"
 lastmod: 2026-05-10T00:00:00+09:00
+aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 ---
 # 1. 개요
 
