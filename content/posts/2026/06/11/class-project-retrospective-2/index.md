@@ -3,7 +3,7 @@ title: "Class Project 2차 회고"
 date: 2026-06-11T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "Retrospective" ]
-draft: false
+draft: true
 description: "Class Project 진행 사항"
 keywords: [ "Class Project", "회고", "Retrospective" ]
 author: "DSeung001"
