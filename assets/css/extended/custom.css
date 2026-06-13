@@ -334,3 +334,40 @@ html.cursor-follower-off #cursor-ink-trail {
     height: auto;
     margin: 0 auto;
 }
+
+.bench-table-wrap {
+    overflow-x: auto;
+    margin-bottom: var(--content-gap);
+}
+
+.post-content table.bench-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0;
+}
+
+.post-content table.bench-table th {
+    background: var(--code-bg);
+}
+
+.post-content table.bench-table tr.bench-crf td {
+    background: var(--bench-crf-bg);
+}
+
+.post-content table.bench-table tr.bench-bitrate td {
+    background: var(--bench-bitrate-bg);
+}
+
+.post-content table.bench-table tr.bench-mode-start td {
+    border-top: 2px solid var(--border);
+}
+
+:root {
+    --bench-crf-bg: rgba(26, 115, 232, 0.07);
+    --bench-bitrate-bg: rgba(230, 126, 34, 0.08);
+}
+
+body.dark {
+    --bench-crf-bg: rgba(138, 180, 248, 0.12);
+    --bench-bitrate-bg: rgba(253, 214, 99, 0.1);
+}
