@@ -339,6 +339,7 @@ ffprobe -v error -select_streams v:0 \
 기존에는 아래 코드처럼 원본 프레임 설정을 그대로 따랐습니다. `_probe_video_fps`는 ffprobe로 FPS를 읽고, 값이 없을 때 기본값을 지정합니다.
 ```python
     segment_pattern = str(output_dir / "seg_%03d.ts")
+    # 원본 fps를 가져옴 =>  왜곡 메타데이터면 버그 발생
     fps = _probe_video_fps(input_path)
     gop = _gop_for_segment(fps=fps, segment_seconds=profile.segment_seconds)
 
@@ -395,3 +396,6 @@ ffprobe -v error -select_streams v:0 \
         str(playlist),
     ]
 ```
+
+이제 다음과 같이 4시간 걸리던게 정상적으로 40분만에 업로드 된걸 확인할 수 있습니다.
+![success](./success.webp)
