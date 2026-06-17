@@ -226,6 +226,172 @@ CELERY_PUBLISH_MAX_SECONDS = 60 * 60 * 4  # encode 상한 4h
 CELERY_TASK_TIME_LIMIT = CELERY_PUBLISH_MAX_SECONDS
 ```
 
-# 정리
+# 문제 3: 2번 문제 재발생
+인코딩 시간만 수정하면 해결될 줄 알았지만 서버에서 동일한 이슈가 재현되는 걸 확인했습니다.
+공교롭게도 이전에도 버그가 발생했던 그 영상에서 동일 이슈가 발생했죠.
 
-두 이슈 모두 긴 HLS 인코딩에 비해 `visibility_timeout`, `task_time_limit`, prefetch 설정이 짧았던 것에서 발생했습니다. 문제 1은 브로커 재배달과 Celery retry가 겹치며 DB 상태가 깨졌고, 문제 2는 `time_limit` 강제 종료로 `processing`이 남았습니다.
+무려 4시간 동안 인코딩이 안 돼서 프로세싱으로 남았습니다. 단순 API 처리하기에는 사양이 낮은 편이 결코 아니었기에 트래픽 문제로 의심되지는 않았습니다.
+![bug2](bug2.webp)
+
+모든 영상이 같은 방식으로 녹화되었고 같은 편집툴을 통해 만들어졌기 때문에, 일부 파일에서만 인코딩 시간이 비정상적으로 오래 걸리는 이유를 처음에는 이해하기 어려웠습니다.
+
+그래서 직접 동영상의 메타데이터를 확인해 보기로 했습니다. ffprobe를 사용해 첫 번째 비디오 스트림의 FPS 관련 정보와 시간 기준 정보를 확인했습니다.
+```bash
+ffprobe -v error -select_streams v:0 \
+  -show_entries stream=avg_frame_rate,r_frame_rate,time_base,duration \
+  -of default=noprint_wrappers=1 \
+  "/Users/jiseunglyeol/Downloads/0.webm"
+```
+여기서 -v error는 에러 로그만 출력하도록 하는 옵션이고, -select_streams v:0은 첫 번째 비디오 스트림만 선택하겠다는 의미입니다. -of default=noprint_wrappers=1은 [STREAM] ... [/STREAM] 같은 wrapper 없이 결과만 깔끔하게 출력하기 위한 옵션입니다.
+
+확인 결과는 다음과 같았습니다.
+
+```bash
+r_frame_rate=1000/1
+avg_frame_rate=1000/1
+time_base=1/1000
+duration=N/A
+```
+
+처음에는 이 값을 보고 실제로 1초에 1000장의 프레임이 들어간 영상이라서 인코딩 시간이 오래 걸린 것이라 오해했습니다.
+WebM 기반 스크린 레코딩 영상은 VFR인 경우가 많습니다. 즉 가변 프레임 레이트로 저장되는 경우가 많습니다.
+
+이 경우 avg_frame_rate나 r_frame_rate 같은 메타데이터가 실제 프레임 간격을 정확히 대표하지 못할 수 있습니다. 메타데이터상으로는 1000 fps처럼 보이더라도 실제 프레임 타임라인은 전혀 다르게 표현됩니다. 하지만 인코딩 과정에서는 이 메타데이터를 참조하기 때문에 문제가 발생한 것입니다.
+
+그래서 이 문제는 정확히 규정하자면 "실제로 1000 fps 영상이 만들어졌다기보다는, WebM/VFR 특성상 컨테이너 또는 스트림 메타데이터가 실제 프레임 타임라인을 단순화해 메타데이터로 보여 주는 과정에서 발생한 왜곡 현상"으로 보는 것이 맞아 보입니다.
+
+실제 프레임 간격을 확인하려면 다음 명령어를 사용하면 됩니다.
+```bash
+ffprobe -v error -select_streams v:0 \
+  -show_entries frame=best_effort_timestamp_time \
+  -of csv=p=0 \
+  "/Users/jiseunglyeol/Downloads/0.webm" \
+| awk 'NR==1 {prev=$1; print $1, "gap=N/A"; next} {printf "%s gap=%.6f\n", $1, $1-prev; prev=$1}' \
+| head -50
+```
+다음과 같이 1000 FPS가 아닌 것은 확인되었습니다.
+```
+0.000000 gap=N/A
+0.029000 gap=0.029000
+0.054000 gap=0.025000
+0.084000 gap=0.030000
+0.119000 gap=0.035000
+0.154000 gap=0.035000
+0.187000 gap=0.033000
+0.220000 gap=0.033000
+0.254000 gap=0.034000
+0.287000 gap=0.033000
+0.321000 gap=0.034000
+0.353000 gap=0.032000
+0.403000 gap=0.050000
+0.421000 gap=0.018000
+0.471000 gap=0.050000
+0.487000 gap=0.016000
+0.522000 gap=0.035000
+0.572000 gap=0.050000
+0.586000 gap=0.014000
+0.635000 gap=0.049000
+0.652000 gap=0.017000
+0.698000 gap=0.046000
+0.719000 gap=0.021000
+0.762000 gap=0.043000
+0.786000 gap=0.024000
+0.822000 gap=0.036000
+0.869000 gap=0.047000
+0.886000 gap=0.017000
+0.936000 gap=0.050000
+0.953000 gap=0.017000
+0.994000 gap=0.041000
+1.037000 gap=0.043000
+1.070000 gap=0.033000
+1.103000 gap=0.033000
+1.137000 gap=0.034000
+1.171000 gap=0.034000
+1.205000 gap=0.034000
+1.240000 gap=0.035000
+1.270000 gap=0.030000
+1.303000 gap=0.033000
+1.337000 gap=0.034000
+1.370000 gap=0.033000
+1.403000 gap=0.033000
+1.438000 gap=0.035000
+1.470000 gap=0.032000
+1.506000 gap=0.036000
+1.539000 gap=0.033000
+1.570000 gap=0.031000
+1.605000 gap=0.035000
+1.640000 gap=0.035000
+```
+
+여기에 기존 프로젝트에서 CFR/VFR을 따로 명시하지 않았고, 원본 설정을 그대로 반영했기 때문에 왜곡된 메타데이터를 기반으로 인코딩이 진행되며 문제가 발생한 것이었습니다.
+
+## 해결
+현재 프로젝트는 단일 화질 HLS를 다루고 있습니다. 다음 이유로 출력 프레임 레이트를 CFR로 고정했습니다.
+
+- VFR을 그대로 유지하려면 추가 로직이 필요합니다.
+    - 타임스탬프 정규화
+    - GOP/키프레임을 시간 기준으로 일관되게 맞춤
+    - 이상 메타데이터 감지 및 보정
+- HLS는 초 단위 세그먼트 모델입니다.
+    - `hls_time` 10 (10초 세그먼트)
+    - 시간 축이 일정한 CFR과 잘 맞음
+
+기존에는 아래 코드처럼 원본 프레임 설정을 그대로 따랐습니다. `_probe_video_fps`는 ffprobe로 FPS를 읽고, 값이 없을 때 기본값을 지정합니다.
+```python
+    segment_pattern = str(output_dir / "seg_%03d.ts")
+    fps = _probe_video_fps(input_path)
+    gop = _gop_for_segment(fps=fps, segment_seconds=profile.segment_seconds)
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-vf", f"scale='min({profile.max_width},iw)':-2",
+        "-c:v", "libx264",
+        "-preset", profile.preset,
+        "-crf", str(profile.crf),
+        "-maxrate", _bitrate_arg(profile.maxrate_bps),
+        "-bufsize", _bitrate_arg(profile.bufsize_bps),
+        "-g", str(gop),
+        "-keyint_min", str(gop),
+        "-sc_threshold", "0",
+        "-force_key_frames", f"expr:gte(t,n_forced*{profile.segment_seconds})",
+        "-c:a", "aac",
+        "-b:a", profile.audio_bitrate,
+        "-f", "hls",
+        "-hls_time", str(profile.segment_seconds),
+        "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", segment_pattern,
+        str(playlist),
+    ]
+```
+이제는 출력 FPS를 고정해 아래와 같이 진행합니다.
+```python
+    # output_fps: int = 30
+    segment_pattern = str(output_dir / "seg_%03d.ts")
+    output_fps = float(profile.output_fps)
+    gop = _gop_for_segment(fps=output_fps, segment_seconds=profile.segment_seconds)
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-vf", f"scale='min({profile.max_width},iw)':-2,fps={profile.output_fps}",
+        "-c:v", "libx264",
+        "-preset", profile.preset,
+        "-crf", str(profile.crf),
+        "-maxrate", _bitrate_arg(profile.maxrate_bps),
+        "-bufsize", _bitrate_arg(profile.bufsize_bps),
+        "-g", str(gop),
+        "-keyint_min", str(gop),
+        "-sc_threshold", "0",
+        "-force_key_frames", f"expr:gte(t,n_forced*{profile.segment_seconds})",
+        "-c:a", "aac",
+        "-b:a", profile.audio_bitrate,
+        "-f", "hls",
+        "-hls_time", str(profile.segment_seconds),
+        "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", segment_pattern,
+        str(playlist),
+    ]
+```
