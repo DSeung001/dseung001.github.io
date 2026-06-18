@@ -13,6 +13,8 @@ lastmod: 2026-05-26T00:00:00+09:00
 # HLS and ABR
 HLS(HTTP Live Streaming)는 HTTP로 `.m3u8, .m3u` 플레이리스트와 짧은 미디어 세그먼트를 주고받으며 영상을 이어 재생하는 방식입니다. 네트워크나 기기 상황에 맞춰 ABR(Adaptive Bitrate, 적응형 비트레이트)로 화질(Variant)을 바꿔 끊김을 줄입니다.
 
+애플에서 개발한 HTTP 기반 스트리밍 방식으로 애플 사이트에서 [가이드라인](https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices)을 참고할 수도 있습니다.
+
 인코딩을 구분하면 다음과 같습니다.
 - **CBR(Constant Bit Rate)**: 구간마다 비트레이트가 거의 일정한 인코딩
 - **VBR(Variable Bit Rate)**: 장면 복잡도에 따라 비트레이트가 달라지는 인코딩
