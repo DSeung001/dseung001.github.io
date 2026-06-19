@@ -1,11 +1,11 @@
 ---
-title: "코덱을 바탕으로 한 FFmpeg 처리 전략"
+title: "코덱을 바탕으로 한 FFmpeg 개선 포인트 탐지"
 date: 2026-06-19T00:00:00+09:00
 categories: [ "Video" ]
 tags: [ "FFmpeg", "Codec", "인코딩", "트랜스코딩" ]
 draft: false
 description: "코덱 특성에 따른 FFmpeg 처리 전략 정리."
-keywords: [ "FFmpeg", "Codec", "인코딩", "트랜스코딩", "처리 전략" ]
+keywords: [ "FFmpeg", "Codec", "인코딩", "트랜스코딩" ]
 author: "DSeung001"
 lastmod: 2026-06-19T00:00:00+09:00
 ---
@@ -24,7 +24,7 @@ lastmod: 2026-06-19T00:00:00+09:00
 
 # HLS 궁금증
 
-## HLS에서 H.264는 인코딩을 안해도 되는 이유?
+## HLS에서 H.264는 인코딩을 안 해도 되는 이유?
 
 H.264인지 아닌지는 크게 중요하지 않더군요.<br/>
 실제 기준은 타깃 플레이어 지원 범위와 HLS authoring 조건을 원본이 이미 만족하는지가 인코딩 여부를 정합니다.
@@ -163,4 +163,92 @@ segment container는 HLS에서 플레이어가 요청하는 각 조각 파일(`.
 | segment container | Remux (bitstream copy) | `-c copy` + `-hls_segment_type mpegts` 또는 `fmp4` |
 | bitstream / 메타데이터 | bitstream filter 또는 transcoding | `-bsf:v`, closed caption/timecode 재구성 또는 재인코딩 |
 
-## 실제 적용 코드
+## 타깃 영상 체크
+
+현재 강좌 업로드 사이트에서 사용해 보면 다음과 같이 확인할 수 있습니다.
+```
+파일: ./sample.webm
+포맷: matroska,webm, 길이: 1488.621000s, 비트레이트: 659729
+비디오: vp8, profile=0, level=-99, 1920x944, pix_fmt=yuv420p, bitrate=
+오디오: opus, profile=, channels=2, bitrate=
+
+| 확인 항목 | 결과 | 근거 |
+|-----------|------|------|
+| HLS authoring | O | ffprobe로 읽을 수 있고, 영상 스트림이 있음 |
+| video codec | X | 원본 VP8, 서비스 copy 허용은 H.264만 |
+| audio codec | X | 원본 Opus, 서비스 copy 허용은 AAC만 |
+| segment container | O | HLS 출력을 `.ts`(MPEG-TS)로 설정했고 지원 포맷 |
+| profile / level | O | profile=0, level=-99로 허용 범위 이내 |
+| pix_fmt | O | yuv420p, 일반 디코더에서 흔히 지원 |
+| bitrate / resolution | O | 1920x944, 해상도·비트레이트 제한 통과 |
+| keyframe / GOP | O | keyframe 약 4.5초마다, 10초 세그먼트보다 촘촘함 (open GOP 미검증) |
+
+최종 copy 가능 여부: X
+```
+일단은 video와 audio 코덱이 맞지 않습니다.
+지금 녹화 환경은 강의 선생님께서 `jitsi`라는 오픈소스로 서버를 열어 녹화를 진행 중이고, 결과물 컨테이너가 WebM이라 copy를 기대하긴 어렵습니다. 그래도 혹시 비디오 코덱이 AV1일까 했는데, 아니었습니다.
+
+## 현재 설정
+현재 서버에서는 아래와 같이 항상 재인코딩하도록 설정되어 있었습니다.
+```python
+def encode_hls_vod(
+        *,
+        input_path: Path | str,
+        output_dir: Path,
+        profile: HlsVodProfile | None = None,
+) -> Path:
+    if not shutil.which("ffmpeg"):
+        raise EncodeError("ffmpeg가 설치되어 있지 않습니다.")
+
+    profile = profile or get_hls_vod_profile()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    playlist = output_dir / "index.m3u8"
+
+    segment_pattern = str(output_dir / "seg_%03d.ts")
+    output_fps = float(profile.output_fps)
+    gop = _gop_for_segment(fps=output_fps, segment_seconds=profile.segment_seconds)
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-vf", f"scale='min({profile.max_width},iw)':-2,fps={profile.output_fps}",
+        "-c:v", "libx264",
+        "-preset", profile.preset,
+        "-crf", str(profile.crf),
+        "-maxrate", _bitrate_arg(profile.maxrate_bps),
+        "-bufsize", _bitrate_arg(profile.bufsize_bps),
+        "-g", str(gop),
+        "-keyint_min", str(gop),
+        "-sc_threshold", "0",
+        "-force_key_frames", f"expr:gte(t,n_forced*{profile.segment_seconds})",
+        "-c:a", "aac",
+        "-b:a", profile.audio_bitrate,
+        "-f", "hls",
+        "-hls_time", str(profile.segment_seconds),
+        "-hls_playlist_type", "vod",
+        "-hls_flags", "independent_segments",
+        "-hls_segment_filename", segment_pattern,
+        str(playlist),
+    ]
+
+    proc = subprocess.run(cmd, capture_output=True, text=False)
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", errors="ignore")
+        log_event(
+            logger,
+            logging.ERROR,
+            LogEvent.FFMPEG_FAILED,
+            "HLS encode failed",
+            **ffmpeg_fields(video_path=redact_ffmpeg_input_for_log(input_path), stderr=stderr[:500]),
+        )
+        raise EncodeError(stderr or "HLS 인코딩 실패")
+    if not playlist.is_file():
+        raise EncodeError("index.m3u8가 생성되지 않았습니다.")
+    return playlist
+```
+
+현재 파악된 녹화 영상, WebM(VP8 + Opus) 기준으로는 copy 분기로 빠지는 개선은 이 케이스에 해당하지 않습니다.
+
+- 코덱 copy 분기는 다른 컨테이너를 위해 추가해야 할 부분은 맞지만, 지금 당장 필요하지 않다는 결론을 내릴 수 있었습니다.
+- keyframe / GOP 항목이 O로 나와 이 부분을 생략할 수 있지 않을까 하는 궁금증이 생길 수 있지만, `copy`가 아닌 `transcode`로 코덱을 바꾸는 과정에서 keyframe을 새로 만들므로 이 부분도 개선 포인트는 아닙니다.
+- `scale / fps`는 Jitsi WebM의 VFR·메타데이터 왜곡 이슈 때문에 출력을 30 fps CFR로 고정한 설정입니다 ([참고](../../16/class-project-bug-celery-redis-time-limit/)). 이 부분도 개선할 포인트는 보이지 않았습니다.
