@@ -277,6 +277,9 @@ _COPY_OK_VIDEO_CODECS: frozenset[str] = frozenset({"h264", "hevc"})
 _COPY_OK_AUDIO_CODECS: frozenset[str] = frozenset({"aac", "mp3", "mp2", "ac3", "eac3"})
 ```
 
+위 목록을 보면 AV1(`av1`)이 없는 것을 알 수 있습니다. 사양에서는 지원 코덱으로 언급하긴 하지만, copy 분기에서는 사양의 지원 목록과 타깃 플레이어의 재생 가능 범위를 같게 보지 않습니다. AV1 비트스트림을 `-c copy`로 실어 보내는 경로는 생태계에서 널리 쓰이지 않는 것으로 알고 있습니다(주로 최신 브라우저만 지원).
+그래서 hls.js와 브라우저 디코더가 모두 맞아야 재생되기 때문에, 웹 호환성을 보장하기 어렵다고 판단해 재인코딩합니다.
+
 업로드 후 워커가 실행될 때 다음 로직으로 잡에 포함된 모든 영상의 HLS copy 가능 여부를 검사합니다. `_probe_upload_keys` 내부에서 `ffprobe`로 컨테이너와 스트림 메타데이터를 조회한 뒤, 각 영상을 순회하며 검사합니다.
 ```python
         # ffprobe로 업로드 영상별 HLS copy 가능 여부를 사전 판정하고 DB에 저장
