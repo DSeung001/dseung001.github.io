@@ -252,3 +252,93 @@ def encode_hls_vod(
 - 코덱 copy 분기는 다른 컨테이너를 위해 추가해야 할 부분은 맞지만, 지금 당장 필요하지 않다는 결론을 내릴 수 있었습니다.
 - keyframe / GOP 항목이 O로 나와 이 부분을 생략할 수 있지 않을까 하는 궁금증이 생길 수 있지만, `copy`가 아닌 `transcode`로 코덱을 바꾸는 과정에서 keyframe을 새로 만들므로 이 부분도 개선 포인트는 아닙니다.
 - `scale / fps`는 Jitsi WebM의 VFR·메타데이터 왜곡 이슈 때문에 출력을 30 fps CFR로 고정한 설정입니다 ([참고](../../16/class-project-bug-celery-redis-time-limit/)). 이 부분도 개선할 포인트는 보이지 않았습니다.
+
+## 분기 처리
+현재 주로 업로드하는 영상은 `copy`로 인한 속도 향상을 기대하기 어렵습니다.
+다만 프로젝트에 `copy` 분기 처리를 두지 않을 이유는 없습니다.
+
+```mermaid
+flowchart TD
+    A["업로드 (staging)"] --> B["ffprobe 판정"]
+    B --> C["PublishJob에 결과 저장"]
+    C --> D{"can_copy?"}
+    D -- yes --> E["split_hls_copy<br/>(-c copy)"]
+    D -- no --> F["encode_hls_vod<br/>(libx264 + aac)"]
+    E --> G["HLS 업로드"]
+    F --> G
+    G --> H["재생 (hls.js)"]
+```
+
+`copy`를 허용하는 코덱 목록은 다음과 같이 보수적으로 정의했습니다.
+```python
+
+# HLS TS copy 가능 코덱
+_COPY_OK_VIDEO_CODECS: frozenset[str] = frozenset({"h264", "hevc"})
+_COPY_OK_AUDIO_CODECS: frozenset[str] = frozenset({"aac", "mp3", "mp2", "ac3", "eac3"})
+```
+
+업로드 후 워커가 실행될 때 다음 로직으로 잡에 포함된 모든 영상의 HLS copy 가능 여부를 검사합니다. `_probe_upload_keys` 내부에서 `ffprobe`로 컨테이너와 스트림 메타데이터를 조회한 뒤, 각 영상을 순회하며 검사합니다.
+```python
+        # ffprobe로 업로드 영상별 HLS copy 가능 여부를 사전 판정하고 DB에 저장
+        probe_results = _probe_upload_keys(video_keys, manifest["videos"])
+        upload_slot = 0
+        raw_probe_records = []
+        for index, item in enumerate(manifest["videos"]):
+            if item.get("source_type", "upload") == "youtube":
+                continue
+            key = video_keys[upload_slot] if upload_slot < len(video_keys) else None
+            if key is not None and upload_slot < len(probe_results):
+                raw_probe_records.append(
+                    probe_results[upload_slot].as_dict(video_index=index, video_key=key)
+                )
+            upload_slot += 1
+        PublishJob.objects.filter(pk=job_id).update(hls_probe_results=raw_probe_records)
+```
+
+코덱 판정에 쓰는 `ffprobe` 호출은 다음과 같습니다. `ffprobe`로 파일을 디코딩하지 않고 컨테이너와 스트림 메타데이터만 JSON으로 조회합니다.
+
+- `-v quiet`: stderr 로그를 줄이고 stdout만 JSON으로 받기 위한 설정
+- `-print_format json`: Python에서 `json.loads`로 파싱하기 쉬운 출력 형식
+- `-show_format`: 컨테이너 정보(`format_name`)를 포함
+- `-show_streams`: 각 트랙의 `codec_type`, `codec_name`을 포함
+
+```python
+    cmd = [
+        "ffprobe", "-v", "quiet",
+        "-print_format", "json",
+        "-show_format",
+        "-show_streams",
+        str(input_path),
+    ]
+
+    ...
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=False, timeout=60)
+
+    ...
+    try:
+        info = json.loads(proc.stdout.decode("utf-8", errors="ignore"))
+    ...
+    streams = info.get("streams") or []
+    container = (info.get("format") or {}).get("format_name") or ""
+
+    video_codec = ""
+    audio_codec = ""
+    for stream in streams:
+        codec_type = stream.get("codec_type", "")
+        codec_name = stream.get("codec_name", "")
+        if codec_type == "video" and not video_codec:
+            video_codec = codec_name
+        elif codec_type == "audio" and not audio_codec:
+            audio_codec = codec_name
+```
+
+내부 테스트에서 5분 분량 WebM과 copy 가능한 MP4를 각각 처리한 소요 시간은 다음과 같습니다.
+
+| 구분 | 시작 | 종료 | 소요 시간 |
+|------|------|------|-----------|
+| WebM (transcode) | 2026-06-22 07:37:04.145217 | 2026-06-22 07:38:22.115242 | 77.97초 (약 1분 18초) |
+| MP4 (copy) | 2026-06-22 07:38:55.480835 | 2026-06-22 07:38:55.957125 | 0.48초 |
+
+동일한 5분 영상 기준으로 copy 경로는 transcode보다 약 164배 빠릅니다(77.97초 대 0.48초).
+다만 이번 테스트는 단일 케이스에 한정되므로 일반화하기에는 부족합니다. 그래도 copy가 가능한 입력이라면 처리 시간을 크게 줄일 수 있음은 확인할 수 있었습니다.
