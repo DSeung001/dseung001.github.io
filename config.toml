@@ -35,6 +35,11 @@ contentDir = "content"
     name = "Tags"
     url = "/tags/"
     weight = 30
+  [[menu.main]]
+    identifier = "resume"
+    name = "Resume"
+    url = "/resume/"
+    weight = 40
 
 # 파라미터 설정
 [params]

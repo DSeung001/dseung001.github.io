@@ -1,0 +1,291 @@
+---
+title: "Resume"
+description: "데이터 처리 경험을 기반으로 동영상 파이프라인 도메인으로 확장 중인 개발자"
+layout: resume
+showToc: false
+ShowReadingTime: false
+comments: false
+hideMeta: true
+disableShare: true
+---
+
+<!-- 레이아웃 가이드
+  - row 순서: .resume-row 블록 위치 변경
+  - 1단: resume-row resume-row--1
+  - 2단: resume-row resume-row--2 + resume-cols-XX-YY 또는 style="--resume-cols: ..."
+  - col 순서: .resume-col 블록 위치 변경
+-->
+<div class="resume-page">
+
+  <!-- Row 1: Hero -->
+  <div class="resume-row resume-row--1">
+    <div class="resume-col">
+      <header class="resume-hero">
+        <h1 class="resume-hero__title">지승렬 / Product Developer</h1>
+        데이터 수집·처리·운영 경험을 바탕으로 동영상 파이프라인 도메인으로 확장 중인 백엔드 개발자입니다.
+        이상적인 개발자는 기술은 문제를 푸는 도구로 보며 현재 상황에 맞춰 도구를 파악하고 사용하는 걸로 생각합니다.
+        현재는 개인 프로젝트로 만들고 있는 강의 공유 사이트의 비용절감의 성능 향상을 목표로 두고 있습니다.
+      </header>
+    </div>
+  </div>
+
+  <!-- Row 2: Projects (accordion) -->
+  <div class="resume-row resume-row--1">
+    <div class="resume-col">
+      <section class="resume-block">
+        <h2 class="resume-block__title">프로젝트</h2>
+        <div class="resume-projects">
+
+          <details class="resume-project">
+            <summary class="resume-project__summary">
+              <span class="resume-project__name">Lecture Streaming Service(개인)</span>
+              <span class="resume-project__period">2026.05 - 현재</span>
+            </summary>
+            <div class="resume-project__body">
+              <p>학원 수강생이 강의 영상을 업로드하고 시청할 수 있는 영상 관리 서비스를 개발하고 있습니다.</p>
+              <p>이 프로젝트는 동영상 도메인으로 커리어를 확장하기 위해 직접 설계하고 구현한 프로젝트입니다. 단순히 영상을 업로드하는 기능이 아니라, 업로드된 영상을 비동기로 처리하고 HLS로 변환한 뒤 S3와 CloudFront를 통해 제공하는 구조입니다.</p>
+              <h4 class="resume-card__subtitle">주요 기능</h4>
+              <ul class="resume-list">
+                <li>User: 회원가입 및 로그인 / 업로더 권한 승인</li>
+                <li>Media: 커리큘럼 관리 / 강좌 관리 / 강의 타임라인 관리 / 영상 업로드 / HLS 인코딩 결과 배포</li>
+                <li>Job: 영상 시청 플로우 / 영상 Publish 작업 관리 </li>
+                <li>QnA: 자유 QnA / 마크다운 입력 지원 (QnA/댓글)</li>
+              </ul>
+              <h4 class="resume-card__subtitle">기술 구조</h4>
+              <pre class="resume-code">Client → Backend API → S3 Staging Upload → PublishJob 생성 
+→ Celery / Redis 비동기 작업 → FFmpeg HLS 인코딩 → S3 저장
+→ CloudFront 배포 → Client 재생</pre>
+              <h4 class="resume-card__subtitle">문제 및 개선</h4>
+              <table class="resume-table">
+                <thead>
+                  <tr>
+                    <th scope="col">이슈</th>
+                    <th scope="col">해결</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>긴 영상 인코딩으로 업로드 API·사용자가 동기 대기</td>
+                    <td>PublishJob 생성 후 Celery 비동기 인코딩, 202 응답과 진행률 폴링 UI로 분리</td>
+                  </tr>
+                  <tr>
+                    <td>8GB EBS에서 docker compose build 시 이미지·캐시가 겹치며 디스크 부족</td>
+                    <td>Next.js Standalone, 백엔드/Celery 이미지 통합, Docker 로그 제한으로 약 600MB 절감</td>
+                  </tr>
+                  <tr>
+                    <td>워커가 staging 영상 전체를 tmp에 받아 원본·HLS가 동시에 디스크를 점유</td>
+                    <td>presigned URL로 FFmpeg가 S3 원본을 HTTP 스트리밍 입력, HLS 산출물만 로컬에 보관</td>
+                  </tr>
+                  <tr>
+                    <td>Redis visibility_timeout(1h)·prefetch(4) 조합으로 완료 Job이 재배달되어 NoSuchKey 발생</td>
+                    <td>visibility_timeout 4시간, prefetch 1, 완료 Job 재실행 방지 및 NoSuchKey 재시도 제외</td>
+                  </tr>
+                  <tr>
+                    <td>task_time_limit 2시간으로 긴 영상 인코딩 중 워커가 끊기고 Job이 processing에 고정</td>
+                    <td>task time limit을 4시간으로 확대</td>
+                  </tr>
+                  <tr>
+                    <td>WebM/VFR 영상의 왜곡 FPS 메타데이터(1000 fps)로 인코딩이 비정상적으로 지연</td>
+                    <td>FFmpeg 출력 FPS를 CFR 30으로 고정</td>
+                  </tr>
+                  <tr>
+                    <td>강의 영상의 품질·용량·트래픽 균형 필요</td>
+                    <td>CRF 24, maxrate 3M, bufsize 6M 적용 (VMAF 95+ 유지)</td>
+                  </tr>
+                  <tr>
+                    <td>GB 단위 대용량 업로드로 서버 리소스 부담</td>
+                    <td>Request size를 1GB로 제한 (backend env 설정)</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h4 class="resume-card__subtitle">회고</h4>
+              <ul class="resume-list">
+                <li><a href="https://dseung001.github.io/posts/2026/06/09/class-project-retrospective-1/">강의 영상 관리 프로젝트 회고 1</a></li>
+                <li><a href="https://dseung001.github.io/posts/2026/06/17/class-project-retrospective-2/">강의 영상 관리 프로젝트 회고 2</a></li>
+              </ul>
+              <h4 class="resume-card__subtitle">사용 기술</h4>
+              <div class="resume-tags">
+                <span class="resume-tag">Django</span>
+                <span class="resume-tag">Next.js</span>
+                <span class="resume-tag">Celery</span>
+                <span class="resume-tag">Redis</span>
+                <span class="resume-tag">FFmpeg</span>
+                <span class="resume-tag">HLS</span>
+                <span class="resume-tag">AWS S3</span>
+                <span class="resume-tag">AWS CloudFront</span>
+                <span class="resume-tag">Docker</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="resume-project">
+            <summary class="resume-project__summary">
+              <span class="resume-project__name">Healthcare On-Premise Web Service</span>
+              <span class="resume-project__period">2024.04 - 2026.01</span>
+            </summary>
+            <div class="resume-project__body">
+              <p>병원 사설 네트워크 환경에서 운영되는 온프레미스 웹 서비스의 백엔드 개발과 데이터 처리 구조 개선을 담당했습니다.</p>
+              <p>의료기기에서 발생하는 데이터와 이미지를 수집하고, 저장하고, 사용자 화면까지 연결하는 흐름을 개발했습니다. 특히 신규 장비 연동, 데이터 저장 방식 설계, 이미지 처리 최적화, 로컬 캐싱, 레거시 개선을 주로 담당했습니다.</p>
+              <h4 class="resume-card__subtitle">주요 성과</h4>
+              <ul class="resume-list">
+                <li>신규 의료기기 추가 시 통신 방식 정의 및 연동 구조 설계</li>
+                <li>의료기기 데이터 특성에 따라 파일 시스템 처리와 DB 저장 방식을 분리</li>
+                <li>의료 데이터 로컬 캐싱 기능 추가로 장비 통신 시 DB 커넥션 접근이 100%에서 78%로 감소</li>
+                <li>이미지 처리에 병렬 처리 기능 도입으로 프로세스 처리 시간 11초에서 4초로 단축</li>
+                <li>신규 진료 및 장비 추가 시 백엔드 로직과 프론트엔드 화면까지 연결</li>
+                <li>도메인 단위 책임 분리와 점진적 리팩토링 수행</li>
+                <li>로깅 시스템 교체, 에러 핸들링 점검, 단위 테스트 추가</li>
+              </ul>
+              <h4 class="resume-card__subtitle">사용 기술</h4>
+              <div class="resume-tags">
+                <span class="resume-tag">Go</span>
+                <span class="resume-tag">Vue.js</span>
+                <span class="resume-tag">MySQL</span>
+                <span class="resume-tag">Linux</span>
+                <span class="resume-tag">JavaScript</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="resume-project">
+            <summary class="resume-project__summary">
+              <span class="resume-project__name">E-commerce Data Collection Pipeline</span>
+              <span class="resume-project__period">2024.01 - 2024.04</span>
+            </summary>
+            <div class="resume-project__body">
+              <p>프록시 네트워크와 요청 최적화를 활용해 해외 이커머스 상품 데이터 수집 파이프라인을 구축했습니다.</p>
+              <p>대량의 상품 데이터를 제한된 요청 수와 비용 안에서 수집하기 위해 요청 수 최적화, 스케줄링, 프록시 네트워크 활용 방식을 설계했습니다.</p>
+              <h4 class="resume-card__subtitle">주요 성과</h4>
+              <ul class="resume-list">
+                <li>프록시 네트워크, 요청 수 최적화, 스케줄링 기반 수집 구조 설계</li>
+                <li>Amazon 상품 데이터 약 100만 건 수집</li>
+                <li>약 17K requests, 약 50달러 수준으로 수집 비용 최적화</li>
+                <li>Shopee 상품 데이터 약 20~28만 건 수집</li>
+                <li>약 6K requests, 약 18달러 수준으로 수집 비용 최적화</li>
+                <li>Windows 환경에서 스케줄러 기반 정기 수집 작업 구성</li>
+              </ul>
+              <h4 class="resume-card__subtitle">사용 기술</h4>
+              <div class="resume-tags">
+                <span class="resume-tag">Python</span>
+                <span class="resume-tag">HTTP</span>
+                <span class="resume-tag">Proxy</span>
+                <span class="resume-tag">Scheduler</span>
+                <span class="resume-tag">Data Crawling</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="resume-project">
+            <summary class="resume-project__summary">
+              <span class="resume-project__name">Event &amp; Corporate Web Service Development</span>
+              <span class="resume-project__period">2019.09 - 2023.08</span>
+            </summary>
+            <div class="resume-project__body">
+              <p>이벤트성 웹 서비스와 기업 웹사이트의 개발, 배포, 운영, 유지보수를 담당했습니다.</p>
+              <p>짧은 기간에 트래픽이 집중되는 이벤트 서비스 특성상 기능 구현뿐 아니라 운영 안정성, 장애 대응, CS 대응까지 고려하며 개발했습니다.</p>
+              <h4 class="resume-card__subtitle">주요 성과</h4>
+              <ul class="resume-list">
+                <li>분기별 이벤트성 웹 서비스 개발 및 운영</li>
+                <li>개발, 배포, 모니터링, CS 대응까지 서비스 전체 생애주기 담당</li>
+                <li>추첨, 포인트, 코드 입력 등 DAU 10만 규모 이벤트 기능 구현</li>
+                <li>Redis Queue를 활용한 상품 중복 당첨 방지 및 이벤트 처리 안정화</li>
+                <li>Swagger 기반 API 문서화</li>
+                <li>AWS EC2, S3, CloudWatch 기반 배포 및 모니터링</li>
+                <li>맥도날드 공식 홈페이지, 삼성·포스코 뉴스룸, 가나아트 등 기업 웹서비스 유지보수 및 기능 개선</li>
+              </ul>
+              <h4 class="resume-card__subtitle">사용 기술</h4>
+              <div class="resume-tags">
+                <span class="resume-tag">PHP</span>
+                <span class="resume-tag">Laravel</span>
+                <span class="resume-tag">Java</span>
+                <span class="resume-tag">Spring</span>
+                <span class="resume-tag">MySQL</span>
+                <span class="resume-tag">Redis</span>
+                <span class="resume-tag">AWS EC2</span>
+                <span class="resume-tag">AWS S3</span>
+                <span class="resume-tag">AWS CloudWatch</span>
+                <span class="resume-tag">CloudFront</span>
+                <span class="resume-tag">Swagger</span>
+              </div>
+            </div>
+          </details>
+
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Row 3: 경력 | 자격증 | 기타 -->
+  <div class="resume-row resume-row--3">
+    <div class="resume-col">
+      <section class="resume-block">
+        <h2 class="resume-block__title">경력</h2>
+        <p class="resume-career__total">총 6년 8개월</p>
+        <div class="resume-career">
+          <div class="resume-card">
+            <div class="resume-career__meta">
+              <span class="resume-career__period">2024.04 - 2026.01</span>
+            </div>
+            <h3 class="resume-card__title">(주)휴비츠 SE Team</h3>
+          </div>
+          <div class="resume-card">
+            <div class="resume-career__meta">
+              <span class="resume-career__period">2024.01 - 2024.04</span>
+            </div>
+            <h3 class="resume-card__title">(주)에이아이썸 개발팀</h3>
+          </div>
+          <div class="resume-card">
+            <div class="resume-career__meta">
+              <span class="resume-career__period">2019.09 - 2023.08</span>
+            </div>
+            <h3 class="resume-card__title">주식회사 비트리 개발팀</h3>
+          </div>
+          <div class="resume-card">
+            <div class="resume-career__meta">
+              <span class="resume-career__period">2018.05 - 2019.06</span>
+            </div>
+            <h3 class="resume-card__title">주식회사 비트리 · 도제</h3>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="resume-col">
+      <section class="resume-block">
+        <h2 class="resume-block__title">자격증</h2>
+        <ul class="resume-list">
+          <li>SQL 개발자</li>
+          <li>네트워크관리사 2급</li>
+          <li>정보처리기사</li>
+          <li>정보처리산업기사</li>
+          <li>기타 IT 자격증 4건</li>
+        </ul>
+      </section>
+    </div>
+    <div class="resume-col">
+      <section class="resume-block">
+        <h2 class="resume-block__title">기타</h2>
+        <div class="resume-card">
+          <h3 class="resume-card__subtitle">Contact</h3>
+          <h3 class="resume-card__title">이메일</h3>
+          <p><a href="mailto:seungryeol156@gmail.com">seungryeol156@gmail.com</a></p>
+          <h3 class="resume-card__title">GitHub</h3>
+          <p><a href="https://github.com/dseung001">github.com/dseung001</a></p>
+
+          <h3 class="resume-card__title">LinkedIn</h3>
+          <p><a href="https://www.linkedin.com/in/%EC%8A%B9%EB%A0%AC-%EC%A7%80-190a73282/">linkedin</a></p>
+          <h3 class="resume-card__title">프로젝트</h3>
+          <p><a href="https://docs.google.com/presentation/d/19SqbwXCLMbIYDH1Hgo-iASpL1qW6bTaYodKPFHV8hqg/edit?slide=id.g3b1997fb7a8_0_64#slide=id.g3b1997fb7a8_0_64">시각자료</a></p>
+        </div>
+        <div class="resume-card">
+          <h3 class="resume-card__subtitle">학력</h3>
+          <div class="resume-career__meta">
+            <span class="resume-career__period">2020.03 - 2024.02</span>
+          </div>
+          <h3 class="resume-card__title">한국방송통신대학교</h3>
+          <p>컴퓨터과학과(학사)</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+</div>

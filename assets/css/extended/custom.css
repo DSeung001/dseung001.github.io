@@ -2,7 +2,7 @@
     --main-width: 860px; /* 원하는 값으로 변경 */
 }
 
-/* 헤더 오른쪽: ⚙️ 슬롯(맨 왼쪽) + 메뉴 ul — ul의 overflow-x 때문에 패널은 JS로 fixed 배치 */
+/* 헤더 오른쪽: 메뉴 ul + ⚙️ 슬롯(맨 오른쪽) — ul의 overflow-x 때문에 패널은 JS로 fixed 배치 */
 .nav-right {
     display: flex;
     flex-direction: row;
