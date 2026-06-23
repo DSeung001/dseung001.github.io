@@ -21,10 +21,34 @@ disableShare: true
   <div class="resume-row resume-row--1">
     <div class="resume-col">
       <header class="resume-hero">
-        <h1 class="resume-hero__title">지승렬 / Product Developer</h1>
-        <p>데이터 수집, 처리, 운영 경험을 바탕으로 동영상 파이프라인 도메인으로 확장 중인 백엔드 개발자입니다.</p>
-        <p>이상적인 개발자는 기술을 문제 해결의 도구로 보며, 현재 상황에 맞게 도구를 파악하고 사용한다고 생각합니다.</p>
-        <p>현재는 개인 프로젝트로 개발 중인 강의 공유 사이트에서 비용 절감과 성능 향상을 목표로 하고 있습니다.</p>
+        <h1 class="resume-hero__title">지승렬 / Backend Developer</h1>
+        <p>데이터 수집·처리·저장·운영 경험을 기반으로 동영상 파이프라인 도메인으로 확장 중인 백엔드 개발자입니다.</p>
+        <p>의료기기 데이터 처리, 이미지 처리 최적화, 대규모 이벤트 운영, 이커머스 데이터 수집 파이프라인을 경험했고, 현재는 개인 프로젝트를 통해 영상 업로드, 비동기 인코딩, HLS 변환, S3/CloudFront 배포 구조를 직접 구현하고 있습니다.</p>
+        <p>기술 자체보다 문제 해결에 집중하며, 제한된 비용과 운영 환경 안에서 안정적으로 동작하는 백엔드 시스템을 만들어 서비스를 제공하는 데 관심이 있습니다.</p>
+        <div class="resume-hero__focus">
+          <ul class="resume-focus-list">
+            <li class="resume-focus-item">
+              <span class="resume-focus-item__name">Video Processing</span>
+              <span class="resume-focus-item__detail">강의 영상 서비스에서 FFmpeg HLS 인코딩 파이프라인과 품질·용량 튜닝을 직접 구현</span>
+            </li>
+            <li class="resume-focus-item">
+              <span class="resume-focus-item__name">Backend API</span>
+              <span class="resume-focus-item__detail">Django·Go 기반 API 설계와 PublishJob, 의료기기 연동 등 도메인 API 개발 경험</span>
+            </li>
+            <li class="resume-focus-item">
+              <span class="resume-focus-item__name">Async Job Processing</span>
+              <span class="resume-focus-item__detail">Celery/Redis 비동기 인코딩과 이벤트 서비스 Redis Queue 처리 경험</span>
+            </li>
+            <li class="resume-focus-item">
+              <span class="resume-focus-item__name">Storage / CDN Delivery</span>
+              <span class="resume-focus-item__detail">S3 업로드·저장과 CloudFront 배포 구조를 설계하고 운영</span>
+            </li>
+            <li class="resume-focus-item">
+              <span class="resume-focus-item__name">Operation Stability</span>
+              <span class="resume-focus-item__detail">DAU 10만 이벤트 운영과 제한된 EBS·비용 환경에서 장애·리소스 이슈 대응</span>
+            </li>
+          </ul>
+        </div>
       </header>
     </div>
   </div>
@@ -59,42 +83,46 @@ disableShare: true
               <table class="resume-table">
                 <thead>
                   <tr>
-                    <th scope="col">이슈</th>
-                    <th scope="col">해결</th>
+                    <th scope="col">문제</th>
+                    <th scope="col">원인</th>
+                    <th scope="col">개선</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>긴 영상 인코딩으로 업로드 API와 사용자가 동기 대기</td>
-                    <td>PublishJob 생성 후 Celery 비동기 인코딩, 202 응답과 진행률 폴링 UI로 분리</td>
+                    <td>영상 업로드 API에서 사용자가 오래 대기</td>
+                    <td>인코딩을 동기 흐름으로 처리</td>
+                    <td>PublishJob 생성 후 Celery 비동기 인코딩으로 분리, 202 응답과 진행률 폴링 UI 적용</td>
                   </tr>
                   <tr>
-                    <td>8GB EBS에서 docker compose build 시 이미지와 캐시가 겹치며 디스크 부족</td>
-                    <td>Next.js Standalone, 백엔드/Celery 이미지 통합, Docker 로그 제한으로 약 600MB 절감</td>
+                    <td>8GB EBS 디스크 부족</td>
+                    <td>Docker 이미지, 캐시, 원본 영상, HLS 산출물이 동시에 디스크 점유</td>
+                    <td>Next.js Standalone 적용, 백엔드/Celery 이미지 통합, Docker 로그 제한으로 약 600MB 절감</td>
                   </tr>
                   <tr>
-                    <td>워커가 staging 영상 전체를 tmp에 받아 원본과 HLS가 동시에 디스크를 점유</td>
-                    <td>presigned URL로 FFmpeg가 S3 원본을 HTTP 스트리밍 입력, HLS 산출물만 로컬에 보관</td>
+                    <td>워커 디스크 사용량 증가</td>
+                    <td>staging 영상을 로컬 tmp에 전체 다운로드</td>
+                    <td>Presigned URL 기반으로 FFmpeg가 S3 원본을 HTTP 스트리밍 입력하도록 변경</td>
                   </tr>
                   <tr>
-                    <td>Redis visibility_timeout(1h), prefetch(4) 조합으로 완료 Job이 재배달되어 NoSuchKey 발생</td>
-                    <td>visibility_timeout 4시간, prefetch 1, 완료 Job 재실행 방지 및 NoSuchKey 재시도 제외</td>
+                    <td>완료된 Job 재실행</td>
+                    <td>Redis visibility_timeout, prefetch 설정 문제</td>
+                    <td>visibility_timeout 4시간, prefetch 1로 조정, 완료 Job 재실행 방지</td>
                   </tr>
                   <tr>
-                    <td>task_time_limit 2시간으로 긴 영상 인코딩 중 워커가 끊기고 Job이 processing에 고정</td>
-                    <td>task time limit을 4시간으로 확대</td>
+                    <td>긴 영상 인코딩 중 작업 중단</td>
+                    <td>task_time_limit 2시간 제한</td>
+                    <td>task_time_limit 4시간으로 확대</td>
                   </tr>
                   <tr>
-                    <td>WebM/VFR 영상의 왜곡 FPS 메타데이터(1000 fps)로 인코딩이 비정상적으로 지연</td>
+                    <td>WebM/VFR 영상 인코딩 지연</td>
+                    <td>왜곡된 FPS 메타데이터</td>
                     <td>FFmpeg 출력 FPS를 CFR 30으로 고정</td>
                   </tr>
                   <tr>
-                    <td>강의 영상의 품질, 용량, 트래픽 균형 필요</td>
-                    <td>CRF 24, maxrate 3M, bufsize 6M 적용 (VMAF 95+ 유지)</td>
-                  </tr>
-                  <tr>
-                    <td>GB 단위 대용량 업로드로 서버 리소스 부담</td>
-                    <td>Request size를 1GB로 제한 (backend env 설정)</td>
+                    <td>품질·용량·트래픽 비용 균형 필요</td>
+                    <td>원본 영상별 용량과 품질 편차</td>
+                    <td>CRF 24, maxrate 3M, bufsize 6M 적용</td>
                   </tr>
                 </tbody>
               </table>

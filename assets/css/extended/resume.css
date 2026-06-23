@@ -124,8 +124,50 @@
     font-size: inherit;
 }
 
-.resume-hero p:last-child {
+.resume-hero p:last-of-type {
     margin-bottom: 0;
+}
+
+.resume-hero__focus {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border);
+}
+
+.resume-hero__focus .resume-hero__subtitle {
+    margin-bottom: 0.45rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.resume-focus-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.resume-focus-item {
+    display: grid;
+    grid-template-columns: minmax(9rem, 11rem) 1fr;
+    gap: 0.5rem 0.75rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    line-height: inherit;
+    color: var(--content);
+}
+
+.resume-focus-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.resume-focus-item__name {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.resume-focus-item__detail {
+    color: var(--content);
 }
 
 .resume-card {
@@ -531,5 +573,10 @@ body.dark .resume-meta a {
         flex-basis: 100%;
         padding-left: 0.6rem;
         white-space: normal;
+    }
+
+    .resume-focus-item {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
     }
 }
