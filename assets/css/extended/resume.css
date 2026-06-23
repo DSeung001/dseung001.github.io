@@ -145,6 +145,9 @@
     font-size: inherit;
     font-weight: 600;
     color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 .resume-card__subtitle {
@@ -152,6 +155,22 @@
     font-size: inherit;
     font-weight: 600;
     color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.resume-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 1.05rem;
+    height: 1.05rem;
+    color: var(--secondary);
+}
+
+.resume-icon svg {
+    width: 100%;
+    height: 100%;
 }
 
 .resume-card p {
