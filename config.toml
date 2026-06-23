@@ -49,6 +49,7 @@ contentDir = "content"
   
   # PaperMod 테마 설정
   ShowReadingTime = true
+  ShowPageViews = true
   ShowShareButtons = true
   ShowPostNavLinks = true
   ShowBreadCrumbs = true
@@ -67,6 +68,7 @@ contentDir = "content"
   # SEO 최적화 설정
   [params.seo]
     googleAnalytics = "G-FX0PNVWBVG"
+    goatcounter = "dseung001"
     googleSiteVerification = "KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"
     naverSiteVerification = "c15cf65c023f2d9602a5d788b26bf2ff511c407b"
     bingSiteVerification = "your-bing-verification-code"

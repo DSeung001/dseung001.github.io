@@ -1,0 +1,36 @@
+{{- $page := . -}}
+{{- $showPageViews := false -}}
+{{- if reflect.IsMap . -}}
+{{- $page = index . "page" -}}
+{{- $showPageViews = index . "showPageViews" | default false -}}
+{{- end -}}
+
+{{- $scratch := newScratch }}
+
+{{- if not $page.Date.IsZero -}}
+{{- $scratch.Add "meta" (slice (printf "<span title='%s'>%s</span>" ($page.Date) ($page.Date | time.Format (default "January 2, 2006" site.Params.DateFormat)))) }}
+{{- end }}
+
+{{- if ($page.Param "ShowReadingTime") -}}
+{{- $scratch.Add "meta" (slice (i18n "read_time" $page.ReadingTime | default (printf "%d min" $page.ReadingTime))) }}
+{{- end }}
+
+{{- if ($page.Param "ShowWordCount") -}}
+{{- $scratch.Add "meta" (slice (i18n "words" $page.WordCount | default (printf "%d words" $page.WordCount))) }}
+{{- end }}
+
+{{- if not ($page.Param "hideAuthor") -}}
+{{- with (partial "author.html" $page) }}
+{{- $scratch.Add "meta" (slice .) }}
+{{- end }}
+{{- end }}
+
+{{- with ($scratch.Get "meta") }}
+{{- delimit . "&nbsp;·&nbsp;" | safeHTML -}}
+{{- end -}}
+
+{{- if and $showPageViews ($page.Param "ShowPageViews" | default site.Params.ShowPageViews | default false) site.Params.seo.goatcounter -}}
+{{- if gt (len ($scratch.Get "meta")) 0 }}&nbsp;·&nbsp;{{ end -}}
+<span id="page-views-{{ $page.File.UniqueID }}">조회수 …</span>
+{{- partial "page_views.html" $page -}}
+{{- end -}}
