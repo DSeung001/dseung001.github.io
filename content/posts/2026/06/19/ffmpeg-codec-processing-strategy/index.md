@@ -1,10 +1,10 @@
 ---
-title: "코덱을 바탕으로 한 FFmpeg 개선 포인트 탐지"
+title: "코덱 분리 개념 정리 및 적용"
 date: 2026-06-19T00:00:00+09:00
 categories: [ "Video" ]
 tags: [ "FFmpeg", "Codec", "인코딩", "트랜스코딩" ]
 draft: false
-description: "코덱 특성에 따른 FFmpeg 처리 전략 정리."
+description: "copy·transcode·remux 개념 정리와 ffprobe 기반 HLS 분기 처리 적용."
 keywords: [ "FFmpeg", "Codec", "인코딩", "트랜스코딩" ]
 author: "DSeung001"
 lastmod: 2026-06-19T00:00:00+09:00
