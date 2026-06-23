@@ -1,17 +1,38 @@
 {{- if and site.Params.seo.goatcounter (hugo.IsProduction | or (eq site.Params.env "production")) -}}
 <script>
 (function () {
+  var wrap = document.getElementById("page-views-wrap-{{ .File.UniqueID }}");
   var el = document.getElementById("page-views-{{ .File.UniqueID }}");
-  if (!el) return;
+  if (!wrap || !el) return;
+
+  function hidePageViews() {
+    wrap.remove();
+  }
+
+  function showPageViews(count) {
+    if (!count && count !== "0") {
+      hidePageViews();
+      return;
+    }
+    el.textContent = "조회수 " + count;
+    wrap.hidden = false;
+  }
+
   var path = "{{ .RelPermalink }}";
   var r = new XMLHttpRequest();
   r.addEventListener("load", function () {
-    if (r.status < 200 || r.status >= 300) return;
+    if (r.status < 200 || r.status >= 300) {
+      hidePageViews();
+      return;
+    }
     try {
       var data = JSON.parse(r.responseText);
-      el.textContent = "조회수 " + data.count;
-    } catch (e) {}
+      showPageViews(data.count);
+    } catch (e) {
+      hidePageViews();
+    }
   });
+  r.addEventListener("error", hidePageViews);
   r.open(
     "GET",
     "https://{{ site.Params.seo.goatcounter }}.goatcounter.com/counter/" +
