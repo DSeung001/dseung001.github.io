@@ -197,8 +197,8 @@ flowchart TD
     I --> J["Finalize<br/>썸네일, Course/Video DB, job completed"]
 ```
 
-(작성 중)
+(개발 중...)
 
 # 비용 비교
-(작성 중)
+(개발 중...))
 
