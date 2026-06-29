@@ -12,7 +12,7 @@ lastmod: 2026-06-29T00:00:00+09:00
 
 # 개요
 
-[지난 글](../../17/class-project-retrospective-2)을 적은 지 12일 만에 진행 사항을 정리합니다.
+[Class Project 2차 회고](../../17/class-project-retrospective-2)를 적은 지 12일 만에 진행 사항을 정리합니다.
 2차 회고 마지막 Todo는 다음과 같았습니다.
 
 ```bash
@@ -34,7 +34,7 @@ lastmod: 2026-06-29T00:00:00+09:00
 - 인코딩 서버 분리: Celery + Redis에서 SQS + CloudWatch + ASG로 전환 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
 - 자동 배포: GitHub Actions + ECR + SSM 파이프라인 적용 ([상세 글](../../26/class-project-github-actions-auto-deploy))
 
-## 인코딩 분기
+## 인코딩 분기 ([상세 글](../../19/ffmpeg-codec-processing-strategy))
 
 2차 회고에서 남겨 둔 copy stream 분기를 먼저 다뤘습니다. <br/>
 원본이 HLS authoring 조건을 이미 만족하는 경우에 재인코딩을 생략해도 되므로 `-c copy`로 패키징만 하도록 바꿨습니다.
@@ -55,7 +55,7 @@ flowchart TD
 현재 학원 녹화본은 WebM(VP8 + Opus)이 대부분이라 copy 분기로 빠지는 경우는 없었습니다.<br/>
 그래도 H.264/AAC MP4가 들어오면 처리 시간을 크게 줄일 수 있게 되었습니다. 내부 테스트에서 5분 영상 기준 copy 경로는 transcode 대비 약 164배 빠른 것을 확인할 수 있었습니다.
 
-## 인코딩 서버 분리
+## 인코딩 서버 분리 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
 
 비용 절감이 가장 시급했습니다.<br/>
 6월 22일 기준 월간 누적 지출이 $43.69, 일일 약 $3 수준이었고 그대로 두면 월 $90 전후가 예상됐습니다.<br/>
@@ -77,7 +77,7 @@ CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "
 
 비용 수치는 아직 수집 중입니다.
 
-## 자동 배포
+## 자동 배포 ([상세 글](../../26/class-project-github-actions-auto-deploy))
 
 인코딩 서버 분리를 진행하던 중 API 서버 스펙을 줄이려면 EC2에서 `docker compose build`를 없애야 한다는 생각이 들었습니다.
 배포 방식을 아래처럼 바꿨습니다.
