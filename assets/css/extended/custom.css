@@ -272,7 +272,11 @@ html.cursor-follower-off #cursor-ink-trail {
     }
 }
 
-.mermaid-dialog {
+.mermaid-dialog:not([open]) {
+    display: none;
+}
+
+.mermaid-dialog[open] {
     display: flex;
     flex-direction: column;
     position: relative;
@@ -370,4 +374,28 @@ html.cursor-follower-off #cursor-ink-trail {
 body.dark {
     --bench-crf-bg: rgba(138, 180, 248, 0.12);
     --bench-bitrate-bg: rgba(253, 214, 99, 0.1);
+}
+
+.post-content a:not(.anchor) {
+    color: #1a73e8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    box-shadow: none;
+}
+
+.post-content a:not(.anchor):hover {
+    color: #1558b0;
+}
+
+body.dark .post-content a:not(.anchor) {
+    color: #8ab4f8;
+}
+
+body.dark .post-content a:not(.anchor):hover {
+    color: #aecbfa;
+}
+
+.post-content a:not(.anchor) code {
+    color: inherit;
+    box-shadow: 0 -1px 0 currentColor inset;
 }
