@@ -71,7 +71,7 @@ flowchart TD
 | 스케일링 | 없음 (상시 대기) | CloudWatch 알람 → ASG desired capacity |
 | 실제 인코딩 로직 | `run_publish_job()` | 동일 |
 
-프론트 업로드도 같이 바꿨습니다. init → S3 presigned PUT → commit 3단계로 나누어 대용량 파일이 Nginx·Django를 통과하지 않게 했고, Job 상태도 `uploading` → `queued`로 구분했습니다.
+프론트 업로드도 같이 바꿨습니다. init → S3 presigned PUT → commit 3단계로 나누어 대용량 파일이 앱 서버를 통과하지 않게 했고, Job 상태도 `uploading` → `queued`로 구분했습니다.
 
 CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "누락된 데이터 처리" 기본값이 무시(ignore)라 큐가 비어도 ALARM 상태가 유지됐습니다. "양호"(notBreaching)로 바꾸면 데이터 없음을 0으로 간주해 scale-down이 실행됩니다. ASG로 인스턴스가 on/off되면서 로그 추적이 어려워져 CloudWatch Logs도 추가했습니다.
 
@@ -87,12 +87,12 @@ CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "
 | 트리거 | SSH 접속 후 수동 실행 | `release` 브랜치 push |
 | 이미지 빌드 | EC2 | GitHub Actions |
 | 이미지 저장 | 로컬 Docker 태그 | ECR (git SHA 태그) |
-| EC2 역할 | 빌드 + migrate + restart | pull + migrate + restart |
+| EC2 역할 | 빌드 + 실행 + migrate | pull + migrate + restart |
 | 원격 실행 | SSH | SSM Run Command |
 
 GitHub OIDC로 장기 Access Key 없이 IAM Role을 assume하고, EC2는 instance profile로 ECR pull과 Parameter Store 읽기만 합니다. `release` push 후 약 5분 안에 배포가 완료됩니다.
 
-즉 GitHub에서 이미지를 빌드하고 ECR에 올리면 SSM Run Command가 이미지를 가져와 적용합니다.
+즉 GitHub에서 이미지를 빌드하고 ECR에 올리면, SSM Run Command로 EC2에서 `deploy.sh`를 실행해 pull, migrate, restart 순으로 적용합니다.
 
 ## 그 외
 

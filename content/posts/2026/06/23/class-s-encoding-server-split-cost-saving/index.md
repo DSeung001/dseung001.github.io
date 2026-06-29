@@ -17,7 +17,7 @@ aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 
 ![cost](cost.webp)
 
-현재 서버의 인스턴스 유형이 `m7i-flex.large`인 점이 가장 큰 이유이죠. 하지만 인코딩 작업을 돌리려면 서버 PC의 사양이 어느 정도 따라줘야 했고, AWS 크레딧으로 선택할 수 있는 범위에서 가장 높은 사양이 그것이었기에 이를 택했죠.
+현재 서버의 인스턴스 유형이 `m7i-flex.large`인 점이 가장 큰 이유죠. 하지만 인코딩 작업을 돌리려면 서버 PC의 사양이 어느 정도 따라줘야 했고, AWS 크레딧으로 선택할 수 있는 범위에서 가장 높은 사양이 그것이었기에 이를 택했죠.
 
 하지만 이대로 가면 한 달에 90달러, 대략 14만 원이 소비되게 됩니다. 이대로는 서버를 유지하는 데 부담이 발생합니다.
 
@@ -39,7 +39,7 @@ aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 11. ASG에서 인코딩 서버 제거
 
 위와 같이 인프라 흐름을 구성한다면 많은 컴퓨팅 리소스를 차지하는 인코딩 작업을 별도로 분리해 낼 수 있죠.
-그러면 좋은 점이 서버 PC의 사양을 줄일 수 있게 됩니다.
+그러면 서버 PC의 사양을 줄일 수 있다는 장점이 있습니다.
 
 # Celery에서 Infra로
 현재는 메시지 생산과 브로커 연결, 비동기로 인코딩 작업을 수행하는 데 Redis와 Celery를 사용하고 있었습니다. <br/>
@@ -63,7 +63,7 @@ flowchart TB
         A_DB[("DB")]
 
         A_API -->|"SendMessage"| A_SQS
-        A_SQS -.->|"ApproximateNumberOfMessages"| A_CW_UP
+        A_SQS -.->|"ApproximateNumberOfMessagesVisible"| A_CW_UP
         A_SQS -.->|"ApproximateNumberOfMessages"| A_CW_DOWN
         A_CW_UP -->|"Scale-out"| A_ASG
         A_CW_DOWN -->|"Scale-in"| A_ASG
@@ -85,8 +85,10 @@ flowchart TB
     end
 ```
 CloudWatch 알람 조건
-- SQS-ScaleUp-Alarm: ApproximateNumberOfMessages >= 1
+- SQS-ScaleUp-Alarm: ApproximateNumberOfMessagesVisible >= 1
 - SQS-ScaleDown-Alarm: ApproximateNumberOfMessages <= 0
+- `ApproximateNumberOfMessagesVisible`: 아직 `ReceiveMessage`로 가져가지 않은 수신 대기 중(visible)인 메시지 수를 보는 SQS CloudWatch 지표
+- `ApproximateNumberOfMessages`: 수신 대기 메시지와 워커가 처리 중인 in-flight 메시지를 합산해 보는 SQS CloudWatch 지표
 
 Celery와 SQS 구현을 비교하면 다음과 같습니다.
 
@@ -116,28 +118,76 @@ Celery와 SQS 구현을 비교하면 다음과 같습니다.
 ```
 
 # 프론트에서 바로 S3로 저장
-기존에는 프론트에서 백엔드 서버로 데이터를 저장한 뒤 S3로 업로드하는 방식을 사용했습니다. 안정성을 위해 해당 방식을 택했지만, 이제는 서버의 사양을 줄이는 게 목적이므로 프론트에서 바로 S3로 올리는 방식으로 전환했습니다.
+기존에는 프론트에서 백엔드 서버로 데이터를 저장한 뒤 S3로 업로드하는 방식을 사용했습니다. <br/>
+당시에는 대용량 Request를 허용하기 위해 `DATA_UPLOAD_MAX_MEMORY_SIZE`와 `FILE_UPLOAD_MAX_MEMORY_SIZE`를 `MAX_UPLOAD_BYTES`(1GB)까지 올려두었습니다.
+```python
+
+# DATA_UPLOAD_MAX_MEMORY_SIZE: multipart 요청 본문 상한
+# FILE_UPLOAD_MAX_MEMORY_SIZE: 이 크기 이하 파일은 RAM, 초과는 디스크 임시
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_BYTES
+FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_BYTES
+```
+
+위 설정은 다시 보니 실수였습니다.<br/>
+저는 두 설정 모두 Request 용량 상한만 바꾸는 줄 알았습니다. 요청 본문 크기 상한은 `DATA_UPLOAD_MAX_MEMORY_SIZE`가 담당하고, `FILE_UPLOAD_MAX_MEMORY_SIZE`는 업로드 파일을 어디에 둘지 정합니다. 이 값 이하면 `InMemoryUploadedFile`(RAM), 초과하면 `TemporaryUploadedFile`(디스크 임시)입니다.
+
+Django 기본은 2.5MB라 대용량은 디스크로 스풀되지만, 둘 다 `MAX_UPLOAD_BYTES`(1GB)로 맞춰두면서 1GB 미만 영상은 전부 RAM에 적재되는 경로가 됐습니다. 이 부분이 실수인 이유는 불필요한 RAM 부담이 발생했기 때문입니다.
+
+원래라면 대용량 파일을 임시 파일로 저장하는 것이 안전하지만 이 로직의 설정값을 바꿨던 것이죠.
+이제는 서버의 사양을 줄이는 게 목적이므로 임시 파일을 백엔드로 업로드하지 않고 프론트에서 바로 S3로 올리는 방식으로 전환했습니다.
 
 Multipart 업로드와 Direct S3 업로드의 차이는 다음과 같습니다.
+
+```mermaid
+flowchart TB
+
+    subgraph after["이후: Direct S3 / Presigned URL"]
+        direction TB
+        A_FE["브라우저"]
+        A_API["Django API<br/>메타·검증만"]
+        A_S3[("S3<br/>staging")]
+        A_DB[("DB")]
+
+        A_FE -->|"POST /publish-jobs/init<br/>(JSON)"| A_API
+        A_API -->|"presigned PUT URL"| A_FE
+        A_FE -->|"PUT 파일 직접 업로드"| A_S3
+        A_FE -->|"POST /publish-jobs/{id}/commit"| A_API
+        A_API -->|"uploading → queued"| A_DB
+    end
+
+    subgraph before["이전: Multipart / 서버 경유"]
+        direction TB
+        B_FE["브라우저"]
+        B_API["Django API"]
+        B_MEM["워커 프로세스 메모리<br/>InMemoryUploadedFile"]
+        B_S3[("S3<br/>staging")]
+        B_DB[("DB")]
+
+        B_FE -->|"POST /api/v1/media/courses/publish<br/>multipart/form-data"| B_API
+        B_API -->|"FILE_UPLOAD_MAX_MEMORY_SIZE=MAX_UPLOAD_BYTES<br/>이하이면 메모리에 적재"| B_MEM
+        B_MEM -->|"upload_fileobj"| B_S3
+        B_API -->|"PublishJob queued"| B_DB
+    end
+```
 
 | 구분 | 이전 (Multipart / 서버 경유) | 이후 (Direct S3 / Presigned URL) |
 | --- | --- | --- |
 | API 엔드포인트 | `POST /api/v1/media/courses/publish` (1회) | `POST /publish-jobs/init` → S3 PUT → `POST /publish-jobs/{id}/commit` (3단계) |
 | 요청 형식 | `multipart/form-data` (파일 + JSON 메타) | init/commit은 JSON만, 파일은 S3로 직접 PUT |
-| 파일 전송 경로 | 브라우저 → Nginx → Django → S3 | 브라우저 → S3 (Django는 메타·검증만) |
-| 서버 부하 | 대용량 파일이 앱 서버·Nginx를 통과 | 앱 서버는 메타데이터·presigned URL 발급만 |
+| 파일 전송 경로 | 브라우저 → Django → S3 | 브라우저 → S3 (Django는 메타·검증만) |
+| 서버 부하 | 대용량 파일이 앱 서버를 통과 | 앱 서버는 메타데이터·presigned URL 발급만 |
 | Job 초기 상태 | `queued` (업로드 완료 후 바로 큐잉) | `uploading` → commit 후 `queued` |
 | 스테이징 저장 | 서버가 `upload_fileobj`로 S3에 저장 | 클라이언트가 presigned PUT으로 S3에 저장 |
 | 진행률 표시 | `authFetchFormWithProgress`로 서버에 multipart 전송 시 `xhr.upload.onprogress`에서 `loaded / total` 비율 계산 | `putFileToPresignedUrl`에서 동일하게 XMLHttpRequest PUT으로 presigned URL에 파일을 보내고, `xhr.upload.onprogress`로 S3 업로드 진행률을 측정 (`fetch`는 업로드 진행률 이벤트를 지원하지 않아 XHR 사용) |
 | 실패 시 정리 | 서버에서 `cleanup_staging` | 프론트가 `discardPublishJob` 호출 + 서버 cleanup |
 
 
-업로드 작업을 init/commit으로 분리하여, init에서 1회성 presigned URL을 발급받고 그 경로에만 commit 실행 시 파일이 업로드됩니다.
+업로드 작업을 init/commit으로 분리했습니다. init에서 1회성 presigned URL을 발급받고, 브라우저가 S3에 PUT한 뒤 commit으로 검증과 잡의 상태를 바꿉니다.
 또 ContentType, ContentLength가 서명에 포함되어 발급된 URL에는 다른 타입이나 크기로 업로드할 수 없습니다.
 
 # 고생했던 부분
 S3와 SQS 연결 부분은 AI 도구로 쉽게 작성할 수 있어서 문제가 없었지만, CloudWatch의 "누락된 데이터 처리" 설정에서 시간이 걸렸습니다.
-기본 세팅인 무시 설정에서는 아래처럼 진행되었습니다.
+기본 세팅인 무시 설정에서는 아래처럼 진행되어 의도한 대로 프로세스가 동작하지 않았습니다.
 - 메시지 수신: ApproximateNumberOfMessages = 1 → OK 상태
 - 워커가 처리 시작: 메시지 in-flight → 여전히 1 → OK 상태
 - 처리 완료 & 삭제: 메시지 완전히 사라짐 → 데이터 없음
