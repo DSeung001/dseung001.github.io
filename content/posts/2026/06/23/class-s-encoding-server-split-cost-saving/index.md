@@ -35,7 +35,7 @@ aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 7. 인코딩 서버가 동영상 인코딩 작업을 진행하며 SQS 메시지를 in-flight로 변경
 8. 결과물을 다시 S3에 저장
 9. DB 상태를 `completed`로 변경
-10. SQS 메시지가 제거되면 scale-down 알람 발생
+10. visible과 in-flight 메시지가 모두 0이 되면 scale-down 알람 발생
 11. ASG에서 인코딩 서버 제거
 
 위와 같이 인프라 흐름을 구성한다면 많은 컴퓨팅 리소스를 차지하는 인코딩 작업을 별도로 분리해 낼 수 있죠.
@@ -56,7 +56,7 @@ flowchart TB
         A_API["API 서버<br/>저사양 EC2"]
         A_SQS[("SQS<br/>인코딩 큐")]
         A_CW_UP["SQS-ScaleUp-Alarm<br/>Visible >= 1"]
-        A_CW_DOWN["SQS-ScaleDown-Alarm<br/>Messages <= 0"]
+        A_CW_DOWN["SQS-ScaleDown-Alarm<br/>Visible + NotVisible <= 0"]
         A_ASG["ASG<br/>desired capacity 조절"]
         A_WORKER["인코딩 EC2<br/>Python 워커 + ffmpeg"]
         A_S3[("S3")]
@@ -64,7 +64,7 @@ flowchart TB
 
         A_API -->|"SendMessage"| A_SQS
         A_SQS -.->|"ApproximateNumberOfMessagesVisible"| A_CW_UP
-        A_SQS -.->|"ApproximateNumberOfMessages"| A_CW_DOWN
+        A_SQS -.->|"Visible + NotVisible"| A_CW_DOWN
         A_CW_UP -->|"Scale-out"| A_ASG
         A_CW_DOWN -->|"Scale-in"| A_ASG
         A_ASG -->|"인스턴스 추가·제거"| A_WORKER
@@ -85,10 +85,14 @@ flowchart TB
     end
 ```
 CloudWatch 알람 조건
-- SQS-ScaleUp-Alarm: ApproximateNumberOfMessagesVisible >= 1
-- SQS-ScaleDown-Alarm: ApproximateNumberOfMessages <= 0
+- SQS-ScaleUp-Alarm: `ApproximateNumberOfMessagesVisible` >= 1
+- SQS-ScaleDown-Alarm: `TotalMessages`(m1 + m2) <= 0
+  - m1: `ApproximateNumberOfMessagesVisible` (큐 `class-s-publish-prod`, 통계: 평균, 기간: 1분)
+  - m2: `ApproximateNumberOfMessagesNotVisible` (큐 `class-s-publish-prod`, 통계: 평균, 기간: 1분)
+  - 경보를 알릴 데이터 포인트: 2/2
+  - 누락된 데이터 처리: 양호(notBreaching)
 - `ApproximateNumberOfMessagesVisible`: 아직 `ReceiveMessage`로 가져가지 않은 수신 대기 중(visible)인 메시지 수를 보는 SQS CloudWatch 지표
-- `ApproximateNumberOfMessages`: 수신 대기 메시지와 워커가 처리 중인 in-flight 메시지를 합산해 보는 SQS CloudWatch 지표
+- `ApproximateNumberOfMessagesNotVisible`: 워커가 `ReceiveMessage`로 가져간 뒤 아직 `DeleteMessage`하지 않은 in-flight 메시지 수를 보는 SQS CloudWatch 지표
 
 Celery와 SQS 구현을 비교하면 다음과 같습니다.
 
@@ -187,16 +191,17 @@ flowchart TB
 
 # 고생했던 부분
 S3와 SQS 연결 부분은 AI 도구로 쉽게 작성할 수 있어서 문제가 없었지만, CloudWatch의 "누락된 데이터 처리" 설정에서 시간이 걸렸습니다.
+scale-down 알람은 `ApproximateNumberOfMessages` 단일 지표 대신, visible과 in-flight를 각각 보는 수학 표현식 `TotalMessages = m1 + m2`로 메시지가 완전히 종료됐는지 판단합니다.
 기본 세팅인 무시 설정에서는 아래처럼 진행되어 의도한 대로 프로세스가 동작하지 않았습니다.
-- 메시지 수신: ApproximateNumberOfMessages = 1 → OK 상태
-- 워커가 처리 시작: 메시지 in-flight → 여전히 1 → OK 상태
+- 메시지 수신: TotalMessages = 1 → OK 상태
+- 워커가 처리 시작: in-flight로 이동 → 여전히 1 → OK 상태
 - 처리 완료 & 삭제: 메시지 완전히 사라짐 → 데이터 없음
 - "무시" 처리: 데이터가 없어도 상태 변화 없음 → OK 상태 유지
 - 결과: scale-down이 되지 않는 현상 발생
 
-현재는 설정을 "양호"(notBreaching)로 바꿔 의도한 대로 프로세스가 진행됩니다.
-- 메시지 수신: 1 → OK 상태
-- 처리 중: 1 → OK 상태 (안전)
+현재는 누락된 데이터를 "양호"(notBreaching)로 처리하고, 1분 기간의 데이터 포인트 2/2가 연속으로 `TotalMessages <= 0`을 만족할 때 ALARM이 발생합니다.
+- 메시지 수신: TotalMessages = 1 → OK 상태
+- 처리 중: TotalMessages = 1 → OK 상태 (안전)
 - 처리 완료: 데이터 없음 → "양호" = 0으로 처리
 - 0 ≤ 0 조건 만족 → ALARM → scale-down 실행
 
