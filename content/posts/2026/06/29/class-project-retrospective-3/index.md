@@ -108,3 +108,4 @@ GitHub OIDC로 장기 Access Key 없이 IAM Role을 assume하고, EC2는 instanc
 
 # Todo
 - Spot Instance 적용 검토 (중단 시 재시도·멱등 처리 부하 테스트 포함)
+- 인코딩 서버 경량화, 현재 인코딩 서버는 백엔드 이미지를 그대로 사용 중이므로 불필요한 파일들이 같이 포함되어있는데 이 상태랑 GoLang으로 경량화 한걸 비교해봐서 어떻게 다른지 비교하면 재밌을 듯
