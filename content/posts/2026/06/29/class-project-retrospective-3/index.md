@@ -3,7 +3,7 @@ title: "Class Project 3차 회고"
 date: 2026-06-29T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "Retrospective" ]
-draft: true
+draft: false
 description: "Class Project 2차 회고 이후 비용 절감, 인코딩 분리, CI/CD 자동 배포까지 진행한 내용을 정리합니다."
 keywords: [ "Class Project", "회고", "Retrospective", "비용절감", "SQS", "GitHub Actions" ]
 author: "DSeung001"
@@ -26,14 +26,13 @@ lastmod: 2026-06-29T00:00:00+09:00
 마지막으로 도메인 붙여봐야겠군요
 ```
 
-이번 기간 수정의 중심은 인코딩 파이프라인 고도화와 인프라 분리였습니다. <br/>
+이번 기간에 수정의 중심은 인코딩 파이프라인 고도화와 인프라 분리였습니다. <br/>
 2차까지는 단일 EC2 위에서 기능 추가와 ffmpeg 튜닝을 진행했다면, 이번에는 월 비용을 줄이는 데 집중했습니다.
 
 결과적으로 주된 변경 내용은 다음과 같습니다.
 - 인코딩 분기: ffprobe 기반 copy/transcode 분기 적용 ([상세 글](../../19/ffmpeg-codec-processing-strategy))
+- 인코딩 서버 분리: Celery + Redis에서 SQS + CloudWatch + ASG로 전환 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
 - 자동 배포: GitHub Actions + ECR + SSM 파이프라인 적용 ([상세 글](../../26/class-project-github-actions-auto-deploy))
-- 인코딩 서버 분리: Celery + Redis에서 SQS + CloudWatch + ASG로 전환 ([상세 글](../../23/class-s-encoding-server-split-cost-saving)).
-- 도메인 연결, RDS 전환: 학원 내에서만 사용할 것이니 도메인으로 추가 비용을 낼 필요는 없을 것 같고, 아직 데이터 양도 적어 EC2에 DB를 포함해도 문제가 없을 것으로 판단했습니다.
 
 ## 인코딩 분기
 
@@ -56,27 +55,11 @@ flowchart TD
 현재 학원 녹화본은 WebM(VP8 + Opus)이 대부분이라 copy 분기로 빠지는 경우는 없었습니다.<br/>
 그래도 H.264/AAC MP4가 들어오면 처리 시간을 크게 줄일 수 있게 되었습니다. 내부 테스트에서 5분 영상 기준 copy 경로는 transcode 대비 약 164배 빠른 것을 확인할 수 있었습니다.
 
-## 자동 배포
-
-인코딩 서버 분리를 준비하던 중 API 서버 스펙을 줄이려면 EC2에서 `docker compose build`를 없애야 한다는 생각이 들었습니다.
-배포 방식을 아래처럼 바꿨습니다.
-
-| 구분 | Before | After |
-| --- | --- | --- |
-| 트리거 | SSH 접속 후 수동 실행 | `release` 브랜치 push |
-| 이미지 빌드 | EC2 | GitHub Actions |
-| 이미지 저장 | 로컬 Docker 태그 | ECR (git SHA 태그) |
-| EC2 역할 | 빌드 + migrate + restart | pull + migrate + restart |
-| 원격 실행 | SSH | SSM Run Command |
-
-GitHub OIDC로 장기 Access Key 없이 IAM Role을 assume하고, EC2는 instance profile로 ECR pull과 Parameter Store 읽기만 합니다. `release` push 후 약 5분 안에 배포가 완료됩니다.
-
-즉 GitHub에서 이미지를 빌드하고 ECR에 올리면 SSM Run Command가 이미지를 가져와 적용합니다.
-
 ## 인코딩 서버 분리
 
 비용 절감이 가장 시급했습니다.<br/>
-6월 22일 기준 월간 누적 지출이 $43.69, 일일 약 $3 수준이었고 그대로 두면 월 $90 전후가 예상됐습니다.
+6월 22일 기준 월간 누적 지출이 $43.69, 일일 약 $3 수준이었고 그대로 두면 월 $90 전후가 예상됐습니다.<br/>
+그래서 원래는 Spot 인스턴스로 비용도 줄이면서 인코딩 서버를 분리하려 했지만, Spot 인스턴스의 종료 주기가 3~5분으로 짧은데 여기에 세팅 시간도 포함된다는 점과 인코딩할 때만 서버를 키는 것만으로도 비용을 많이 줄일 수 있다는 점을 들어 Spot 인스턴스 사용은 보류했습니다.
 
 인코딩 작업을 분리한다면 API 서버를 `m7i-flex.large`로 유지할 필요가 없을 것이고, 그에 따라 비용이 줄 것으로 예상했습니다.
 이를 위해 인코딩만 별도 ASG의 온디맨드 EC2로 빼고, 큐 깊이에 따라 ASG가 scale-out/scale-in 하도록 구성했습니다.
@@ -94,12 +77,29 @@ CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "
 
 비용 수치는 아직 수집 중입니다.
 
+## 자동 배포
+
+인코딩 서버 분리를 진행하던 중 API 서버 스펙을 줄이려면 EC2에서 `docker compose build`를 없애야 한다는 생각이 들었습니다.
+배포 방식을 아래처럼 바꿨습니다.
+
+| 구분 | Before | After |
+| --- | --- | --- |
+| 트리거 | SSH 접속 후 수동 실행 | `release` 브랜치 push |
+| 이미지 빌드 | EC2 | GitHub Actions |
+| 이미지 저장 | 로컬 Docker 태그 | ECR (git SHA 태그) |
+| EC2 역할 | 빌드 + migrate + restart | pull + migrate + restart |
+| 원격 실행 | SSH | SSM Run Command |
+
+GitHub OIDC로 장기 Access Key 없이 IAM Role을 assume하고, EC2는 instance profile로 ECR pull과 Parameter Store 읽기만 합니다. `release` push 후 약 5분 안에 배포가 완료됩니다.
+
+즉 GitHub에서 이미지를 빌드하고 ECR에 올리면 SSM Run Command가 이미지를 가져와 적용합니다.
+
 ## 그 외
 
 이번 기간에 메인 작업과 함께 손댄 항목들입니다. 각각 별도 글로 쓸 만큼 크지 않아 한곳에 모았습니다.
 
 ### 수정 사항
-- 조회수: 2차 회고에서 추가한 기능이었는데, 집계가 커리큘럼 기준으로 되었습니다, 강좌 기준으로 수정했습니다.
+- 조회수: 2차 회고에서 추가한 기능이었는데, 집계가 커리큘럼 단위로 쌓이고 있어 강좌 단위로 수정했습니다.
 - 로그인 세션 슬라이딩: 세션 만료 방식을 슬라이딩 윈도우로 바꿔 활동 중에는 로그아웃되지 않도록 조정했습니다.
 
 ### 계획 폐기
