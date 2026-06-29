@@ -94,7 +94,7 @@ Celery와 SQS 구현을 비교하면 다음과 같습니다.
 | --- | --- | --- |
 | 큐 | Redis broker (`encode` 큐) | AWS SQS |
 | 등록 | `publish_course_task.apply_async()`로 Redis에 저장 | `enqueue_publish_job()`로 SQS에 등록 |
-| 소비자 | 서버에서 Celery로 실행 | Spot EC2에서 `python -m media.workers`로 실행 |
+| 소비자 | 서버에서 Celery로 실행 | ASG 온디맨드 EC2에서 `python -m media.workers`로 실행 |
 | 재시도 | `max_retries=2`, `self.retry()`로 Celery 설정 | SQS에서 처리 실패 시 메시지를 삭제하지 않고 visibility timeout이 만료되면 큐에 다시 노출되며, `ApproximateReceiveCount`로 수신 횟수를 추적해 상한에 도달하면 DLQ로 이동 |
 | 취소 | `revoke(task_id)`로 큐에서 작업 철회 | 워커가 메시지를 받은 이후 `status`를 확인해 이미 취소된 작업이면 처리를 건너뛰고 `DeleteMessage`로 메시지만 제거 |
 | 실제 로직 | `run_publish_job()` | 동일 (`run_publish_job()`) |
