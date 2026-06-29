@@ -1,13 +1,14 @@
 ---
-title: "Class s 프로젝트에 스팟 인스턴스 적용해서 비용절감하기"
+title: "Class S 프로젝트, 인코딩 서버 분리로 비용 절감하기"
 date: 2026-06-23T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "Spot Instance", "AWS", "비용절감" ]
 draft: false
-description: "Class s 프로젝트에 Spot 인스턴스를 적용해 배포 비용을 줄이는 방안 적용해보기"
-keywords: [ "Class Project", "Spot Instance", "AWS", "EC2", "비용절감" ]
+description: "Class S 프로젝트에서 인코딩 서버를 분리해 배포하는 방법으로 비용 줄이기"
+keywords: [ "Class Project", "Spot Instance", "AWS", "EC2", "인코딩 서버", "비용절감" ]
 author: "DSeung001"
 lastmod: 2026-06-23T00:00:00+09:00
+aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 ---
 
 # 개요
