@@ -75,7 +75,7 @@ flowchart TD
 
 CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "누락된 데이터 처리" 기본값이 무시(ignore)라 큐가 비어도 ALARM 상태가 유지됐습니다. "양호"(notBreaching)로 바꾸면 데이터 없음을 0으로 간주해 scale-down이 실행됩니다. ASG로 인스턴스가 on/off되면서 로그 추적이 어려워져 CloudWatch Logs도 추가했습니다.
 
-비용 수치는 아직 수집 중입니다.
+적용 전 일 $3 수준이었던 비용은 인코딩 서버 분리 이후 약 $1.3 정도로 내려갔습니다, 절반 정도로 줄었습니다.
 
 ## 자동 배포 ([상세 글](../../26/class-project-github-actions-auto-deploy))
 
