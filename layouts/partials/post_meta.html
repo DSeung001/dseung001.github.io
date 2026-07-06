@@ -29,10 +29,4 @@
 {{- delimit . "&nbsp;·&nbsp;" | safeHTML -}}
 {{- end -}}
 
-{{- if and $showPageViews ($page.Param "ShowPageViews" | default site.Params.ShowPageViews | default false) site.Params.seo.goatcounter -}}
-<span id="page-views-wrap-{{ $page.File.UniqueID }}" class="page-views-wrap" hidden>
-{{- if gt (len ($scratch.Get "meta")) 0 }}&nbsp;·&nbsp;{{ end -}}
-<span id="page-views-{{ $page.File.UniqueID }}">조회수 …</span>
-</span>
-{{- partial "page_views.html" $page -}}
-{{- end -}}
+{{- partial "page_views_meta.html" (dict "page" $page "showPageViews" $showPageViews "hasPrefix" (gt (len ($scratch.Get "meta")) 0)) -}}

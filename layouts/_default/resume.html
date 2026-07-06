@@ -1,5 +1,8 @@
 {{- define "main" }}
 <article class="resume-page-shell">
+  <div class="resume-page-views post-meta">
+    {{- partial "page_views_meta.html" . -}}
+  </div>
   {{ .Content }}
 </article>
 {{- end }}

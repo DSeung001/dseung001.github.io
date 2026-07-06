@@ -1,0 +1,16 @@
+{{- $page := . -}}
+{{- $enabled := true -}}
+{{- $hasPrefix := false -}}
+{{- if reflect.IsMap . -}}
+{{- $page = index . "page" -}}
+{{- $enabled = index . "showPageViews" | default true -}}
+{{- $hasPrefix = index . "hasPrefix" | default false -}}
+{{- end -}}
+
+{{- if and $enabled ($page.Param "ShowPageViews" | default site.Params.ShowPageViews | default false) site.Params.seo.goatcounter -}}
+<span id="page-views-wrap-{{ $page.File.UniqueID }}" class="page-views-wrap" hidden>
+{{- if $hasPrefix }}&nbsp;·&nbsp;{{ end -}}
+<span id="page-views-{{ $page.File.UniqueID }}">조회수 …</span>
+</span>
+{{- partial "page_views.html" $page -}}
+{{- end -}}

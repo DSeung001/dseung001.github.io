@@ -4,6 +4,15 @@
     width: 100%;
 }
 
+.resume-page-views {
+    max-width: var(--main-width);
+    margin-inline: auto;
+    padding-block: 0.25rem 0;
+    text-align: right;
+    color: var(--secondary);
+    font-size: 0.875rem;
+}
+
 .resume-page {
     display: flex;
     flex-direction: column;
