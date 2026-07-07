@@ -22,7 +22,7 @@ disableShare: true
     <div class="resume-col">
       <header class="resume-hero">
         <h1 class="resume-hero__title">지승렬 / Product Developer</h1>
-        <p>데이터 수집·처리·저장·운영 경험을 기반으로 동영상 파이프라인 도메인으로 가기 위해 준비 중인 개발자입니다.</p>
+        <p>데이터 수집·처리·저장·운영 경험을 기반으로 동영상 파이프라인 분야로 확장하기 위해 준비 중인 개발자입니다.</p>
         <p>저는 의료기기 데이터 처리, 이미지 처리 최적화, 대규모 이벤트 운영, 이커머스 데이터 수집 파이프라인을 경험했고, 현재는 개인 프로젝트를 통해 영상 업로드, 비동기 인코딩, HLS 변환, S3/CloudFront 배포 구조를 직접 구현하고 있습니다.</p>
         <p>기술 도입이 아닌 현재 상황에 맞는 문제 해결에 힘을 쓰고 싶으며, 제한된 비용과 운영 환경 안에서 안정적으로 동작하는 시스템을 만드는 개발자를 지향합니다.</p>
         <div class="resume-hero__focus">
@@ -66,70 +66,23 @@ disableShare: true
               <span class="resume-project__period">2026.05 - 현재</span>
             </summary>
             <div class="resume-project__body">
-              <p>학원 수강생이 강의 영상을 업로드하고 시청할 수 있는 영상 관리 서비스를 개발하고 있습니다.</p>
-              <p>이 프로젝트는 동영상 도메인으로 커리어를 확장하기 위해 직접 설계하고 구현한 프로젝트입니다. 단순히 영상을 업로드하는 기능이 아니라, 업로드된 영상을 비동기로 처리하고 HLS로 변환한 뒤 S3와 CloudFront를 통해 제공하는 구조입니다.</p>
+              <p>동영상 도메인으로 역량을 확장하기 위해 구현한 프로젝트입니다.</p>
+              <p>단순히 영상을 업로드하는 기능이 아니라, 업로드된 영상을 비동기로 처리하고 HLS로 변환한 뒤 S3와 CloudFront를 통해 제공하는 구조입니다.</p>
               <h4 class="resume-card__subtitle">주요 기능</h4>
               <ul class="resume-list">
                 <li>User: 회원가입 및 로그인 / 업로더 권한 승인</li>
                 <li>Media: 커리큘럼 관리 / 강좌 관리 / 강의 타임라인 관리 / 영상 업로드 / HLS 인코딩 결과 배포</li>
                 <li>Job: 영상 시청 플로우 / 영상 Publish 작업 관리</li>
                 <li>QnA: 자유 QnA / 마크다운 입력 지원 (QnA/댓글)</li>
+                <li>AI: 썸네일 생성 페이지에서 이미지 및 썸네일 생성</li>
               </ul>
-              <h4 class="resume-card__subtitle">기술 구조</h4>
-              <pre class="resume-code">Client → Backend API → S3 Staging Upload → PublishJob 생성 
-→ Celery / Redis 비동기 작업 → FFmpeg HLS 인코딩 → S3 저장
+              <h4 class="resume-card__subtitle">데이터 플로우</h4>
+              <pre class="resume-code">Client → Backend API (init) → Presigned URL
+→ Client S3 Direct PUT → commit → PublishJob → SQS
+→ CloudWatch / ASG 워커 → FFmpeg HLS 인코딩 → S3 저장
 → CloudFront 배포 → Client 재생</pre>
-              <h4 class="resume-card__subtitle">문제 및 개선</h4>
-              <table class="resume-table">
-                <thead>
-                  <tr>
-                    <th scope="col">문제</th>
-                    <th scope="col">원인</th>
-                    <th scope="col">개선</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>영상 업로드 API에서 사용자가 오래 대기</td>
-                    <td>인코딩을 동기 흐름으로 처리</td>
-                    <td>PublishJob 생성 후 Celery 비동기 인코딩으로 분리, 202 응답과 진행률 폴링 UI 적용</td>
-                  </tr>
-                  <tr>
-                    <td>8GB EBS 디스크 부족</td>
-                    <td>Docker 이미지, 캐시, 원본 영상, HLS 산출물이 동시에 디스크 점유</td>
-                    <td>Next.js Standalone 적용, 백엔드/Celery 이미지 통합, Docker 로그 제한으로 약 600MB 절감</td>
-                  </tr>
-                  <tr>
-                    <td>워커 디스크 사용량 증가</td>
-                    <td>staging 영상을 로컬 tmp에 전체 다운로드</td>
-                    <td>Presigned URL 기반으로 FFmpeg가 S3 원본을 HTTP 스트리밍 입력하도록 변경</td>
-                  </tr>
-                  <tr>
-                    <td>완료된 Job 재실행</td>
-                    <td>Redis visibility_timeout, prefetch 설정 문제</td>
-                    <td>visibility_timeout 4시간, prefetch 1로 조정, 완료 Job 재실행 방지</td>
-                  </tr>
-                  <tr>
-                    <td>긴 영상 인코딩 중 작업 중단</td>
-                    <td>task_time_limit 2시간 제한</td>
-                    <td>task_time_limit 4시간으로 확대</td>
-                  </tr>
-                  <tr>
-                    <td>WebM/VFR 영상 인코딩 지연</td>
-                    <td>왜곡된 FPS 메타데이터</td>
-                    <td>FFmpeg 출력 FPS를 CFR 30으로 고정</td>
-                  </tr>
-                  <tr>
-                    <td>품질·용량·트래픽 비용 균형 필요</td>
-                    <td>원본 영상별 용량과 품질 편차</td>
-                    <td>CRF 24, maxrate 3M, bufsize 6M 적용</td>
-                  </tr>
-                </tbody>
-              </table>
-              <h4 class="resume-card__subtitle">회고</h4>
               <ul class="resume-list">
-                <li><a href="https://dseung001.github.io/posts/2026/06/09/class-project-retrospective-1/">강의 영상 관리 프로젝트 회고 1</a></li>
-                <li><a href="https://dseung001.github.io/posts/2026/06/17/class-project-retrospective-2/">강의 영상 관리 프로젝트 회고 2</a></li>
+                <li><a href="https://dseung001.github.io/tags/class-project/">관련 글</a></li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
               <div class="resume-tags">
@@ -158,8 +111,8 @@ disableShare: true
               <ul class="resume-list">
                 <li>신규 의료기기 추가 시 통신 방식 정의 및 연동 구조 설계</li>
                 <li>의료기기 데이터 특성에 따라 파일 시스템 처리와 DB 저장 방식을 분리</li>
-                <li>의료 데이터 로컬 캐싱 기능 추가로 장비 통신 시 DB 커넥션 접근이 100%에서 78%로 감소</li>
-                <li>이미지 처리에 병렬 처리 기능 도입으로 프로세스 처리 시간 11초에서 4초로 단축</li>
+                <li>의료 데이터 로컬 캐싱 기능 추가로 장비 통신 시 DB 커넥션 사용률이 100%에서 78%로 감소</li>
+                <li>이미지 처리에 병렬 처리를 도입해 처리 시간을 11초에서 4초로 단축</li>
                 <li>신규 진료 및 장비 추가 시 백엔드 로직과 프론트엔드 화면까지 연결</li>
                 <li>도메인 단위 책임 분리와 점진적 리팩토링 수행</li>
                 <li>로깅 시스템 교체, 에러 핸들링 점검, 단위 테스트 추가</li>
@@ -185,7 +138,7 @@ disableShare: true
               <p>대량의 상품 데이터를 제한된 요청 수와 비용 안에서 수집하기 위해 요청 수 최적화, 스케줄링, 프록시 네트워크 활용 방식을 설계했습니다.</p>
               <h4 class="resume-card__subtitle">주요 성과</h4>
               <ul class="resume-list">
-                <li>프록시 네트워크, 요청 수 최적화, 스케줄링 기반 수집 구조를 설계</li>
+                <li>프록시 네트워크, 요청 수 최적화, 스케줄링 기반 수집 구조 설계</li>
                 <li>Amazon 상품 데이터 약 100만 건 수집</li>
                 <li>약 17K requests, 약 50달러 수준으로 수집 비용 최적화</li>
                 <li>Shopee 상품 데이터 약 20~28만 건 수집</li>
@@ -210,7 +163,7 @@ disableShare: true
             </summary>
             <div class="resume-project__body">
               <p>이벤트성 웹 서비스와 기업 웹사이트의 개발, 배포, 운영, 유지보수를 담당했습니다.</p>
-              <p>짧은 기간에 트래픽이 집중되는 이벤트 서비스 특성상 기능 구현뿐 아니라 운영 안정성, 장애 대응, CS 대응까지 고려하며 개발했습니다.</p>
+              <p>짧은 기간에 트래픽이 집중되는 이벤트 서비스 특성상 기능 구현뿐만 아니라 운영 안정성, 장애 대응, CS 대응까지 고려하며 개발했습니다.</p>
               <h4 class="resume-card__subtitle">주요 성과</h4>
               <ul class="resume-list">
                 <li>분기별 이벤트성 웹 서비스 개발 및 운영</li>
