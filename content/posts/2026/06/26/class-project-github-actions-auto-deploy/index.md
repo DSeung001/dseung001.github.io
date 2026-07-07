@@ -1,5 +1,5 @@
 ---
-title: "Class s 프로젝트 GitHub Actions 자동 배포"
+title: "Class Project GitHub Actions 자동 배포"
 date: 2026-06-26T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "GitHub Actions", "CI/CD", "배포" ]

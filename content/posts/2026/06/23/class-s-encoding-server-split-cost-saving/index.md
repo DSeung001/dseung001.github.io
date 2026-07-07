@@ -1,5 +1,5 @@
 ---
-title: "Class S 프로젝트, 인코딩 서버 분리로 비용 절감하기"
+title: "Class Project 인코딩 서버 분리로 비용 절감하기"
 date: 2026-06-23T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "ASG", "AWS", "SQS", "비용절감" ]
