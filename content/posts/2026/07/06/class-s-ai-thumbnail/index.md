@@ -216,6 +216,10 @@ def generate_thumbnail_image(*, api_key, prompt, model, full_canvas,
     return raw
 ```
 
+이제 다음 이미지처럼 어느정도 바탕이 투명하게 나옵니다.
+![result image](./result_image.webp)
+하지만 아직도 초록색 경계선이 살짝 보여 아쉽군요.
+
 ## 프로바이더
 이미지 생성에 사용되는 모델은 앞으로 확장될 수 있어 프로바이더 패턴을 사용했습니다. 모델마다 API 키를 다루는 방식과 호출 방식이 제각각이기 때문입니다.
 > Provider 패턴 = Strategy(전략) + Registry(레지스트리)/Factory
