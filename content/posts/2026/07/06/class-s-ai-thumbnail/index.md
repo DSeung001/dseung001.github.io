@@ -216,10 +216,6 @@ def generate_thumbnail_image(*, api_key, prompt, model, full_canvas,
     return raw
 ```
 
-이제 다음 이미지처럼 어느정도 바탕이 투명하게 나옵니다.
-![result image](./result_image.webp)
-하지만 아직도 초록색 경계선이 살짝 보여 아쉽군요.
-
 ## 프로바이더
 이미지 생성에 사용되는 모델은 앞으로 확장될 수 있어 프로바이더 패턴을 사용했습니다. 모델마다 API 키를 다루는 방식과 호출 방식이 제각각이기 때문입니다.
 > Provider 패턴 = Strategy(전략) + Registry(레지스트리)/Factory
@@ -317,8 +313,10 @@ def remove_chroma_background(data, *, tolerance=15, softness=25, feather=1, ...)
     return buffer.getvalue()
 ```
 위 로직은 카툰과 대부분의 사진에서 정상적으로 동작합니다.
-하지만 가끔씩 배경에 초록색 그라데이션을 사용하는 경우 약간의 그라데이션이 남는 문제가 발생합니다.
-이 부분의 해결책은 생각 중입니다. tolerance 값과 softness를 높이면 어느 정도 사라지겠지만, 이게 근본적인 해결책으로는 보이지 않기 때문에 고민이 됩니다.
+하지만 다음 이미지처럼 털 묘사가 있는 경우 초록색을 완전히 잡아내지 못하는 걸 볼 수 있죠.
+![result image](./result_image.webp)
+
+이 부분의 해결책은 탐구 중입니다. tolerance 값과 softness를 높이면 어느 정도 사라지겠지만, 이게 근본적인 해결책으로는 보이지 않기 때문에 고민이 됩니다.
 
 
 ## 썸네일 파일 문제
