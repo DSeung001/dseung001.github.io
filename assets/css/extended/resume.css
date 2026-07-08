@@ -4,13 +4,45 @@
     width: 100%;
 }
 
-.resume-page-views {
+.resume-page-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
     max-width: var(--main-width);
     margin-inline: auto;
     padding-block: 0.25rem 0;
+}
+
+.resume-page-views {
     text-align: right;
     color: var(--secondary);
     font-size: 0.875rem;
+}
+
+.resume-print-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.875rem;
+    line-height: 1;
+    color: var(--primary);
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.resume-print-btn:hover {
+    background: var(--code-bg);
+    border-color: var(--secondary);
+}
+
+.resume-print-btn svg {
+    width: 1rem;
+    height: 1rem;
 }
 
 .resume-page {
@@ -587,5 +619,63 @@ body.dark .resume-meta a {
     .resume-focus-item {
         grid-template-columns: 1fr;
         gap: 0.2rem;
+    }
+}
+
+/* Print: keep on-screen styling, expand all project accordions */
+@page {
+    size: A4 portrait;
+    margin: 12mm;
+}
+
+@media print {
+    .resume-page-topbar {
+        display: none !important;
+    }
+
+    .resume-page,
+    .resume-page * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .resume-page {
+        font-size: 12px;
+    }
+
+    /* Keep desktop multi-column layout in print (override 768px stacking) */
+    .resume-row--3 {
+        grid-template-columns: 3fr 2fr 3fr !important;
+    }
+
+    .resume-row--2:not(.resume-row--2-nostack) {
+        grid-template-columns: var(--resume-cols, 1fr 1fr) !important;
+    }
+
+    .resume-focus-item {
+        grid-template-columns: minmax(9rem, 11rem) 1fr !important;
+    }
+
+    .resume-project__summary {
+        flex-wrap: nowrap !important;
+    }
+
+    .resume-project__period {
+        flex-basis: auto !important;
+        padding-left: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .resume-project__body {
+        display: block !important;
+    }
+
+    .resume-project {
+        background: var(--entry) !important;
+    }
+
+    .resume-project__summary::before {
+        transform: rotate(45deg) !important;
+        margin-top: -0.15rem;
     }
 }

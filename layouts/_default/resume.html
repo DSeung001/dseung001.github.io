@@ -1,8 +1,28 @@
 {{- define "main" }}
 <article class="resume-page-shell">
-  <div class="resume-page-views post-meta">
-    {{- partial "page_views_meta.html" . -}}
+  <div class="resume-page-topbar">
+    <div class="resume-page-views post-meta">
+      {{- partial "page_views_meta.html" . -}}
+    </div>
+    <button type="button" class="resume-print-btn" onclick="window.print()" aria-label="인쇄">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <span>인쇄</span>
+    </button>
   </div>
   {{ .Content }}
+  <script>
+  (function () {
+    var items = document.querySelectorAll('.resume-project');
+    var saved = [];
+    function expand() { saved = []; items.forEach(function (d) { saved.push(d.open); d.open = true; }); }
+    function restore() { items.forEach(function (d, i) { d.open = saved[i]; }); }
+    window.addEventListener('beforeprint', expand);
+    window.addEventListener('afterprint', restore);
+    if (window.matchMedia) {
+      var mq = window.matchMedia('print');
+      mq.addEventListener('change', function (e) { e.matches ? expand() : restore(); });
+    }
+  })();
+  </script>
 </article>
 {{- end }}
