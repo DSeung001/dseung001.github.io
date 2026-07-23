@@ -376,6 +376,38 @@ body.dark .resume-project__body a {
     letter-spacing: 0.03em;
 }
 
+/* Achievement highlights */
+.resume-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.resume-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--theme);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.resume-stat__value {
+    font-size: inherit;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1.3;
+}
+
+.resume-stat__label {
+    color: var(--secondary);
+    line-height: 1.4;
+}
+
 .resume-code {
     margin: 0.5rem 0 0;
     padding: 0.65rem 0.85rem;
@@ -620,6 +652,10 @@ body.dark .resume-meta a {
         grid-template-columns: 1fr;
         gap: 0.2rem;
     }
+
+    .resume-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* Print: keep on-screen styling, expand all project accordions */
@@ -677,5 +713,17 @@ body.dark .resume-meta a {
     .resume-project__summary::before {
         transform: rotate(45deg) !important;
         margin-top: -0.15rem;
+    }
+
+    .resume-stats {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    .resume-block,
+    .resume-project,
+    .resume-card,
+    .resume-stat {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }

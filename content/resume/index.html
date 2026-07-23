@@ -22,18 +22,18 @@ disableShare: true
     <div class="resume-col">
       <header class="resume-hero">
         <h1 class="resume-hero__title">지승렬 / Product Developer</h1>
-        <p>데이터 수집·처리·저장·운영 경험을 기반으로 동영상 파이프라인 분야로 확장하기 위해 준비 중인 개발자입니다.</p>
+        <p>데이터 수집, 처리, 저장, 운영 경험을 기반으로 동영상 파이프라인 분야로 확장하기 위해 준비 중인 개발자입니다.</p>
         <p>저는 의료기기 데이터 처리, 이미지 처리 최적화, 대규모 이벤트 운영, 이커머스 데이터 수집 파이프라인을 경험했고, 현재는 개인 프로젝트를 통해 영상 업로드, 비동기 인코딩, HLS 변환, S3/CloudFront 배포 구조를 직접 구현하고 있습니다.</p>
         <p>기술 도입이 아닌 현재 상황에 맞는 문제 해결에 힘을 쓰고 싶으며, 제한된 비용과 운영 환경 안에서 안정적으로 동작하는 시스템을 만드는 개발자를 지향합니다.</p>
         <div class="resume-hero__focus">
           <ul class="resume-focus-list">
             <li class="resume-focus-item">
               <span class="resume-focus-item__name">Video Processing</span>
-              <span class="resume-focus-item__detail">강의 영상 서비스에서 FFmpeg HLS 인코딩 파이프라인과 품질·용량 튜닝을 직접 구현</span>
+              <span class="resume-focus-item__detail">강의 영상 서비스에서 FFmpeg HLS 인코딩 파이프라인과 품질 및 용량 튜닝을 직접 구현</span>
             </li>
             <li class="resume-focus-item">
               <span class="resume-focus-item__name">Backend API</span>
-              <span class="resume-focus-item__detail">Django·Go 기반 API 설계와 PublishJob, 의료기기 연동 등 도메인 API 개발 경험</span>
+              <span class="resume-focus-item__detail">Django와 Go 기반 API 설계와 PublishJob, 의료기기 연동 등 도메인 API 개발 경험</span>
             </li>
             <li class="resume-focus-item">
               <span class="resume-focus-item__name">Async Job Processing</span>
@@ -41,7 +41,7 @@ disableShare: true
             </li>
             <li class="resume-focus-item">
               <span class="resume-focus-item__name">Storage / CDN Delivery</span>
-              <span class="resume-focus-item__detail">S3 업로드·저장과 CloudFront 배포 구조를 설계하고 운영</span>
+              <span class="resume-focus-item__detail">S3 업로드와 저장, CloudFront 배포 구조를 설계하고 운영</span>
             </li>
             <li class="resume-focus-item">
               <span class="resume-focus-item__name">Operation Stability</span>
@@ -53,7 +53,34 @@ disableShare: true
     </div>
   </div>
 
-  <!-- Row 2: Projects (accordion) -->
+  <!-- Row 2: 주요 성과 -->
+  <div class="resume-row resume-row--1">
+    <div class="resume-col">
+      <section class="resume-block">
+        <h2 class="resume-block__title">주요 성과</h2>
+        <ul class="resume-stats">
+          <li class="resume-stat">
+            <span class="resume-stat__value">11초 → 4초</span>
+            <span class="resume-stat__label">Go 동시성으로 의료 이미지 처리 병렬화</span>
+          </li>
+          <li class="resume-stat">
+            <span class="resume-stat__value">DB 접근 22% 절감</span>
+            <span class="resume-stat__label">의료기기 통신에 로컬 캐싱 도입</span>
+          </li>
+          <li class="resume-stat">
+            <span class="resume-stat__value">DAU 10만</span>
+            <span class="resume-stat__label">대규모 이벤트 서비스 운영과 실시간 장애 대응</span>
+          </li>
+          <li class="resume-stat">
+            <span class="resume-stat__value">100만 건 수집</span>
+            <span class="resume-stat__label">Amazon 상품 데이터, 약 17K requests / 50달러</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <!-- Row 3: Projects (accordion) -->
   <div class="resume-row resume-row--1">
     <div class="resume-col">
       <section class="resume-block">
@@ -110,12 +137,9 @@ disableShare: true
               <h4 class="resume-card__subtitle">주요 성과</h4>
               <ul class="resume-list">
                 <li>신규 의료기기 추가 시 통신 방식 정의 및 연동 구조 설계</li>
-                <li>의료기기 데이터 특성에 따라 파일 시스템 처리와 DB 저장 방식을 분리</li>
-                <li>의료 데이터 로컬 캐싱 기능 추가로 장비 통신 시 DB 커넥션 사용률이 100%에서 78%로 감소</li>
+                <li>의료 데이터 로컬 캐싱 도입으로 장비 통신 시 DB 커넥션 사용률을 100%에서 78%로 감소</li>
                 <li>이미지 처리에 병렬 처리를 도입해 처리 시간을 11초에서 4초로 단축</li>
-                <li>신규 진료 및 장비 추가 시 백엔드 로직과 프론트엔드 화면까지 연결</li>
-                <li>도메인 단위 책임 분리와 점진적 리팩토링 수행</li>
-                <li>로깅 시스템 교체, 에러 핸들링 점검, 단위 테스트 추가</li>
+                <li>도메인 단위 책임 분리와 점진적 리팩토링을 수행하고 로깅, 에러 처리, 단위 테스트를 개선</li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
               <div class="resume-tags">
@@ -139,10 +163,8 @@ disableShare: true
               <h4 class="resume-card__subtitle">주요 성과</h4>
               <ul class="resume-list">
                 <li>프록시 네트워크, 요청 수 최적화, 스케줄링 기반 수집 구조 설계</li>
-                <li>Amazon 상품 데이터 약 100만 건 수집</li>
-                <li>약 17K requests, 약 50달러 수준으로 수집 비용 최적화</li>
-                <li>Shopee 상품 데이터 약 20~28만 건 수집</li>
-                <li>약 6K requests, 약 18달러 수준으로 수집 비용 최적화</li>
+                <li>Amazon 상품 데이터 약 100만 건 수집 (약 17K requests, 약 50달러)</li>
+                <li>Shopee 상품 데이터 약 20~28만 건 수집 (약 6K requests, 약 18달러)</li>
                 <li>Windows 환경에서 스케줄러 기반 정기 수집 작업 구성</li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
@@ -166,12 +188,9 @@ disableShare: true
               <p>짧은 기간에 트래픽이 집중되는 이벤트 서비스 특성상 기능 구현뿐만 아니라 운영 안정성, 장애 대응, CS 대응까지 고려하며 개발했습니다.</p>
               <h4 class="resume-card__subtitle">주요 성과</h4>
               <ul class="resume-list">
-                <li>분기별 이벤트성 웹 서비스 개발 및 운영</li>
-                <li>개발, 배포, 모니터링, CS 대응까지 서비스 전체 생애주기 담당</li>
                 <li>추첨, 포인트, 코드 입력 등 DAU 10만 규모 이벤트 기능 구현</li>
                 <li>Redis Queue를 활용한 상품 중복 당첨 방지 및 이벤트 처리 안정화</li>
-                <li>Swagger 기반 API 문서화</li>
-                <li>AWS EC2, S3, CloudWatch 기반 배포 및 모니터링</li>
+                <li>개발, 배포, 모니터링, CS 대응까지 서비스 전체 생애주기 담당</li>
                 <li>맥도날드 공식 홈페이지, 삼성, 포스코 뉴스룸, 가나아트 등 기업 웹 서비스 유지보수 및 기능 개선</li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
@@ -196,7 +215,7 @@ disableShare: true
     </div>
   </div>
 
-  <!-- Row 3: 경력 | 자격증 | 기타 -->
+  <!-- Row 4: 경력 | 자격증 | 기타 -->
   <div class="resume-row resume-row--3">
     <div class="resume-col">
       <section class="resume-block">
