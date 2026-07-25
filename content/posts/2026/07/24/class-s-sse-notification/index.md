@@ -3,7 +3,7 @@ title: "Class Project 공지 기능 만들기"
 date: 2026-07-24T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "SSE", "gevent", "알림", "공지" ]
-draft: true
+draft: false
 description: "Class S 공지 기능 만들며 배운 점 정리"
 keywords: [ "Class Project", "SSE", "gevent", "알림", "공지", "Redis" ]
 author: "DSeung001"
