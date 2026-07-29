@@ -11,7 +11,7 @@ lastmod: 2026-07-28T00:00:00+09:00
 ---
 
 # 개요
-이 글의 목표는 GoLang의 채널을 단순히 사용하는 게 아닌, 채널의 내부 구현을 파보면서 왜 동작할 수 있게 된지 이해 해본 뒤 이를 구현해봅시다.
+이 글의 목표는 GoLang의 채널을 단순히 사용하는 게 아닌, 채널의 내부 구현을 파보면서 왜 동작할 수 있게 됐는지 이해해 본 뒤 이를 구현해 봅시다.
 
 # Go Chan
 
@@ -40,7 +40,7 @@ Go는 2가지 모델을 지원해서 보다 편리한 메모리 관리가 가능
 # buffered/unbuffered 채널
 
 `map`과 마찬가지로 `make`로 만들며 반환값은 원시 자료구조를 가리키는 참조처럼 동작합니다. <br/>
-이때 버퍼 크기를 주는 걸로 `unbuffered`와 `buffered`을 구분해서 채널을 생성할 수 있습니다.
+이때 버퍼 크기를 주는 걸로 `unbuffered`와 `buffered`를 구분해서 채널을 생성할 수 있습니다.
 
 ```go
 ci := make(chan int)            // unbuffered channel of integers
@@ -53,7 +53,7 @@ unbuffered 채널은 값 교환(communication)과 동기화(synchronization)를 
 - 채널이 비어 있으면 receiver는 받을 데이터가 생길 때까지 block합니다. (buffered도 동일)
 - unbuffered이면 sender는 receiver가 값을 받을 때까지 block합니다.
 
-그래서 예시처럼 버퍼 없이 사용해 백그라운드 작업의 처리 완료를 표현 할 수 있습니다.
+그래서 예시처럼 버퍼 없이 사용해 백그라운드 작업의 처리 완료를 표현할 수 있습니다.
 ```go
 c := make(chan int)  // Allocate a channel.
 // Start the sort in a goroutine; when it completes, signal on the channel.
@@ -99,7 +99,7 @@ func Serve(queue chan *Request) {
 }
 ```
 
-# Channel 내부구조
+# Channel 내부 구조
 
 채널의 코드를 다음 구조체로 큰 골조를 파악해 볼 수 있습니다.
 ※ `hchan`인 이유는 Go 런타임 관례로 `h`가 `header`를 의미하기 때문이며, 이를 통해 채널 구조의 전체적인 흐름을 파악할 수 있습니다.
@@ -174,7 +174,7 @@ func makechan(t *chantype, size int) *hchan {
 }
 ```
 
-할당 직후 `qcount`/`sendx`/`recvx`/`closed`는 0이되고 `dataqsiz`만 `n`으로 고정됩니다.<br/>
+할당 직후 `qcount`/`sendx`/`recvx`/`closed`는 0이 되고 `dataqsiz`만 `n`으로 고정됩니다.<br/>
 이후 `send`/`recv`는 이 헤더의 인덱스와 버퍼 칸만 바꿉니다.
 
 ## 채널 메모리
@@ -212,11 +212,11 @@ recv: 99
 
 ## 메시지 송신 (`chansend`)
 
-`c <- v`는 런타임에서 `chansend`로 들어가며, `lock`을 잡은 뒤 3가지 동작 중에 하나를 진행합니다.
+`c <- v`는 런타임에서 `chansend`로 들어가며, `lock`을 잡은 뒤 3가지 동작 중 하나를 진행합니다.
 
 1. `recvq`에 대기 receiver가 있으면 버퍼를 거치지 않고 바로 복사(`send` → `sendDirect`)한 뒤 `goready`로 깨웁니다.
 2. 버퍼에 빈 칸이 있으면 `buf[sendx]`에 넣고 `sendx`/`qcount`를 갱신합니다.
-3. 둘 다 아니면 버퍼가 가득찼거나 버퍼가 없는 경우로 `sudog`를 `sendq`에 넣고 `gopark`로 잠듭니다.
+3. 둘 다 아니면 버퍼가 가득 찼거나 버퍼가 없는 경우로 `sudog`를 `sendq`에 넣고 `gopark`로 잠듭니다.
 
 ```mermaid
 flowchart LR
@@ -353,11 +353,45 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 # GMP
 
-GMP는 Go 런타임 스케줄러가 고루틴을 "논리적으로 준비(대기)" 상태에서 "실행 가능" 상태로 바꾸고, 결국 OS 스레드에서 실제 코드 실행까지 연결하기 위한 핵심 모델입니다.
+GMP는 Go 런타임이 고루틴을 실행 가능 상태로 두고, P와 M을 통해 실제로 실행하는 스케줄러입니다.<br/>
+채널은 sudog를 통해 대기 중인 고루틴(g)을 붙잡아 두었다가 goready로 깨우므로 GMP와 맞닿아 있습니다.
 
-- `G`: 고루틴 런타임 객체로, 스택과 실행 상태를 담습니다.
-- `P`: `Go` 코드를 실행하기 위한 논리적 실행 자원으로, 로컬 `run queue`를 가집니다.
-- `M`: OS 스레드를 대표하며, `P`를 가진 상태에서 실제로 명령을 실행합니다.
+`GMP`는 Go 런타임이 고루틴(`G`)을 논리 프로세서(`P`)의 실행 큐에 올려 두고, OS 스레드(`M`)가 그 `P`를 붙잡은 뒤 실제로 실행하는 스케줄링 메커니즘입니다.
+
+![gmp](./gmp.webp)
+
+- `G` (Goroutine): 고루틴 런타임 객체로, 스택과 실행 상태를 담습니다.
+- `P` (Processor): Go 코드를 실행하기 위한 논리적 실행 자원으로, 각각의 P마다 로컬 run queue를 가집니다.
+- `M` (Machine): OS 스레드를 대표하며, `P`를 가진 상태에서 실제로 명령을 실행합니다.
+
+<b> 주의 </b>
+
+※ `P`는 OS 프로세스가 아니며 Processor, 즉 Go 런타임 안의 논리 프로세서입니다.<br/>
+※ `M`은 물리 머신이 아니고 Machine이라는 이름일 뿐, 실제로는 OS 스레드를 가리킵니다.
+
+## LRQ와 GRQ
+
+고루틴은 바로 CPU에서 실행되지 않으며 내부 큐로 인해 순서가 배정됩니다.
+
+- `LRQ` (Local Run Queue): 각 `P`가 가진 로컬 실행 큐입니다. 그 `P`에서 만든 고루틴이나 최근에 돌던 고루틴이 주로 여기 들어갑니다.
+- `GRQ` (Global Run Queue): 모든 `P`가 공유하는 전역 실행 큐입니다. 로컬 큐가 가득 찼거나, 특정 `P`에 묶기 애매한 실행 가능 고루틴이 여기로 갑니다.
+
+실행 흐름은 대략 이렇습니다.
+
+```mermaid
+flowchart TD
+    start["M이 P를 붙잡음"] --> lrq{"자기 LRQ에 G가 있나?"}
+    lrq -->|있음| run["G 실행"]
+    lrq -->|없음| grq{"GRQ에 G가 있나?"}
+    grq -->|있음| run
+    grq -->|없음| steal["다른 P의 LRQ에서 훔침<br/>work stealing"]
+    steal --> run
+    park["채널에서 gopark로 잠든 G"] -->|goready로 깨어남| enqueue["LRQ 또는 GRQ에 재등록"]
+    enqueue --> lrq
+```
+
+`M`이 `P`를 붙잡고 난 뒤 먼저 자기 `LRQ`에서 `G`를 꺼내려 시도하고 만약 비어 있다면 `GRQ`에서 가져옵니다.<br/>
+그래도 없으면 다른 `P`의 `LRQ`에서 가져옵니다. 채널에서 잠들었다가 깨어난 고루틴도 결국 이 큐 중 하나로 다시 들어가 실행 가능해지도록 하는 거죠.
 
 # 직접 만들기
 ## 목표 범위
