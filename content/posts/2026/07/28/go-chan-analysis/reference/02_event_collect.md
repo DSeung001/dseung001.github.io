@@ -240,7 +240,19 @@ non-blocking 실패(`return false`)와 `send on closed channel` panic 경로는 
 
 
 ## 후기
-gmp관계를 코드랑 합쳐서 설명하는게 필요할듯
-chansend/chanrecv에 다양하 이벤트를 기록했는데 
-블로그에서 분석한걸 토대로 합치는 작업이 필요해 보임
-지금은 채널이 사용된거에 대해 로그를 남기는 코드를 연결했음 
+
+지금은 채널이 사용된 시점에 로그를 남기는 코드를 `chansend` / `chanrecv` / `closechan`에 연결한 상태다. create / send / recv / close가 같은 `chanID`로 ring에 쌓이는 골격은 갖춰졌다.
+
+다만 dump만 보면 "send 했다 / recv 했다" 수준이라, 블로그에서 나눈 3갈래와 바로 안 맞는다.
+
+보강할 것:
+1. 경로 구분: 직통(sendDirect/recv) / 버퍼 enqueue/dequeue / park 후 wake를 kind 또는 path 필드로 나누기
+2. GMP 연결: park 직전과 wake 직후를 같은 `goid`+`chanID` 타임라인으로 남기고, `blockedNS`(03)로 대기 시간을 채우기. LRQ/GRQ까지 안 가도 "이 G가 이 채널에서 막혔다가 깨어남"은 설명 가능
+3. dump를 실제로 보게 하기: `chantraceDump` 종료 훅 또는 수동 호출. 검증 시에는 `GOCHANTRACE=on`으로 sample 누락을 피하기
+4. 의도적으로 안 찍는 경로 메모: non-blocking 실패, `send on closed channel` panic, lock 없는 closed empty fast path
+5. 시나리오 3개로 dump 해석을 블로그와 짝짓기
+   - unbuffered: G1 send park → G2 recv → 양쪽 완료 이벤트
+   - buffered: send로 `qcount` 증가 → recv로 감소
+   - close: close 이벤트 후 대기 recv wake
+
+훅을 더 늘리기보다, 이미 찍힌 이벤트를 블로그 분석(직통 / 버퍼 / wake)과 GMP 대기에 읽어 붙이는 작업이 다음이다.
