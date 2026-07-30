@@ -402,6 +402,16 @@ flowchart TD
 `M`이 `P`를 붙잡고 난 뒤 먼저 자기 `LRQ`에서 `G`를 꺼내려 시도하고 만약 비어 있다면 `GRQ`에서 가져옵니다.<br/>
 그래도 없으면 다른 `P`의 `LRQ`에서 가져옵니다. 채널에서 잠들었다가 깨어난 고루틴도 결국 이 큐 중 하나로 다시 들어가 실행 가능해지도록 하는 거죠.
 
-# 직접 만들기
-## 목표 범위
-## 구현과 검증
+# Go 런타임 커스텀
+실제 Go 소스의 `runtime/chan.go` 쪽에 훅을 넣어 런타임이 채널을 어떻게 다루는지 관측합니다.
+Go 런타임을 뜯어보면서 다음 로직을 적용해 봅시다.
+1. 모든 channel에 ID 부여
+2. send / recv / close 이벤트 수집
+3. blocking time 측정
+4. 채널 buffer 사용률 측정
+5. goroutine-channel 관계 그래프 생성
+6. deadlock 발생 시 wait graph 출력
+7. 일반 Go와 커스텀 Go benchmark 비교
+
+언어단에서 채널을 따라 만들면 버퍼 큐에 가깝고 GMP나 이런 것에 밀접하게 맞닿아 있지 못해 재미가 없더군요.
+그래서 커스텀 Go면 `makechan`/`chansend`/`chanrecv`/`closechan`과 `sudog`를 직접 만져볼 수 있으니 이걸 해보도록 합니다.
