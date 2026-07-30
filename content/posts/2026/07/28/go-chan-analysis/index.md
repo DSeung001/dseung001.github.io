@@ -1,17 +1,20 @@
 ---
-title: "Go Chan 분석"
+title: "Go Chan 까뒤집어보기"
 date: 2026-07-28T00:00:00+09:00
 categories: [ "Golang" ]
 tags: [ "Go", "Channel", "Chan", "동시성" ]
 draft: true
-description: "Go Chan 분석해서 이해하고 구현해보기"
+description: "Channel에 대해 분석해보고, Go 1.26 버전의 runtime 부분을 커스텀하기"
 keywords: [ "Golang", "Channel", "Chan", "동시성", "goroutine" ]
 author: "DSeung001"
-lastmod: 2026-07-28T00:00:00+09:00
+lastmod: 2026-07-30T00:00:00+09:00
 ---
 
 # 개요
 이 글의 목표는 GoLang의 채널을 단순히 사용하는 게 아닌, 채널의 내부 구현을 파보면서 왜 동작할 수 있게 됐는지 이해해 본 뒤 이를 구현해 봅시다.
+
+런타임 코드 인용 기준은 `go1.26.5`의 `src/runtime/chan.go`입니다. <br/>
+`send`/`recv`의 큰 흐름은 이전 버전과 같되, `hch2an`에 `timer` 채널과 `synctest`용 필드가 추가된 점만 구분해서 보면 됩니다.
 
 # Go Chan
 
@@ -105,18 +108,20 @@ func Serve(queue chan *Request) {
 ※ `hchan`인 이유는 Go 런타임 관례로 `h`가 `header`를 의미하기 때문이며, 이를 통해 채널 구조의 전체적인 흐름을 파악할 수 있습니다.
 ```go
 // 채널 생성 시 실질적으로 참고하는 구조체
-// 실제 채널 구현 구조체
+// 실제 채널 구현 구조체 (go1.26.5)
 type hchan struct {
 	qcount   uint           // 버퍼에 들어 있는 원소 수
 	dataqsiz uint           // 버퍼 용량 (0이면 unbuffered)
 	buf      unsafe.Pointer // 원형 큐
 	elemsize uint16         // 원소의 바이트 크기
 	closed   uint32         // 닫힘 여부
+	timer    *timer         // time.Ticker/After 등이 이 채널에 연결될 때
 	elemtype *_type         // 원소 타입 정보
 	sendx    uint           // 다음에 쓸 칸의 인덱스
 	recvx    uint           // 다음에 읽을 칸의 인덱스
 	recvq    waitq          // 수신 대기 고루틴 큐
 	sendq    waitq          // 송신 대기 고루틴 큐
+	bubble   *synctestBubble // testing/synctest 버블(격리된 공간)일 때
 	lock     mutex
 }
 // 고루틴 대기 큐
@@ -133,8 +138,8 @@ type sudog struct {
 	next *sudog
 	prev *sudog
 
-	elem unsafe.Pointer // 송수신 데이터의 메모리 위치
-	c    *hchan         // 현재 sudog가 대기 중인 채널
+	elem unsafe.Pointer // 송수신 데이터의 메모리 위치 (실제 타입은 maybeTraceablePtr)
+	c    *hchan         // 현재 sudog가 대기 중인 채널 (실제 타입은 maybeTraceableChan)
 }
 ```
 
@@ -169,12 +174,16 @@ func makechan(t *chantype, size int) *hchan {
 	c.elemsize = uint16(elem.Size_)
 	c.elemtype = elem
 	c.dataqsiz = uint(size)
+	if b := getg().bubble; b != nil {
+		c.bubble = b
+	}
 	lockInit(&c.lock, lockRankHchan)
 	return c
 }
 ```
 
 할당 직후 `qcount`/`sendx`/`recvx`/`closed`는 0이 되고 `dataqsiz`만 `n`으로 고정됩니다.<br/>
+`go1.26`부터는 생성 고루틴이 `synctest` 버블 안에 있으면 `bubble`도 같이 기록됩니다, 일반 채널에서 해당 필드는 nil이죠.<br/>
 이후 `send`/`recv`는 이 헤더의 인덱스와 버퍼 칸만 바꿉니다.
 
 ## 채널 메모리
