@@ -139,10 +139,6 @@
   max-width: 100%;
 }
 
-.chan-replay__svg-wrap circle.is-flash {
-  animation: chan-replay-flash 0.7s ease-in-out infinite alternate;
-}
-
 .chan-replay__edge {
   stroke: #c5cdd6;
   stroke-width: 1.25;
@@ -162,15 +158,6 @@ body.dark .chan-replay__edge {
 
 body.dark .chan-replay__axis {
   fill: #9ca3af;
-}
-
-@keyframes chan-replay-flash {
-  from {
-    stroke-opacity: 1;
-  }
-  to {
-    stroke-opacity: 0.35;
-  }
 }
 
 .chan-replay__tip {

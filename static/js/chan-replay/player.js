@@ -167,7 +167,6 @@
     this.timer = null;
     this.speedIdx = 1;
     this.hoverId = null;
-    this.flashId = null;
     this.lastClientX = 0;
     this.lastClientY = 0;
     this.pointerInSvg = false;
@@ -594,22 +593,9 @@
       "</svg>";
   };
 
-  Mount.prototype.currentFlashId = function () {
-    var ev = this.data.events[this.idx];
-    if (!ev) return null;
-    if (
-      (ev.kind === "send" || ev.kind === "recv") &&
-      (ev.blocked_ns || 0) > 0
-    ) {
-      return ev.id;
-    }
-    return null;
-  };
-
   Mount.prototype.render = function () {
     this.chans = accumulate(this.data.events || [], this.idx);
     this.rankT = blockedRankT(this.chans, this.ids);
-    this.flashId = this.currentFlashId();
     var scrub = this.root.querySelector("[data-scrub]");
     var step = this.root.querySelector("[data-step]");
     if (scrub) scrub.value = String(this.idx);
@@ -627,8 +613,6 @@
     var tipId = this.activeId();
     if (tipId != null) {
       this.showTip(tipId);
-    } else if (this.flashId != null) {
-      this.showTip(this.flashId);
     } else {
       this.hideTip();
     }
@@ -655,27 +639,18 @@
 
   Mount.prototype.updateSelection = function () {
     var active = this.activeId();
-    var flash = this.flashId;
     var wrap = this.root.querySelector("[data-svg]");
     if (!wrap) return;
     wrap.querySelectorAll("[data-cid]").forEach(function (g) {
       var id = Number(g.getAttribute("data-cid"));
       var circle = g.querySelector("circle");
       if (!circle) return;
-      var on = active === id;
-      var isFlash = flash === id;
-      if (on) {
+      if (active === id) {
         circle.setAttribute("stroke", "#111");
         circle.setAttribute("stroke-width", "2.5");
-        circle.classList.remove("is-flash");
-      } else if (isFlash) {
-        circle.setAttribute("stroke", "#7c2d12");
-        circle.setAttribute("stroke-width", "3");
-        circle.classList.add("is-flash");
       } else {
         circle.setAttribute("stroke", "#fff");
         circle.setAttribute("stroke-width", "1");
-        circle.classList.remove("is-flash");
       }
     });
   };
@@ -690,7 +665,7 @@
       var g =
         wrap &&
         wrap.querySelector(
-          '[data-cid="' + (this.activeId() || this.flashId) + '"]'
+          '[data-cid="' + this.activeId() + '"]'
         );
       var circle = g && g.querySelector("circle");
       if (circle) {
@@ -764,11 +739,9 @@
       return;
     }
     var c = this.chans[id];
-    var flash = this.flashId === id;
     tip.innerHTML =
       '<div class="chan-replay__tip-title">C' +
       c.id +
-      (flash ? " (park)" : "") +
       "</div>" +
       '<div class="chan-replay__tip-row"><span>cap/q</span><b>' +
       c.q +
