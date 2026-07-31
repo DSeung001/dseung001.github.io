@@ -2,7 +2,7 @@
 title: "Go Chan 분석 & 런타임 관측"
 date: 2026-07-28T00:00:00+09:00
 categories: [ "Golang" ]
-tags: [ "Go", "Channel", "Chan", "동시성", "runtime ]
+tags: [ "Go", "Channel", "Chan", "동시성", "runtime" ]
 draft: false
 description: "Channel 내부 구조를 읽고, Go 1.26 런타임에 관측 훅을 붙여 채널과 대기 경로를 확인해보기"
 keywords: [ "Golang", "Channel", "Chan", "동시성", "goroutine" ]
