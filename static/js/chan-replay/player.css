@@ -1,0 +1,231 @@
+/* Chantrace traffic map — static heat + cursor tooltip */
+
+.chan-replay {
+  position: relative;
+  margin: 1.25rem 0 1.75rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 8px;
+  background: var(--entry, #fafafa);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.chan-replay *,
+.chan-replay *::before,
+.chan-replay *::after {
+  box-sizing: border-box;
+}
+
+.chan-replay__title {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.chan-replay__meta {
+  color: var(--secondary, #666);
+  font-size: 0.8rem;
+  margin: 0 0 0.65rem;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.chan-replay__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--secondary, #555);
+  margin: 0 0 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 4px;
+  background: var(--code-bg, #f3f3f3);
+}
+
+.chan-replay__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.chan-replay__legend-heat {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+.chan-replay__swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.chan-replay__heatbar {
+  display: inline-block;
+  width: 4.5rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.chan-replay__hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  color: var(--secondary, #666);
+}
+
+.chan-replay__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+  margin: 0 0 0.65rem;
+}
+
+.chan-replay__controls button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  border: 1px solid var(--border, #bbb);
+  border-radius: 4px;
+  background: var(--code-bg, #fff);
+  color: inherit;
+  line-height: 1.2;
+}
+
+.chan-replay__controls button:hover {
+  border-color: var(--primary, #333);
+}
+
+.chan-replay__controls button.is-active {
+  border-color: #d97706;
+  background: #fff7ed;
+}
+
+.chan-replay__step {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--secondary, #555);
+  min-width: 6.5rem;
+}
+
+.chan-replay__scrub {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  height: 1.25rem;
+}
+
+.chan-replay__svg-wrap {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chan-replay__svg-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+.chan-replay__svg-wrap circle.is-flash {
+  animation: chan-replay-flash 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes chan-replay-flash {
+  from {
+    stroke-opacity: 1;
+  }
+  to {
+    stroke-opacity: 0.35;
+  }
+}
+
+.chan-replay__tip {
+  position: absolute;
+  z-index: 20;
+  min-width: 11.5rem;
+  max-width: 16rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  pointer-events: none;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.chan-replay__tip[hidden] {
+  display: none !important;
+}
+
+.chan-replay__tip-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin: 0 0 0.35rem;
+}
+
+.chan-replay__tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.12rem 0;
+}
+
+.chan-replay__tip-row span {
+  color: var(--secondary, #666);
+  flex: 0 0 auto;
+}
+
+.chan-replay__tip-row b {
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-align: right;
+  word-break: break-word;
+}
+
+.chan-replay__err {
+  color: #a33;
+  margin: 0;
+}
+
+body.dark .chan-replay {
+  background: var(--entry, #1e1e1e);
+}
+
+body.dark .chan-replay__svg-wrap,
+body.dark .chan-replay__tip {
+  background: #161616;
+  border-color: #444;
+}
+
+body.dark .chan-replay__tip {
+  border-color: #d97706;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+body.dark .chan-replay__legend {
+  background: #222;
+}
+
+body.dark .chan-replay__controls button {
+  background: #161616;
+  border-color: #444;
+}
+
+body.dark .chan-replay__controls button.is-active {
+  background: #3a2a15;
+  border-color: #d97706;
+}

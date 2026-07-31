@@ -1,0 +1,11 @@
+{{- /* traffic map only; data lives under static/js/chan-replay/ */ -}}
+{{- $src := .Get "src" | default "js/chan-replay/traffic.json" -}}
+<div
+  class="chan-replay"
+  data-chan-replay
+  data-json="{{ $src | relURL }}"
+></div>
+{{- if not (.Page.Scratch.Get "chanReplayJS") -}}
+{{- .Page.Scratch.Set "chanReplayJS" true -}}
+<script defer src="{{ "js/chan-replay/player.js" | relURL }}"></script>
+{{- end -}}

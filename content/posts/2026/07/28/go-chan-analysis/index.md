@@ -7,7 +7,7 @@ draft: false
 description: "Channel 내부 구조를 읽고, Go 1.26 런타임에 관측 훅을 붙여 채널과 대기 경로를 확인해보기"
 keywords: [ "Golang", "Channel", "Chan", "동시성", "goroutine" ]
 author: "DSeung001"
-lastmod: 2026-07-31T00:00:00+09:00
+lastmod: 2026-07-31T15:48:00+09:00
 ---
 
 # 개요
@@ -738,3 +738,6 @@ Go의 `runtime/trace`는 goroutine 스케줄링과 채널 차단을 추적하고
 
 이번에는 이를 시각화하기 위해 채널 ID, 이벤트 표본 기준 버퍼 점유율, 대기 시간과 wait graph를 함께 기록했습니다. 
 시작은 단순한 호기심이었지만, 이를 이용하면 채널별 병목과 과도한 버퍼 사용 가능성을 좁히고, deadlock에서 goroutine과 채널의 대기 관계를 확인할 수 있을 것 같습니다.
+
+채널 추적 로그를 토대로 다음같이 수처 메시지를 수십 채널에서 돌려보면서 빈도를 추적해볼 수도 있습니다. `cap`은 (0, 1, 2, 4) 중에서 랜덤으로 부여했습니다.
+{{< chan-replay >}}
