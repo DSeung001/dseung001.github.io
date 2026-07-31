@@ -220,7 +220,7 @@
     var meta = (this.data && this.data.meta) || {};
     var last = Math.max(0, (this.data.events || []).length - 1);
     this.root.innerHTML =
-      '<div class="chan-replay__title">chantrace traffic map</div>' +
+      '<div class="chan-replay__title">chantrace pipeline replay</div>' +
       '<p class="chan-replay__meta" data-meta></p>' +
       '<div class="chan-replay__controls">' +
       '<button type="button" data-act="play">Play</button>' +
@@ -235,20 +235,25 @@
       '" value="0" data-scrub aria-label="이벤트 위치" />' +
       "</div>" +
       '<div class="chan-replay__legend" data-legend></div>' +
-      '<p class="chan-replay__hint">Play로 누적을 재생합니다(기본 약 15–20초). 색은 같은 시점 채널 간 blocked_max 순위입니다. 원에 마우스를 올리면 상세가 뜹니다.</p>' +
+      '<p class="chan-replay__hint">배치는 시나리오 파이프라인(레인×스테이지 → collect → out)입니다. Play는 기록된 send/recv 완료 이벤트를 시간순으로 누적 재생합니다. 색은 같은 시점 채널 간 blocked_max 순위입니다.</p>' +
       '<div class="chan-replay__svg-wrap" data-svg></div>' +
       '<div class="chan-replay__tip" data-tip hidden role="tooltip"></div>';
 
+    var layout = (this.data && this.data.layout) || {};
     this.root.querySelector("[data-meta]").textContent =
       "channels=" +
       (meta.channels || this.ids.length) +
-      " · messages=" +
+      " stages=" +
+      (layout.stages || "?") +
+      "×lanes=" +
+      (layout.lanes || "?") +
+      " cap=" +
+      (layout.cap != null ? layout.cap : "?") +
+      " messages=" +
       (meta.messages || 0) +
-      " · blocked_events=" +
+      " blocked_events=" +
       (meta.blocked_events || 0) +
-      " · blocked_sum=" +
-      fmtNS(meta.blocked_sum_ns || 0) +
-      " · blocked_max=" +
+      " blocked_max=" +
       fmtNS(meta.blocked_max_ns || 0);
 
     this.root.querySelector("[data-legend]").innerHTML =
@@ -349,6 +354,192 @@
   Mount.prototype.buildMapSkeleton = function () {
     var wrap = this.root.querySelector("[data-svg]");
     if (!wrap) return;
+    var layout = (this.data && this.data.layout) || null;
+    if (layout && layout.nodes && layout.nodes.length) {
+      this.buildPipelineMap(wrap, layout);
+      return;
+    }
+    this.buildGridMap(wrap);
+  };
+
+  Mount.prototype.buildPipelineMap = function (wrap, layout) {
+    var stages = layout.stages || 8;
+    var lanes = layout.lanes || 3;
+    var byKey = {};
+    var pos = {};
+    layout.nodes.forEach(function (n) {
+      if (n.role === "stage") byKey["s:" + n.stage + ":" + n.lane] = n;
+      if (n.role === "collect") byKey["c:" + n.i] = n;
+      if (n.role === "out") byKey.out = n;
+      if (n.role === "done") byKey.done = n;
+    });
+
+    var padL = 42;
+    var padT = 30;
+    var cellX = 46;
+    var cellY = 54;
+    var r = 11;
+    var collectX = padL + stages * cellX + 28;
+    var outX = collectX + 64;
+    var width = outX + 36;
+    var height = padT + lanes * cellY + 36;
+
+    function stageXY(s, lane) {
+      return {
+        x: padL + s * cellX + cellX / 2,
+        y: padT + lane * cellY + cellY / 2,
+      };
+    }
+    function collectXY(i) {
+      return {
+        x: collectX,
+        y: padT + i * cellY + cellY / 2,
+      };
+    }
+    var outY = padT + ((lanes - 1) * cellY) / 2 + cellY / 2;
+
+    layout.nodes.forEach(function (n) {
+      if (n.role === "stage") {
+        var p = stageXY(n.stage, n.lane);
+        pos[n.id] = p;
+      } else if (n.role === "collect") {
+        pos[n.id] = collectXY(n.i);
+      } else if (n.role === "out") {
+        pos[n.id] = { x: outX, y: outY };
+      } else if (n.role === "done") {
+        pos[n.id] = { x: outX, y: outY + cellY };
+      }
+    });
+    this.nodePos = pos;
+
+    var edges = [];
+    var s;
+    var lane;
+    for (s = 0; s < stages - 1; s++) {
+      for (lane = 0; lane < lanes; lane++) {
+        var a = byKey["s:" + s + ":" + lane];
+        var b = byKey["s:" + (s + 1) + ":" + lane];
+        if (a && b && pos[a.id] && pos[b.id]) {
+          edges.push([pos[a.id], pos[b.id]]);
+        }
+      }
+    }
+    for (lane = 0; lane < lanes; lane++) {
+      var last = byKey["s:" + (stages - 1) + ":" + lane];
+      var col = byKey["c:" + lane];
+      if (last && col && pos[last.id] && pos[col.id]) {
+        edges.push([pos[last.id], pos[col.id]]);
+      }
+    }
+    for (lane = 0; lane < lanes; lane++) {
+      var c = byKey["c:" + lane];
+      if (c && byKey.out && pos[c.id] && pos[byKey.out.id]) {
+        edges.push([pos[c.id], pos[byKey.out.id]]);
+      }
+    }
+
+    var edgeSvg = edges
+      .map(function (e) {
+        return (
+          '<line class="chan-replay__edge" x1="' +
+          e[0].x +
+          '" y1="' +
+          e[0].y +
+          '" x2="' +
+          e[1].x +
+          '" y2="' +
+          e[1].y +
+          '" />'
+        );
+      })
+      .join("");
+
+    var labels = "";
+    for (s = 0; s < stages; s++) {
+      var lx = padL + s * cellX + cellX / 2;
+      labels +=
+        '<text class="chan-replay__axis" x="' +
+        lx +
+        '" y="14" text-anchor="middle">S' +
+        s +
+        "</text>";
+    }
+    labels +=
+      '<text class="chan-replay__axis" x="' +
+      collectX +
+      '" y="14" text-anchor="middle">collect</text>';
+    labels +=
+      '<text class="chan-replay__axis" x="' +
+      outX +
+      '" y="14" text-anchor="middle">out</text>';
+    for (lane = 0; lane < lanes; lane++) {
+      var ly = padT + lane * cellY + cellY / 2 + 3;
+      labels +=
+        '<text class="chan-replay__axis" x="8" y="' +
+        ly +
+        '" text-anchor="start">L' +
+        lane +
+        "</text>";
+    }
+
+    function nodeGroup(n) {
+      var p = pos[n.id];
+      if (!p) return "";
+      var label =
+        n.role === "stage"
+          ? String(n.id)
+          : n.role === "collect"
+            ? "c" + n.i
+            : n.role === "out"
+              ? "out"
+              : "done";
+      return (
+        '<g data-cid="' +
+        n.id +
+        '" aria-label="C' +
+        n.id +
+        " " +
+        n.role +
+        '">' +
+        '<circle cx="' +
+        p.x +
+        '" cy="' +
+        p.y +
+        '" r="' +
+        r +
+        '" fill="' +
+        COLOR_IDLE +
+        '" stroke="#fff" stroke-width="1"/>' +
+        '<text class="chan-replay__id" x="' +
+        p.x +
+        '" y="' +
+        (p.y + 3.2) +
+        '" text-anchor="middle" font-size="7" font-weight="600" fill="#fff" pointer-events="none">' +
+        label +
+        "</text>" +
+        '<text class="chan-replay__time" data-time x="' +
+        p.x +
+        '" y="' +
+        (p.y + r + 10) +
+        '" text-anchor="middle" font-size="7" fill="#555" pointer-events="none"></text>' +
+        "</g>"
+      );
+    }
+
+    var nodeSvg = layout.nodes.map(nodeGroup).join("");
+    wrap.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+      width +
+      " " +
+      height +
+      '" role="img" aria-label="파이프라인 채널 리플레이">' +
+      labels +
+      edgeSvg +
+      nodeSvg +
+      "</svg>";
+  };
+
+  Mount.prototype.buildGridMap = function (wrap) {
     var ids = this.ids;
     var n = ids.length || 1;
     var cols = Math.max(2, Math.ceil(Math.sqrt(n)) * 2);
@@ -357,7 +548,6 @@
     var width = pad * 2 + cols * cell;
     var rows = Math.ceil(n / cols) || 1;
     var height = pad * 2 + rows * cell;
-
     var nodes = ids
       .map(function (id, i) {
         var x = pad + (i % cols) * cell + cell / 2;
@@ -394,7 +584,6 @@
         );
       })
       .join("");
-
     wrap.innerHTML =
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
       width +

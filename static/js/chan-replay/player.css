@@ -143,6 +143,27 @@
   animation: chan-replay-flash 0.7s ease-in-out infinite alternate;
 }
 
+.chan-replay__edge {
+  stroke: #c5cdd6;
+  stroke-width: 1.25;
+  fill: none;
+  pointer-events: none;
+}
+
+.chan-replay__axis {
+  font-size: 9px;
+  fill: #6b7280;
+  pointer-events: none;
+}
+
+body.dark .chan-replay__edge {
+  stroke: #3a3f46;
+}
+
+body.dark .chan-replay__axis {
+  fill: #9ca3af;
+}
+
 @keyframes chan-replay-flash {
   from {
     stroke-opacity: 1;
