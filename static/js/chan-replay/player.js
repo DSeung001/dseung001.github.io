@@ -64,6 +64,7 @@
           ops: 0,
           blockedSum: 0,
           blockedMax: 0,
+          blockedCur: 0,
           blockedCount: 0,
         };
         chans[ev.id] = c;
@@ -75,6 +76,7 @@
         c.ops++;
         c.q = ev.q || 0;
         if (ev.cap != null) c.cap = ev.cap;
+        c.blockedCur = ev.blocked_ns || 0;
         c.blockedSum += ev.blocked_ns || 0;
         if ((ev.blocked_ns || 0) > c.blockedMax) c.blockedMax = ev.blocked_ns;
         if ((ev.blocked_ns || 0) > 0) c.blockedCount++;
@@ -83,13 +85,13 @@
     return chans;
   }
 
-  // Average-rank percentile for blocked_max>0 in the current window.
+  // Average-rank percentile for blockedCur>0 in the current window.
   function blockedRankT(chans, ids) {
     var items = [];
     var i;
     for (i = 0; i < ids.length; i++) {
       var c = chans[ids[i]];
-      if (c && c.blockedMax > 0) items.push({ id: ids[i], v: c.blockedMax });
+      if (c && c.blockedCur > 0) items.push({ id: ids[i], v: c.blockedCur });
     }
     items.sort(function (a, b) {
       return a.v - b.v;
@@ -133,7 +135,7 @@
 
   function channelColor(c, rankT) {
     if (!c || !c.created || c.ops === 0) return COLOR_IDLE;
-    if (c.blockedMax === 0) return COLOR_OK;
+    if (c.blockedCur === 0) return COLOR_OK;
     var t = rankT[c.id];
     if (t == null) t = 0;
     return heatColor(t);
@@ -234,7 +236,9 @@
       '" value="0" data-scrub aria-label="이벤트 위치" />' +
       "</div>" +
       '<div class="chan-replay__legend" data-legend></div>' +
-      '<p class="chan-replay__hint">배치는 시나리오 파이프라인(레인×스테이지 → collect → out)입니다. Play는 기록된 send/recv 완료 이벤트를 시간순으로 누적 재생합니다. 색은 같은 시점 채널 간 blocked_max 순위입니다.</p>' +
+      '<p class="chan-replay__hint">배치는 시나리오 파이프라인(레인×스테이지 → collect → out)입니다.<br>' +
+      "Play는 기록된 send/recv 완료 이벤트를 시간순으로 누적 재생합니다.<br>" +
+      "색은 같은 시점 채널 간 blocked 현재값 순위입니다.</p>" +
       '<div class="chan-replay__svg-wrap" data-svg></div>' +
       '<div class="chan-replay__tip" data-tip hidden role="tooltip"></div>';
 
@@ -266,7 +270,7 @@
       '<span class="chan-replay__heatbar" style="background:' +
       heatBarCSS() +
       '"></span>' +
-      "<span>blocked_max 낮음 → 높음 (순위)</span></span>";
+      "<span>blocked 현재값 낮음 → 높음 (순위)</span></span>";
   };
 
   Mount.prototype.bindControls = function () {
@@ -588,7 +592,7 @@
       width +
       " " +
       height +
-      '" role="img" aria-label="채널 blocked_max 히트맵">' +
+      '" role="img" aria-label="채널 blocked 현재값 히트맵">' +
       nodes +
       "</svg>";
   };
@@ -604,7 +608,6 @@
         "step " + this.idx + " / " + (this.data.events.length - 1);
     }
     this.updateFills();
-    this.updateSelection();
     // 툴팁은 포인터가 SVG 안에 있을 때만 유지/갱신
     if (!this.pointerInSvg) {
       this.hideTip();
@@ -632,25 +635,7 @@
       }
       if (timeEl) {
         timeEl.textContent =
-          c && c.blockedMax > 0 ? fmtShort(c.blockedMax) : "";
-      }
-    });
-  };
-
-  Mount.prototype.updateSelection = function () {
-    var active = this.activeId();
-    var wrap = this.root.querySelector("[data-svg]");
-    if (!wrap) return;
-    wrap.querySelectorAll("[data-cid]").forEach(function (g) {
-      var id = Number(g.getAttribute("data-cid"));
-      var circle = g.querySelector("circle");
-      if (!circle) return;
-      if (active === id) {
-        circle.setAttribute("stroke", "#111");
-        circle.setAttribute("stroke-width", "2.5");
-      } else {
-        circle.setAttribute("stroke", "#fff");
-        circle.setAttribute("stroke-width", "1");
+          c && c.blockedCur > 0 ? fmtShort(c.blockedCur) : "";
       }
     });
   };
@@ -748,6 +733,9 @@
       "/" +
       c.cap +
       "</b></div>" +
+      '<div class="chan-replay__tip-row"><span>cur</span><b>' +
+      fmtNS(c.blockedCur) +
+      "</b></div>" +
       '<div class="chan-replay__tip-row"><span>max</span><b>' +
       fmtNS(c.blockedMax) +
       "</b></div>" +
@@ -781,7 +769,6 @@
     function leaveSvg() {
       self.pointerInSvg = false;
       self.hoverId = null;
-      self.updateSelection();
       self.hideTip();
     }
 
@@ -795,7 +782,6 @@
       var id = cidFromEvent(e);
       if (id == null) return;
       self.hoverId = id;
-      self.updateSelection();
       self.showTip(id, e.clientX, e.clientY);
     });
     wrap.addEventListener("pointermove", function (e) {
@@ -803,13 +789,11 @@
       var id = cidFromEvent(e);
       if (id == null) {
         self.hoverId = null;
-        self.updateSelection();
         self.hideTip();
         return;
       }
       if (self.hoverId !== id) {
         self.hoverId = id;
-        self.updateSelection();
         self.showTip(id, e.clientX, e.clientY);
       } else {
         self.placeTip(e.clientX, e.clientY);

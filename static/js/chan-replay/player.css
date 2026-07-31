@@ -80,6 +80,7 @@
   margin: 0 0 0.55rem;
   font-size: 0.78rem;
   color: var(--secondary, #666);
+  line-height: 1.55;
 }
 
 .chan-replay__controls {
