@@ -86,6 +86,26 @@
     await mermaid.run({ querySelector: '.mermaid' });
   }
 
+  function positionMermaidExpandBtn(wrap, btn) {
+    const svg = wrap.querySelector('.mermaid svg');
+    if (!svg || !btn) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const svgRect = svg.getBoundingClientRect();
+    const wasHidden = getComputedStyle(btn).display === 'none';
+    if (wasHidden) {
+      btn.style.display = 'block';
+      btn.style.visibility = 'hidden';
+    }
+    const btnWidth = btn.offsetWidth || 32;
+    if (wasHidden) {
+      btn.style.display = '';
+      btn.style.visibility = '';
+    }
+    btn.style.top = Math.max(0, svgRect.top - wrapRect.top + 6) + 'px';
+    btn.style.left = Math.max(0, svgRect.right - wrapRect.left - btnWidth - 6) + 'px';
+    btn.style.right = 'auto';
+  }
+
   function bindExpandButtons() {
     document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
       const btn = wrap.querySelector('.mermaid-expand');
@@ -102,6 +122,14 @@
         expand();
       });
       wrap.addEventListener('click', expand);
+      positionMermaidExpandBtn(wrap, btn);
+    });
+  }
+
+  function repositionAllMermaidExpandBtns() {
+    document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+      const btn = wrap.querySelector('.mermaid-expand');
+      if (btn) positionMermaidExpandBtn(wrap, btn);
     });
   }
 
@@ -141,11 +169,16 @@
 
   await renderAllMermaid();
   bindExpandButtons();
+  requestAnimationFrame(repositionAllMermaidExpandBtns);
+  window.addEventListener('resize', repositionAllMermaidExpandBtns);
 
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
-      requestAnimationFrame(() => renderAllMermaid());
+      requestAnimationFrame(async () => {
+        await renderAllMermaid();
+        repositionAllMermaidExpandBtns();
+      });
     });
   }
 </script>
