@@ -103,11 +103,8 @@ API 키를 등록해 AI로 내용을 채울 수도 있고, 키 없이(또는 AI 
 즉 제품 흐름의 유연성을 생각해서 분리해뒀습니다.<br/>
 한 시점에 묶으면 실패 재시도와 선택적 AI 경로를 같이 다루기 어려워지기 때문이죠.
 
-<!-- 아래부터 다시 검수 -->
-
 ## SQS 공용 큐와 메시지 타입
-운영에서는 publish, metadata, search_index가 같은 `PUBLISH_SQS_QUEUE_URL`을 공유합니다.<br/>
-큐를 세 개로 나누지 않고, 메시지 body의 `type`으로 워커가 분기합니다.
+운영에서는 publish, metadata, search_index는 브로커 `PUBLISH_SQS_QUEUE_URL`을 공유합니다.<br/>
 
 ```python
 # media/constants.py
@@ -116,7 +113,7 @@ METADATA_MESSAGE_TYPE = "metadata"
 SEARCH_INDEX_MESSAGE_TYPE = "search_index"
 ```
 
-워커 진입점은 `python -m media.workers.sqs_worker`이고, 실제 분기는 `process_sqs_message`에서 이뤄집니다.
+브로커를 통한 워커 진입점은 `python -m media.workers.sqs_worker`이고, 실제 분기는 내부에서 `process_sqs_message`로 이뤄집니다.
 
 ```python
 # media/workers/sqs_message_handler.py
@@ -133,7 +130,7 @@ def process_sqs_message(...):
     if payload is not None and msg_type == SEARCH_INDEX_MESSAGE_TYPE:
         process_search_index_message(...)
         return
-    # 알 수 없는 type은 삭제(ack)
+    # 나머지 메세지 처리 
 ```
 
 메시지 형태는 대략 다음과 같습니다.
@@ -142,30 +139,21 @@ def process_sqs_message(...):
 - metadata: `{ "type": "metadata", "job_id": "...", "course_id": ..., "video_id": ..., "pipeline_version": "v1", ... }`
 - search_index: metadata와 같은 골격에 `type=search_index`
 
-장시간 ffmpeg나 Whisper가 돌아가도 visibility timeout에 걸리지 않도록, 워커는 heartbeat로 visibility를 연장합니다.<br/>
-성공하거나 스킵하면 `DeleteMessage`로 ack하고, 실패했는데 재시도 여유가 있으면 visibility를 0으로 돌려 재배달합니다.
-
-로컬 개발에서는 `PUBLISH_QUEUE_BACKEND=sync`로 두는 경우가 많아, SQS 대신 API 프로세스 안에서 runner가 즉시 실행됩니다. 분기 로직 자체는 동일합니다.
+장시간 ffmpeg나 Whisper가 돌아가도 큐의 작업 시간 제한인 `visibility timeout`에 걸리지 않도록, 워커는 `heartbeat`로 `visibility`를 연장합니다.
+성공하거나 스킵하면 `DeleteMessage`로 ack하고, 실패했는데 재시도 여유가 있으면 `visibility`를 0으로 돌려 재배달합니다.
 
 ## 상태 머신
-파이프라인을 상태 기준으로 다시 보면 역할 분리가 더 분명해집니다.
+파이프라인과 잡 별로 글의 상태를 정리하면 더 분명해집니다.
 
-```text
-PublishJob:     uploading → queued → processing → completed|failed
-Course:         draft ⇄ published
-Course.review:  none → ai_processing → review_required|failed
-VideoMetadataJob: queued → running → completed|failed
-                  steps: transcribe → summarize
-SearchIndexJob: queued → running → completed|failed
-                only when publication=published
-```
-
-`VideoMetadataJobStep`에 `EMBED` 같은 상수가 남아 있어도, 현재 runner는 그 스텝을 실행하지 않습니다.<br/>
-챕터는 summarize 결과에 포함되고, 임베딩은 `SearchIndexJob`이 전담합니다.
+| 기능 / 잡 | 상태 전이 | 비고 |
+|-----------|-----------|------|
+| `PublishJob` | `uploading` → `queued` → `processing` → `completed` \| `failed` | 업로드 후 인코딩·썸네일·DB 반영 |
+| `Course.publication` | `draft` ⇄ `published` | 카탈로그 공개 여부 |
+| `Course.review` | `none` → `ai_processing` → `review_required` \| `failed` | AI 검수 파이프라인 (`publication`과 독립) |
+| `VideoMetadataJob` | `queued` → `running` → `completed` \| `failed` | 스텝: `transcribe` → `summarize` |
+| `SearchIndexJob` | `queued` → `running` → `completed` \| `failed` | `publication=published`일 때만 실행 |
 
 아래부터는 잡별 핵심 비즈니스 로직을 따라갑니다.
-
-<!-- 아래부터 다시 검수 -->
 
 # 핵심 비즈니스 로직
 
