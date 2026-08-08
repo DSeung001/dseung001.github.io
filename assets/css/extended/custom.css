@@ -226,6 +226,7 @@ html.cursor-follower-off #cursor-ink-trail {
     position: relative;
     margin: 1em 0;
     overflow-x: auto;
+    cursor: zoom-in;
 }
 
 .mermaid-wrap .mermaid {
@@ -236,6 +237,7 @@ html.cursor-follower-off #cursor-ink-trail {
 .mermaid-wrap .mermaid svg {
     max-width: 100%;
     height: auto;
+    cursor: zoom-in;
 }
 
 .mermaid-expand {
@@ -250,7 +252,7 @@ html.cursor-follower-off #cursor-ink-trail {
     border-radius: var(--radius);
     background: var(--entry);
     color: var(--primary);
-    cursor: pointer;
+    cursor: zoom-in;
     line-height: 0;
     opacity: 0.92;
 }
@@ -337,6 +339,263 @@ html.cursor-follower-off #cursor-ink-trail {
     max-width: none;
     height: auto;
     margin: 0 auto;
+}
+
+/* 본문 이미지: 인라인 래퍼 + 확대 버튼 (JS: extend_footer.html) */
+.content-image-wrap {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    margin: 1em 0;
+    vertical-align: middle;
+}
+
+.content-image-wrap img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    cursor: zoom-in;
+}
+
+.content-image-expand {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    margin: 0;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    color: var(--primary);
+    cursor: zoom-in;
+    line-height: 0;
+    opacity: 0.92;
+}
+
+.content-image-expand:hover,
+.content-image-expand:focus-visible {
+    opacity: 1;
+    background: var(--code-bg);
+}
+
+.content-image-wrap:hover .content-image-expand,
+.content-image-wrap:focus-within .content-image-expand {
+    display: block;
+}
+
+@media (hover: none) {
+    .content-image-expand {
+        display: block;
+    }
+}
+
+.image-dialog:not([open]) {
+    display: none;
+}
+
+.image-dialog[open] {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-sizing: border-box;
+    width: fit-content;
+    height: fit-content;
+    max-width: 98vw;
+    max-height: 96vh;
+    max-height: 96dvh;
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    color: var(--primary);
+    overflow: hidden;
+}
+
+.image-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.image-dialog__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 4px;
+    border: none;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    line-height: 0;
+    opacity: 0.85;
+}
+
+.image-dialog__close[hidden] {
+    display: none;
+}
+
+.image-dialog__close:hover,
+.image-dialog__close:focus-visible {
+    opacity: 1;
+    background: var(--code-bg);
+}
+
+.image-dialog__close svg {
+    display: block;
+}
+
+.image-dialog__content {
+    display: block;
+    padding: 40px 12px 12px;
+    overflow: auto;
+}
+
+.image-dialog__content img {
+    display: block;
+    max-width: min(96vw, 1920px);
+    max-height: calc(96vh - 52px);
+    max-height: calc(96dvh - 52px);
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    object-fit: contain;
+    line-height: 0;
+}
+
+.image-dialog__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-width: 12rem;
+    min-height: 8rem;
+    padding: 2rem 1.5rem;
+    color: var(--secondary);
+    font-size: 0.95rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.image-dialog__spinner {
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: image-dialog-spin 0.7s linear infinite;
+}
+
+.image-dialog__loading-text {
+    display: block;
+}
+
+@keyframes image-dialog-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .image-dialog__spinner {
+        animation: none;
+        border-top-color: var(--border);
+        opacity: 0.7;
+    }
+}
+
+.image-dialog__player {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.image-dialog__canvas {
+    display: block;
+    max-width: min(96vw, 1920px);
+    max-height: calc(96vh - 96px);
+    max-height: calc(96dvh - 96px);
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    cursor: pointer;
+    vertical-align: top;
+}
+
+.image-dialog__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 12rem;
+    padding: 0 2px;
+}
+
+.image-dialog__play {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    color: var(--primary);
+    cursor: pointer;
+    line-height: 0;
+}
+
+.image-dialog__play:hover,
+.image-dialog__play:focus-visible {
+    background: var(--code-bg);
+}
+
+.image-dialog__play .image-dialog__icon {
+    display: none;
+}
+
+.image-dialog__play .image-dialog__icon--play {
+    display: block;
+}
+
+.image-dialog__play.is-playing .image-dialog__icon--play {
+    display: none;
+}
+
+.image-dialog__play.is-playing .image-dialog__icon--pause {
+    display: block;
+}
+
+.image-dialog__scrub {
+    display: block;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    accent-color: var(--primary);
+    background: transparent;
+}
+
+.image-dialog__scrub:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .bench-table-wrap {

@@ -91,10 +91,17 @@
       const btn = wrap.querySelector('.mermaid-expand');
       if (!btn || btn.dataset.mermaidBound) return;
       btn.dataset.mermaidBound = '1';
-      btn.addEventListener('click', () => {
+
+      function expand() {
         const svg = wrap.querySelector('.mermaid svg');
         if (svg) openMermaidDialog(svg, btn);
+      }
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        expand();
       });
+      wrap.addEventListener('click', expand);
     });
   }
 
@@ -141,6 +148,464 @@
       requestAnimationFrame(() => renderAllMermaid());
     });
   }
+</script>
+{{ end }}
+
+{{ if .Store.Get "hasContentImage" }}
+<dialog id="image-dialog" class="image-dialog" aria-label="이미지 확대">
+  <button type="button" class="image-dialog__close" data-image-close aria-label="닫기" title="닫기">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+  <div class="image-dialog__content" data-image-dialog-content></div>
+</dialog>
+<script>
+(function () {
+  const dialog = document.getElementById('image-dialog');
+  const content = dialog && dialog.querySelector('[data-image-dialog-content]');
+  let lastFocusEl = null;
+  let savedScrollY = 0;
+  let activeGifPlayer = null;
+  let gifuctPromise = null;
+
+  function lockPageScroll() {
+    savedScrollY = window.scrollY;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = '-' + savedScrollY + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+
+  function unlockPageScroll() {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    window.scrollTo(0, savedScrollY);
+  }
+
+  function destroyGifPlayer() {
+    if (!activeGifPlayer) return;
+    activeGifPlayer.destroy();
+    activeGifPlayer = null;
+  }
+
+  function setImageDialogCloseVisible(visible) {
+    var closeBtn = dialog && dialog.querySelector('[data-image-close]');
+    if (!closeBtn) return;
+    closeBtn.hidden = !visible;
+  }
+
+  function closeImageDialog() {
+    if (!dialog || !dialog.open) return;
+    destroyGifPlayer();
+    setImageDialogCloseVisible(true);
+    dialog.close();
+    unlockPageScroll();
+    if (content) content.replaceChildren();
+    if (lastFocusEl) {
+      lastFocusEl.focus({ preventScroll: true });
+      lastFocusEl = null;
+    }
+  }
+
+  function isGifUrl(src) {
+    if (!src) return false;
+    try {
+      var path = new URL(src, window.location.href).pathname;
+      return /\.gif$/i.test(path);
+    } catch (e) {
+      return /\.gif($|\?)/i.test(src);
+    }
+  }
+
+  function loadGifuct() {
+    if (!gifuctPromise) {
+      gifuctPromise = import('https://cdn.jsdelivr.net/npm/gifuct-js@2.1.2/+esm');
+    }
+    return gifuctPromise;
+  }
+
+  function frameDelayMs(frame) {
+    var d = frame && frame.delay != null ? Number(frame.delay) : 100;
+    if (!isFinite(d) || d < 20) d = 20;
+    return d;
+  }
+
+  function createGifPlayer(url, mountEl) {
+    var player = {
+      destroyed: false,
+      playing: false,
+      frameIndex: 0,
+      rafId: 0,
+      nextAt: 0,
+      frames: null,
+      delays: null,
+      totalMs: 0,
+      canvas: null,
+      ctx: null,
+      scrub: null,
+      scrubbing: false,
+    };
+
+    var loading = document.createElement('div');
+    loading.className = 'image-dialog__loading';
+    loading.setAttribute('role', 'status');
+    loading.innerHTML =
+      '<span class="image-dialog__spinner" aria-hidden="true"></span>' +
+      '<span class="image-dialog__loading-text">GIF 로딩 중…</span>';
+    mountEl.appendChild(loading);
+    setImageDialogCloseVisible(false);
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'image-dialog__player';
+
+    var canvas = document.createElement('canvas');
+    canvas.className = 'image-dialog__canvas';
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', '애니메이션 GIF');
+    canvas.tabIndex = 0;
+
+    var controls = document.createElement('div');
+    controls.className = 'image-dialog__controls';
+
+    var playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'image-dialog__play';
+    playBtn.setAttribute('aria-label', '일시정지');
+    playBtn.title = '일시정지';
+    playBtn.innerHTML =
+      '<svg class="image-dialog__icon image-dialog__icon--pause" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">' +
+      '<rect x="6" y="5" width="4" height="14" rx="1"></rect>' +
+      '<rect x="14" y="5" width="4" height="14" rx="1"></rect>' +
+      '</svg>' +
+      '<svg class="image-dialog__icon image-dialog__icon--play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">' +
+      '<path d="M8 5v14l11-7z"></path>' +
+      '</svg>';
+
+    var scrub = document.createElement('input');
+    scrub.type = 'range';
+    scrub.className = 'image-dialog__scrub';
+    scrub.min = '0';
+    scrub.max = '0';
+    scrub.value = '0';
+    scrub.step = '1';
+    scrub.setAttribute('aria-label', '재생 위치');
+
+    controls.appendChild(playBtn);
+    controls.appendChild(scrub);
+    wrapper.appendChild(canvas);
+    wrapper.appendChild(controls);
+
+    player.canvas = canvas;
+    player.scrub = scrub;
+    player.playBtn = playBtn;
+    player.ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    function syncPlayUi() {
+      if (!player.playBtn) return;
+      player.playBtn.classList.toggle('is-playing', player.playing);
+      player.playBtn.setAttribute('aria-label', player.playing ? '일시정지' : '재생');
+      player.playBtn.title = player.playing ? '일시정지' : '재생';
+      if (player.canvas) {
+        player.canvas.classList.toggle('is-playing', player.playing);
+      }
+    }
+
+    function showStaticFallback() {
+      if (player.destroyed) return;
+      mountEl.replaceChildren();
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      mountEl.appendChild(img);
+      setImageDialogCloseVisible(true);
+    }
+
+    function drawFrame(index) {
+      if (!player.frames || !player.ctx) return;
+      var frame = player.frames[index];
+      if (!frame) return;
+      player.ctx.putImageData(frame.imageData, 0, 0);
+      player.frameIndex = index;
+      if (!player.scrubbing && player.scrub) {
+        player.scrub.value = String(player.elapsedAt(index));
+      }
+    }
+
+    player.elapsedAt = function (index) {
+      var ms = 0;
+      var i;
+      for (i = 0; i < index; i++) ms += player.delays[i];
+      return ms;
+    };
+
+    player.indexAtMs = function (ms) {
+      var acc = 0;
+      var i;
+      for (i = 0; i < player.delays.length; i++) {
+        acc += player.delays[i];
+        if (ms < acc) return i;
+      }
+      return Math.max(0, player.delays.length - 1);
+    };
+
+    function tick(now) {
+      if (player.destroyed || !player.playing) return;
+      if (now >= player.nextAt) {
+        var next = (player.frameIndex + 1) % player.frames.length;
+        drawFrame(next);
+        player.nextAt = now + player.delays[next];
+      }
+      player.rafId = requestAnimationFrame(tick);
+    }
+
+    player.play = function () {
+      if (player.destroyed || !player.frames || player.playing) return;
+      player.playing = true;
+      syncPlayUi();
+      player.nextAt = performance.now() + player.delays[player.frameIndex];
+      player.rafId = requestAnimationFrame(tick);
+    };
+
+    player.pause = function () {
+      player.playing = false;
+      syncPlayUi();
+      if (player.rafId) {
+        cancelAnimationFrame(player.rafId);
+        player.rafId = 0;
+      }
+    };
+
+    player.toggle = function () {
+      if (player.playing) player.pause();
+      else player.play();
+    };
+
+    player.seekMs = function (ms, keepPlaying) {
+      if (!player.frames) return;
+      var idx = player.indexAtMs(ms);
+      var wasPlaying = player.playing;
+      player.pause();
+      drawFrame(idx);
+      if (keepPlaying && wasPlaying) player.play();
+    };
+
+    player.destroy = function () {
+      player.destroyed = true;
+      player.pause();
+      player.frames = null;
+      player.delays = null;
+      player.canvas = null;
+      player.ctx = null;
+      player.scrub = null;
+      player.playBtn = null;
+    };
+
+    playBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      player.toggle();
+    });
+
+    canvas.addEventListener('click', function (e) {
+      e.stopPropagation();
+      player.toggle();
+    });
+
+    canvas.addEventListener('keydown', function (e) {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        player.toggle();
+      }
+    });
+
+    function onScrubInput() {
+      player.scrubbing = true;
+      var wasPlaying = player.playing;
+      player.pause();
+      drawFrame(player.indexAtMs(Number(scrub.value)));
+      player._resumeAfterScrub = wasPlaying;
+    }
+
+    function onScrubEnd() {
+      player.scrubbing = false;
+      scrub.value = String(player.elapsedAt(player.frameIndex));
+      if (player._resumeAfterScrub) {
+        player._resumeAfterScrub = false;
+        player.play();
+      }
+    }
+
+    scrub.addEventListener('pointerdown', function () {
+      player._resumeAfterScrub = player.playing;
+    });
+    scrub.addEventListener('input', onScrubInput);
+    scrub.addEventListener('change', onScrubEnd);
+    scrub.addEventListener('pointerup', onScrubEnd);
+    scrub.addEventListener('pointercancel', onScrubEnd);
+
+    Promise.all([loadGifuct(), fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('gif fetch failed');
+      return r.arrayBuffer();
+    })])
+      .then(function (results) {
+        if (player.destroyed) return;
+        var gifuct = results[0];
+        var buffer = results[1];
+        var parsed = gifuct.parseGIF(buffer);
+        var rawFrames = gifuct.decompressFrames(parsed, true);
+        if (!rawFrames || !rawFrames.length) throw new Error('no gif frames');
+
+        var width = parsed.lsd.width;
+        var height = parsed.lsd.height;
+        canvas.width = width;
+        canvas.height = height;
+
+        var fullCanvas = document.createElement('canvas');
+        fullCanvas.width = width;
+        fullCanvas.height = height;
+        var fullCtx = fullCanvas.getContext('2d', { willReadFrequently: true });
+        var tempCanvas = document.createElement('canvas');
+        var tempCtx = tempCanvas.getContext('2d');
+        var patchImageData = null;
+        var needsDisposalRestore = false;
+        var previousImageData = null;
+
+        var composed = [];
+        var delays = [];
+        var totalMs = 0;
+        var i;
+        for (i = 0; i < rawFrames.length; i++) {
+          var frame = rawFrames[i];
+          var dims = frame.dims;
+
+          if (needsDisposalRestore && previousImageData) {
+            fullCtx.putImageData(previousImageData, 0, 0);
+          }
+          needsDisposalRestore = false;
+
+          if (frame.disposalType === 3) {
+            previousImageData = fullCtx.getImageData(0, 0, width, height);
+            needsDisposalRestore = true;
+          }
+
+          if (
+            !patchImageData ||
+            patchImageData.width !== dims.width ||
+            patchImageData.height !== dims.height
+          ) {
+            tempCanvas.width = dims.width;
+            tempCanvas.height = dims.height;
+            patchImageData = tempCtx.createImageData(dims.width, dims.height);
+          }
+          patchImageData.data.set(frame.patch);
+          tempCtx.putImageData(patchImageData, 0, 0);
+          fullCtx.drawImage(tempCanvas, dims.left, dims.top);
+
+          var snapshot = fullCtx.getImageData(0, 0, width, height);
+          var delay = frameDelayMs(frame);
+          composed.push({ imageData: snapshot });
+          delays.push(delay);
+          totalMs += delay;
+
+          if (frame.disposalType === 2) {
+            fullCtx.clearRect(dims.left, dims.top, dims.width, dims.height);
+            needsDisposalRestore = false;
+            previousImageData = null;
+          } else if (frame.disposalType !== 3) {
+            previousImageData = null;
+          }
+        }
+
+        player.frames = composed;
+        player.delays = delays;
+        player.totalMs = totalMs;
+        scrub.max = String(Math.max(0, totalMs - 1));
+        scrub.value = '0';
+
+        loading.remove();
+        mountEl.appendChild(wrapper);
+        setImageDialogCloseVisible(true);
+        drawFrame(0);
+        player.play();
+      })
+      .catch(function () {
+        if (player.destroyed) return;
+        showStaticFallback();
+      });
+
+    return player;
+  }
+
+  function showStaticImage(img) {
+    var clone = img.cloneNode(true);
+    clone.removeAttribute('loading');
+    clone.removeAttribute('width');
+    clone.removeAttribute('height');
+    content.appendChild(clone);
+  }
+
+  function openImageDialog(img, focusEl) {
+    if (!dialog || !content || !img) return;
+    destroyGifPlayer();
+    lastFocusEl = focusEl || img;
+    lockPageScroll();
+    content.replaceChildren();
+
+    var src = img.currentSrc || img.src;
+    if (isGifUrl(src)) {
+      activeGifPlayer = createGifPlayer(src, content);
+    } else {
+      setImageDialogCloseVisible(true);
+      showStaticImage(img);
+    }
+
+    if (typeof dialog.showModal === 'function') {
+      try {
+        dialog.showModal({ preventScroll: true });
+      } catch (e) {
+        dialog.showModal();
+      }
+    }
+  }
+
+  document.querySelectorAll('.content-image-wrap').forEach(function (wrap) {
+    const img = wrap.querySelector('img');
+    const btn = wrap.querySelector('.content-image-expand');
+    if (!img || wrap.dataset.imageBound) return;
+    wrap.dataset.imageBound = '1';
+
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openImageDialog(img, btn);
+      });
+    }
+
+    img.addEventListener('click', function () {
+      openImageDialog(img, btn || img);
+    });
+  });
+
+  if (dialog) {
+    var closeBtn = dialog.querySelector('[data-image-close]');
+    if (closeBtn) closeBtn.addEventListener('click', closeImageDialog);
+    dialog.addEventListener('cancel', closeImageDialog);
+    dialog.addEventListener('click', function (e) {
+      if (e.target === dialog) closeImageDialog();
+    });
+  }
+})();
 </script>
 {{ end }}
 

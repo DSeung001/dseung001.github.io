@@ -21,7 +21,7 @@
     <main class="main">
         {{- block "main" . }}{{ end }}
     </main>
-    {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") (.Store.Get "hasMermaid") -}}
+    {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") (.Store.Get "hasMermaid") (.Store.Get "hasContentImage") -}}
 </body>
 
 </html>
