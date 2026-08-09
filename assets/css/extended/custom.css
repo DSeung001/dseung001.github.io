@@ -287,11 +287,15 @@ html.cursor-follower-off #cursor-ink-trail {
     max-height: 92vh;
     margin: auto;
     padding: 0;
-    border: 1px solid var(--border);
+    border: none;
     border-radius: var(--radius);
     background: var(--entry);
     color: var(--primary);
     overflow: hidden;
+}
+
+.mermaid-dialog[open]:focus {
+    outline: none;
 }
 
 .mermaid-dialog::backdrop {
@@ -321,6 +325,10 @@ html.cursor-follower-off #cursor-ink-trail {
 .mermaid-dialog__close:focus-visible {
     opacity: 1;
     background: var(--code-bg);
+}
+
+.mermaid-dialog__close:focus {
+    outline: none;
 }
 
 .mermaid-dialog__close svg {
@@ -408,11 +416,15 @@ html.cursor-follower-off #cursor-ink-trail {
     max-height: 96dvh;
     margin: auto;
     padding: 0;
-    border: 1px solid var(--border);
+    border: none;
     border-radius: var(--radius);
     background: var(--entry);
     color: var(--primary);
     overflow: hidden;
+}
+
+.image-dialog[open]:focus {
+    outline: none;
 }
 
 .image-dialog::backdrop {
@@ -446,6 +458,10 @@ html.cursor-follower-off #cursor-ink-trail {
 .image-dialog__close:focus-visible {
     opacity: 1;
     background: var(--code-bg);
+}
+
+.image-dialog__close:focus {
+    outline: none;
 }
 
 .image-dialog__close svg {
