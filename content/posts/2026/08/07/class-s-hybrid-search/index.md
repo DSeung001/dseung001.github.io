@@ -478,6 +478,61 @@ sequenceDiagram
 6. 인기 점수: 후보에 강좌 `view_count`를 붙입니다.
 7. 세 점수를 각각 min-max로 0~1에 맞춘 뒤 가중합합니다. `hybrid`는 FTS 0.45 + Vector 0.45 + 조회수 0.10입니다. `fts_only`는 벡터 항을 빼고 두 비중의 합으로 나눕니다.
 
+키워드 점수는 Postgres FTS로 가져옵니다. <br/>
+`SearchQuery`로 `search_vector`에 걸린 발행 청크만 남기고, `SearchRank`로 정렬합니다, 짧은 검색어에서 `websearch`가 비면 `plain`으로 한 번 더 조회합니다.
+
+```python
+# chunk_id -> raw FTS rank (높을수록 좋음)
+def _fts_candidates(*, query: str, limit: int) -> dict[int, float]:
+    sq = SearchQuery(query, config="simple", search_type="websearch")
+    qs = (
+        _published_chunks()
+        .filter(search_vector=sq)
+        .annotate(fts_rank=SearchRank(F("search_vector"), sq))
+        .order_by("-fts_rank")[:limit]
+    )
+    rows = list(qs)
+    if not rows:
+        sq = SearchQuery(query, config="simple")
+        qs = (
+            _published_chunks()
+            .filter(search_vector=sq)
+            .annotate(fts_rank=SearchRank(F("search_vector"), sq))
+            .order_by("-fts_rank")[:limit]
+        )
+        rows = list(qs)
+    return {row.id: float(row.fts_rank or 0.0) for row in rows}
+```
+
+의미 점수는 같은 `embedding_model_version` 행만 대상으로 `CosineDistance`를 씁니다. 거리가 작을수록 가깝고, 점수로 쓸 때는 `1 - distance`로 바꿔 대략 0~1 유사도로 둡니다.
+
+```python
+# chunk_id -> similarity ≈ 1 - cosine distance
+def _vector_candidates(
+    *,
+    query_vector: list[float],
+    embedding_model_version: str,
+    limit: int,
+) -> dict[int, float]:
+    qs = (
+        _published_chunks()
+        .filter(
+            embedding__isnull=False,
+            embedding_model_version=embedding_model_version,
+        )
+        .annotate(distance=CosineDistance("embedding", query_vector))
+        .order_by("distance")[:limit]
+    )
+    scores = {}
+    for row in qs:
+        dist = float(row.distance if row.distance is not None else 1.0)
+        scores[row.id] = max(0.0, min(1.0, 1.0 - dist))
+    return scores
+```
+
+후보 집합은 FTS 결과와 벡터 결과를 합친 `chunk_id`입니다. <br/>
+이 집합 안에서 FTS·벡터·조회수를 각각 min-max로 0~1에 맞춘 뒤 가중합합니다.
+
 ```python
 # hybrid: FTS+벡터+조회수 / fts_only: 벡터 제외
 def combine_hybrid_scores(...):
