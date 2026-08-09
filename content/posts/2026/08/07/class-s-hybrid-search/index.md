@@ -13,7 +13,9 @@ lastmod: 2026-08-09T00:00:00+09:00
 > 해당 글은 초안으로 언제든지 내용이 바뀔 수 있습니다.
 
 # 개요
-기존 Class S 프로젝트에 영상 내용을 분석해 강좌 요약, 타임라인, 태깅을 자동으로 해주는 기능과, 영상 내용 기반 검색을 위한 하이브리드 인덱싱 파이프라인을 붙였습니다.
+처음에 강의 공유 사이트로 컨셉을 잡고 배포했던 이유에는, 동영상처럼 무거운 데이터를 다루고 싶었던 점도과 함께, 여기서 빠져나갈 갈래가 많다는 점도도 있었습니다. LLM 관련 기능을 붙이려면 콘텐츠가 필요한데, 그에 가장 잘 맞는 서비스라고 생각해 접근했습니다.
+
+이번에는 사이트에 쌓인 콘텐츠에 LLM을 어떻게 녹일지 고민하다, 두 가지를 붙이기로 했습니다. 하나는 업로드할 때 기입하는 설명·태그·타임라인 정보를 자동으로 채우는 기능이고, 다른 하나는 영상 내용을 벡터화해 원하는 강의에 더 가깝게 다가가는 하이브리드 검색입니다.
 
 이번 글에서는 코드 단위보다는 데이터가 어디서 어디로 가는지, 비동기 잡의 구성과 청킹, 임베딩, 랭킹 같은 핵심 비즈니스 로직이 어떻게 동작하는지를 따라갑니다.<br/>
 
@@ -239,7 +241,7 @@ def run_transcribe(job: VideoMetadataJob) -> VideoTranscript:
 
 업로드 후 영상에서 텍스트를 추출하는 STT(Speech To Text)는 Whisper를 채용했고 Whisper 업로드 바이트 한도(`WHISPER_MAX_UPLOAD_BYTES`, 기본 25MB)를 전제로 설계했습니다.<br/>
 
-영상 하나가 40~50분 정도인 영상에서 나오는 오디오가 25MB를 초과하면 데이터 손실이 발생할 수 있어서
+40~50분 정도인 영상에서 나오는 오디오가 25MB를 초과하면 데이터 손실이 발생할 수 있어서
 한도를 넘을 때 청크 단위로 분리하여 진행해서 텍스트를 추출한 뒤 시간대를 기준으로 이어붙입니다.
 
 세부 절차는 다음과 같습니다.
@@ -270,7 +272,7 @@ if chunk.used_overlap and start_ms < covered_until_ms:
     start_ms = covered_until_ms
 ```
 
-AI 키는 역할이 둘로 나뉩니다. STT(Whisper)·임베딩은 OpenAI(데이터 추출) 키, 요약 LLM은 Gemini(텍스트) 키입니다. 둘 중 하나라도 없으면 stub 경로로 이어지고, 이후 단계에는 "키 등록이 필요하다"는 안내 description이 들어갑니다.
+AI 키는 역할이 나뉩니다. upload STT(Whisper)는 OpenAI(데이터 추출) 키, 요약 LLM은 Gemini(텍스트) 키입니다. 필요한 키가 없으면 해당 단계가 stub으로 이어지고, 안내 description이 들어갑니다. YouTube 자막 추출은 OpenAI 키 없이 가능하고, 임베딩용 OpenAI 키는 `search_index` 단계에서 따로 씁니다.
 
 ### 요약과 media DB 적재
 `transcript`가 준비되면 LLM(기본 Gemini)으로 DB에 적재할 데이터를 생성합니다.<br/>
@@ -358,7 +360,7 @@ flowchart TB
 metadata-only에 쓰이는 필드는 “사용자가 직접 쓴 값”일 수도 있고, 이전에 AI 요약이 채워 둔 값일 수도 있습니다.<br/>
 AI 없이 바로 발행(`after_upload=publish`)하면 보통의 경우 transcript가 없어, 사람이 입력했거나 비어 있는 메타만으로 인덱싱됩니다.
 
-필드가 `SEARCH_CHUNK_MIN_CHARS`(기본 40)보다 짧으면 그 구간 청크는 만들지 않습니다.
+조립한 청크 텍스트가 `SEARCH_CHUNK_MIN_CHARS`(기본 40)보다 짧으면 그 구간 청크는 만들지 않습니다.
 
 transcript가 있을 때는 `VideoTimeline` 구간별로 segment를 모으고, `SEARCH_CHUNK_MAX_CHARS`(기본 1200)를 넘기면 저장(flush)하며 진행합니다. 이때도 영상명, 타임라인 라벨, 태그, 타임라인 설명은 헤더/보조 정보로 본문 앞에 붙습니다.
 
@@ -416,11 +418,26 @@ sequenceDiagram
 
 ## 검색 랭킹
 발행된 강좌의 `SearchChunk`만 `GET /api/v1/search?q=`로 검색합니다.<br/>
-점수는 RRF가 아니라, FTS와 벡터, 조회수 점수를 후보 집합 안에서 각각 0~1로 맞춘 뒤 가중합하는 방식입니다.
+최종 순위는 FTS·벡터·조회수라는 세 점수를 후보 집합 안에서 각각 0~1로 맞춘 뒤 가중합하는 점수 합산 방식입니다.
 
-- RRF(Reciprocal Rank Fusion): 여러 검색 채널의 결과를 순위(rank)만 보고 합치는 방법입니다. 1등, 2등처럼 등수만 쓰고 원점수 크기는 보지 않습니다.
-- 이 서비스는 RRF 대신, 이번 검색에 올라온 후보들끼리 FTS 점수와 벡터 유사도, 강좌 조회수(`view_count`)를 각각 최솟값부터 최댓값을 기준으로 0부터 1까지 맞춘 뒤(min-max), 비중을 곱해 더합니다(가중합).
-- 채널마다 점수 단위가 달라도 같은 스케일에서 섞을 수 있습니다.
+사용되는 점수는 세 가지입니다. 키워드 점수(FTS `SearchRank`), 의미 점수(임베딩 cosine), 인기 점수(강좌 `view_count`)입니다. 단위가 다른 후보들을 가공해 같은 수치로 두고 더합니다.
+
+### 이 방식의 이유
+해보고 싶던 작업은 원하는 키워드로도 검색이 가능하고 키워드가 살짝 다르지만 비슷하게 통용되는 단어로도 검색이 가능한 검색 기능을 만들고 싶었습니다. 거기에 살짝 조회수를 높여 비슷한 사용자들잉 원하는 강의의 우선순위도 높이고 싶었죠.
+
+글을 쓰는 시점에서의 검색 기능은 다음과 같습니다.
+- 키워드만 쓰면 표현이 조금만 달라도 놓치고, 벡터만 쓰면 고유명사·정확한 용어 매칭이 약해집니다. 둘을 후보로 모은 뒤 점수를 섞으면 둘의 빈틈을 서로 보완합니다.
+- 조회수는 강좌의 조회수를 가져와 0.1로 소량의 비중을 담당합니다. 
+- 처음에는 비중을 `0.45 / 0.45 / 0.10`로 두었습니다. 아직은 원할한 동작을 위한 점수 배점에 대한 데이터가 없기에 개발자 친화적인 검색 결과 하면을 사용합니다.
+
+추후에는 여러 모델에서 나온 벡터를 녹일 수 있도록 RRF도 고려해보고 있습니다.
+
+### 모델명이 같아야 의미 점수가 붙는다
+현재는 벡터 비교는 같은 임베딩 모델이 만든 좌표끼리만 의미가 있습니다.  <br/>
+인덱싱·검색 모두 `embedding_model_version`에 `openai:<모델명>`(기본 `openai:text-embedding-3-small`) 또는 키 없을 때 `stub-v1`을 넣어서 동작합니다.
+
+- 검색어를 임베딩한 모델명과 `SearchChunk.embedding_model_version`이 같으면 의미 점수를 쓰고 하이브리드 검색으로 갑니다.
+- 키가 없거나 stub이거나, 모델명이 맞는 청크가 없으면 의미 점수를 빼고 FTS+조회수 기본 베이스(`fts_only`)로 갑니다.
 
 ```mermaid
 sequenceDiagram
@@ -430,38 +447,38 @@ sequenceDiagram
   participant OpenAI
 
   Client->>API: GET /api/v1/search?q=
-  API->>DB: FTS 후보 (SearchRank top-N)
+  API->>DB: 키워드 점수 FTS 후보 (SearchRank top-N)
   API->>API: 요청 유저의 OpenAI 키 확인
   alt OpenAI 키가 있고 임베딩 성공
     API->>OpenAI: 검색어 임베딩 요청
-    OpenAI-->>API: 쿼리 벡터와 모델 버전
-    alt 같은 버전의 인덱스 벡터가 있음
-      API->>DB: 벡터 후보 (cosine top-N)
+    OpenAI-->>API: 쿼리 벡터와 openai:모델명
+    alt 같은 모델명의 인덱스 벡터가 있음
+      API->>DB: 의미 점수 벡터 후보 (cosine top-N)
       Note over API: FTS와 벡터 후보를 합침
       Note over API: mode = hybrid
-    else 버전이 맞는 인덱스 벡터가 없음
-      Note over API: 벡터를 제외함
+    else 같은 모델명 청크가 없음
+      Note over API: 의미 점수 제외, FTS+조회수 베이스
       Note over API: mode = fts_only
     end
   else 익명 / 키 없음 / OpenAI가 아님 / 임베딩 실패
-    Note over API: stub-v1이면 벡터 검색을 건너뜀
+    Note over API: stub-v1이면 의미 점수를 건너뜀
     Note over API: mode = fts_only
   end
-  API->>DB: 후보 청크와 강좌 view_count 조회
-  Note over API: 점수를 0~1로 맞춘 뒤 가중합
+  API->>DB: 후보 청크와 인기 점수 view_count 조회
+  Note over API: 점수별 0~1 정규화 후 가중합
   API-->>Client: 검색 결과
 ```
 
-흐름을 풀면 다음과 같습니다.
+구현 흐름은 다음과 같습니다.
 
-1. 먼저 FTS로 `search_vector`에 걸린 청크를 상위 N개 뽑습니다. N은 `SEARCH_QUERY_CANDIDATE_LIMIT`이며 기본값은 50입니다.
-2. API는 검색 요청 유저에게 등록된 콘텐츠 AI의 transcript용 credential을 확인합니다. 익명 요청이거나 키가 없거나 provider가 OpenAI가 아니면 `stub-v1`로 판단합니다.
-3. OpenAI 키가 있으면 그 키로 검색어의 임베딩을 요청합니다. 성공하면 쿼리 벡터와 `openai:<모델명>` 형식의 버전을 얻습니다.
-4. 쿼리 버전과 `SearchChunk.embedding_model_version`이 같은 행만 대상으로 cosine 상위 N개를 찾습니다. 버전까지 맞는 벡터 후보가 있으면 FTS 후보와 합쳐 `hybrid`로 검색합니다.<br/>
-   인덱스 벡터는 영상을 인덱싱한 교사의 키를 기준으로 만들어집니다. 따라서 검색 유저에게 OpenAI 키가 있어도 인덱스 버전이 다르면 의미 검색은 적용되지 않습니다.
-5. 키가 없어 `stub-v1`이 되었거나 OpenAI 호출이 실패했거나 버전이 맞는 벡터 후보가 없으면 `fts_only`로 전환합니다. stub 해시 벡터는 의미 유사도를 나타내지 않으므로 벡터 후보 조회부터 건너뜁니다.
-6. 선택된 후보에 강좌 `view_count`(조회수)를 붙입니다.
-7. FTS와 벡터, 조회수 점수를 각각 min-max로 0~1에 맞춘 뒤 기본 가중치로 합칩니다. `hybrid`는 FTS 0.45 + Vector 0.45 + 조회수 0.10입니다. `fts_only`는 벡터 항을 빼고 FTS와 조회수의 비중을 다시 나눕니다.
+1. 키워드 점수: FTS로 `search_vector`에 걸린 청크를 상위 N개 뽑습니다. N은 `SEARCH_QUERY_CANDIDATE_LIMIT`(기본 50)입니다.
+2. API는 검색 요청 유저의 transcript용 OpenAI credential을 확인합니다. 익명이거나 키가 없거나 provider가 OpenAI가 아니면 `stub-v1`입니다.
+3. OpenAI 키가 있으면 그 키로 검색어를 임베딩하고, 쿼리 벡터와 `openai:<모델명>`을 얻습니다.
+4. `SearchChunk.embedding_model_version`이 그 모델명과 같은 행만 cosine 상위 N개로 뽑습니다. 후보가 있으면 FTS와 합쳐 `hybrid`입니다.<br/>
+   인덱스 벡터는 영상 소유자(교사) 키로 만들어지고, 검색 벡터는 요청 유저 키로 만들어집니다. 키가 달라도 모델명이 같으면 의미 점수를 쓸 수 있고, 모델명이 다르면 의미 점수만 빠집니다.
+5. stub이거나 임베딩 실패이거나 같은 모델명 후보가 없으면 `fts_only`로, FTS+조회수 기본 베이스만 씁니다.
+6. 인기 점수: 후보에 강좌 `view_count`를 붙입니다.
+7. 세 점수를 각각 min-max로 0~1에 맞춘 뒤 가중합합니다. `hybrid`는 FTS 0.45 + Vector 0.45 + 조회수 0.10입니다. `fts_only`는 벡터 항을 빼고 두 비중의 합으로 나눕니다.
 
 ```python
 # hybrid: FTS+벡터+조회수 / fts_only: 벡터 제외
@@ -476,13 +493,14 @@ def combine_hybrid_scores(...):
     )
 ```
 
-유사도 하한(threshold)은 없습니다. 결과는 청크 단위라, 같은 강좌의 여러 구간이 상위권에 같이 올라올 수 있습니다.
-
 
 <!-- 아래는 체크 후 수정 필요  -->
 <!-- # 현재 로직에서 보이는 문제와 개선 여지
 이 글의 목적은 지금 돌아가는 파이프라인을 기준으로, 전체 흐름과 알고리즘 수준의 문제나 개선점을 짚는 것입니다.<br/>
 자잘한 함수 정리보다 “검색이 기대한 대로 동작하지 않을 수 있는 지점”을 찾는 쪽에 가깝습니다.
+
+
+유사도 하한(threshold)은 없습니다. 결과는 청크 단위라, 같은 강좌의 여러 구간이 상위권에 같이 올라올 수 있습니다.
 
 1. 인덱스 임베딩과 쿼리 임베딩의 키가 다를 수 있습니다.<br/>
    인덱싱은 영상 소유자(교사) credential 기준이고, 검색은 요청 유저 기준입니다. 실키끼리 `embedding_model_version`이 맞을 때만 hybrid이고, stub이거나 버전이 어긋나면 `fts_only`입니다. 의미 검색이 “누가 인덱싱·검색하느냐”에 따라 꺼질 수 있습니다.
