@@ -7,7 +7,7 @@ draft: false
 description: "Class S 프로젝트에 하이브리드 검색 파이프라인 구현하기"
 keywords: [ "Class Project", "하이브리드 검색", "인덱싱", "검색", "영상", "텍스트 추출", "임베딩", "SQS" ]
 author: "DSeung001"
-lastmod: 2026-08-08T00:00:00+09:00
+lastmod: 2026-08-09T00:00:00+09:00
 ---
 
 > 해당 글은 초안으로 언제든지 내용이 바뀔 수 있습니다.
@@ -15,16 +15,16 @@ lastmod: 2026-08-08T00:00:00+09:00
 # 개요
 기존 Class S 프로젝트에 영상 내용을 분석해 강좌 요약, 타임라인, 태깅을 자동으로 해주는 기능과, 영상 내용 기반 검색을 위한 하이브리드 인덱싱 파이프라인을 붙였습니다.
 
-이번 글에서는 코드 단위보다는 데이터가 어디서 어디로 가는지, 왜 비동기 잡의 구성, 청킹,임베딩,랭킹 같은 핵심 비즈니스 로직이 어떻게 동작하는지를 따라갑니다.<br/>
+이번 글에서는 코드 단위보다는 데이터가 어디서 어디로 가는지, 비동기 잡의 구성과 청킹, 임베딩, 랭킹 같은 핵심 비즈니스 로직이 어떻게 동작하는지를 따라갑니다.<br/>
 
-읽는 순서는 개념 소개 → 데이터 흐름 → 비동기 작업 구조 → 상세 비즈니스 로직 → 검색 랭킹과 현재 로직 분석순으로 이어집니다.
+읽는 순서는 개념 소개 → 데이터 흐름 → 비동기 작업 구조 → 상세 비즈니스 로직 → 검색 랭킹과 현재 로직 분석 순으로 이어집니다.
 
 ## 하이브리드 인덱싱
 
-키워드 검색용 FTS 벡터와 의미 검색용 임베딩 벡터를 같은 청크 단위로 함께 적재하는 구조를 사용할 겁니다.
+키워드 검색용 FTS 벡터와 의미 검색용 임베딩 벡터를 같은 청크 단위로 함께 적재하는 구조를 사용합니다.
 보통 게시판에서는 규모가 작으면 `LIKE` 검색만 제공하고, 규모가 커지면 Full-Text Search(FTS)에 `Elasticsearch`/`OpenSearch` 같은 검색 엔진을 더해 검색하곤 합니다.
 
-이 FTS 토큰 매칭에 의미 기반으로 가중치를 주는 검색을 혼합할 예정이며, 다음 시나리오에서 이점을 기대할 수 있습니다.
+이 FTS 토큰 매칭에 의미 기반으로 가중치를 주는 검색을 혼합하며, 다음 시나리오에서 이점을 기대할 수 있습니다.
 - 검색자가 특정 단어가 기억나지 않아도 결과에 근접할 수 있음
 - 자연어로 검색할 수 있음
 - 비슷한 뜻의 단어로도 원하는 결과를 찾을 수 있음
@@ -35,13 +35,13 @@ lastmod: 2026-08-08T00:00:00+09:00
 
 
 # 데이터 흐름
-사용자가 영상을 업로드하고, 이를 워커가 HLS로 인코딩을 한 뒤, AI로 관련 테이블 데이터 채우고, 영상의 사운드의 내용을 정리한 뒤 텍스트로 만들면 이를 FTS 벡터화도 하고 임베딩도 진행합니다.
+사용자가 영상을 업로드하면 워커가 HLS로 인코딩합니다. 이후 선택적으로 AI가 관련 테이블 데이터를 채우고 영상 사운드를 텍스트로 뽑을 수 있으며, 최종 발행 뒤에야 FTS 벡터화와 임베딩이 진행됩니다.
 
 사용자는 다음처럼 강의 업로드로 영상을 올리고 AI로 요약하고 발행할 수 있습니다.<br/>
 - 주소: [https://class.devseung.com/courses/108?return_to=main](https://class.devseung.com/courses/108?return_to=main)
 
 
-※ 이미지의 마우스를 올려서 확대해서 보시는걸 권장드립니다.
+※ 이미지에 마우스를 올려 확대해서 보시는 것을 권장드립니다.
 
 **강의 업로드**
 ![upload](./upload.gif)
@@ -52,7 +52,7 @@ lastmod: 2026-08-08T00:00:00+09:00
 아직은 검증 단계로 개발자 친화적입니다.
 ![search](./search.webp)
 
-아래는전체 시퀀스 다이어그램입니다.
+아래는 전체 시퀀스 다이어그램입니다.
 
 ```mermaid
 sequenceDiagram
@@ -151,10 +151,10 @@ def process_sqs_message(...):
 | 기능 / 잡 | 상태 전이 | 비고 |
 |-----------|-----------|------|
 | `PublishJob` | `uploading` → `queued` → `processing` → `completed` \| `failed` | 업로드 후 인코딩·썸네일·DB 반영 |
-| `Course.publication` | `draft` ⇄ `published` | 카탈로그 공개 여부 |
-| `Course.review` | `none` → `ai_processing` → `review_required` \| `failed` | AI 검수 파이프라인 (`publication`과 독립) |
+| `Course.publication_status` | `draft` ⇄ `published` | 카탈로그 공개 여부 |
+| `Course.review_status` | `none` → `ai_processing` → `review_required` \| `failed` | AI 검수 파이프라인 (`publication_status`와 독립). 잡 실패 시 `failed`, 성공 시 `review_required` |
 | `VideoMetadataJob` | `queued` → `running` → `completed` \| `failed` | 스텝: `transcribe` → `summarize` |
-| `SearchIndexJob` | `queued` → `running` → `completed` \| `failed` | `publication=published`일 때만 실행 |
+| `SearchIndexJob` | `queued` → `running` → `completed` \| `failed` | `publication_status=published`일 때만 실행 |
 
 아래부터는 잡별 핵심 비즈니스 로직을 따라갑니다.
 
@@ -179,11 +179,11 @@ def apply_after_upload_action(*, course, user, after_upload):
     return course
 ```
 
-발행에서 방법에 따라 후술할 인덱싱 방법이 달라지니다.<br/>
-최종 검수 후 강좌를 발행할 때 `publication=published`가 될 때 적재되기에 발행 전인 `ai`/`draft` 상태에서는 인덱싱하지 않습니다.<br/>
+발행 방법에 따라 후술할 인덱싱에 쓰는 텍스트 소스가 달라집니다.<br/>
+최종 검수 후 강좌를 발행할 때 `publication_status=published`가 되는 시점에 적재되므로, 발행 전인 `ai`/`draft` 상태에서는 인덱싱하지 않습니다.<br/>
 
-정확히는 AI로 값을 채우는 잡은 설명·태그·타임라인을 채우는 옵션이기에 이후 검수 후 사람이 발행할 때 비로소 인덱싱이 붙죠.
-바로 발행(`publish`)하면 AI 없이 공개 상태가 되며, `transcript`를 따로 만들지 않기에 인덱싱할 데이터를 입력한 `description/tags/timeline` 같은 media 필드로 청크를 만들게 됩니다. (AI 키는 강의를 올리는 사람껄 쓰기에 선택할 수 있는 플로우로 구상)
+정확히는 AI로 값을 채우는 잡은 설명·태그·타임라인을 채우는 옵션이기에, 이후 검수 후 사람이 발행할 때 비로소 인덱싱이 붙습니다.
+바로 발행(`publish`)하면 AI 없이 공개 상태가 되며, `transcript`를 따로 만들지 않기에 인덱싱할 데이터는 입력한 `description`/`tags`/`timeline` 같은 media 필드로 청크를 만듭니다. (AI 키는 강의를 올리는 사람 것을 쓰므로, 키 등록 여부에 따라 선택 가능한 플로우로 구상했습니다)
 
 이를 아래 다이어그램으로 표현이 가능하죠.
 
@@ -217,7 +217,7 @@ AI로 내용 분석을 해서 채우기를 할 경우 강좌에 붙는 비디오
 워커 `run_metadata_job`은 이를 받고 크게 두 작업을 합니다. `transcribe 추출` → `summarize 요약`
 
 ### 텍스트 추출
-추출 시 직접 업로드하는 방식과 유튜브 링크를 사용하는 지에 따라 분기가 나뉘죠.
+추출 시 직접 업로드하는 방식과 유튜브 링크를 사용하는지에 따라 분기가 나뉘죠.
 
 | 소스 | 방식 |
 | --- | --- |
@@ -239,7 +239,7 @@ def run_transcribe(job: VideoMetadataJob) -> VideoTranscript:
 
 업로드 후 영상에서 텍스트를 추출하는 STT(Speech To Text)는 Whisper를 채용했고 Whisper 업로드 바이트 한도(`WHISPER_MAX_UPLOAD_BYTES`, 기본 25MB)를 전제로 설계했습니다.<br/>
 
-영상 하나가 40~50분정도인 영상에서 나오는 오디오가 25MB 초과하면 데이터 손실이 발생할 수 있어서
+영상 하나가 40~50분 정도인 영상에서 나오는 오디오가 25MB를 초과하면 데이터 손실이 발생할 수 있어서
 한도를 넘을 때 청크 단위로 분리하여 진행해서 텍스트를 추출한 뒤 시간대를 기준으로 이어붙입니다.
 
 세부 절차는 다음과 같습니다.
@@ -249,9 +249,9 @@ def run_transcribe(job: VideoMetadataJob) -> VideoTranscript:
 3. `WHISPER_MAX_UPLOAD_BYTES` 초과 시에만 분할 대상으로 보고 청크로 분할
 4. 목표 청크 크기(`WHISPER_TARGET_CHUNK_BYTES`, 기본 22MB) 근처 무음 중점에서 자르고, 없으면 hard-cut
 5. 청크마다 Whisper `verbose_json` 호출 후 `merge_chunk_results`로 병합
-6. transcript JSON은 S3 `transcripts/.../raw.json`에 두고, DB `VideoTranscript`에는 object key만 남긴다
+6. transcript JSON은 S3 `transcripts/.../raw.json`에 두고, DB `VideoTranscript`에는 object key만 남깁니다
 
-`hard-cut`으로 나눌 때 데이터 손실이 발생할 수 있습니다. <BR/>
+`hard-cut`으로 나눌 때 데이터 손실이 발생할 수 있습니다.<br/>
 그래서 다음 청크 시작을 `TRANSCRIPT_HARD_CUT_OVERLAP_SEC`(기본 0.8s)만큼 앞으로 당겨 경계 말을 한 번 더 듣게 하고, 병합 때는 이미 커버된 구간의 중복 세그먼트를 버립니다.
 
 ```python
@@ -270,13 +270,13 @@ if chunk.used_overlap and start_ms < covered_until_ms:
     start_ms = covered_until_ms
 ```
 
-AI 사용에 대한 키가 없으면 stub provider로 이어지는데 이후 단계에서는 "키 등록이 필요하다"는 안내 description이 들어가게 됩니다.
+AI 키는 역할이 둘로 나뉩니다. STT(Whisper)·임베딩은 OpenAI(데이터 추출) 키, 요약 LLM은 Gemini(텍스트) 키입니다. 둘 중 하나라도 없으면 stub 경로로 이어지고, 이후 단계에는 "키 등록이 필요하다"는 안내 description이 들어갑니다.
 
 ### 요약과 media DB 적재
-`transcript`가 준비되면 LLM으로 DB에 적재할 데이터를 생성합니다.<br/>
+`transcript`가 준비되면 LLM(기본 Gemini)으로 DB에 적재할 데이터를 생성합니다.<br/>
 프롬프트용으로 `transcript`를 나누는 청킹과 검색용 청킹은 한도랑 용도, 파이프라인 시점이 달라지기에 서로 별개로 동작합니다.
 
-LLM로 다음 형태로 나오게 됩니다.
+LLM으로 다음 형태로 나오게 됩니다.
 - `description`: 영상 요약(Markdown)
 - `tags[]`
 - `timelines[{ start_seconds, label, description }]` → `VideoTimeline`에 저장
@@ -296,7 +296,7 @@ def apply_ai_fields_to_video(video, fields):
     sync_timelines_from_dicts(video, timelines)
 ```
 
-코스 단위로는 비디오 메타 잡이 모두 끝나면 `review_status=review_required`로 넘어가, 사람이 확인한 뒤 발행하는 흐름입니다. 이 단계에서는 검색 인덱싱을 하지 않습니다.
+코스 단위로는 비디오 메타 잡이 모두 끝나면, 최신 잡이 전부 성공이면 `review_status=review_required`로, 하나라도 실패하면 `failed`로 넘어갑니다. 사람이 확인한 뒤 발행하는 흐름이며, 이 단계에서는 검색 인덱싱을 하지 않습니다.
 
 ```mermaid
 sequenceDiagram
@@ -317,7 +317,7 @@ sequenceDiagram
 ```
 
 ## search_index
-검색 인덱스는 최종 발행 시점에 후에 오며 `publication_status=published`로 바꾼 뒤, 트랜잭션 commit 이후에 `search index job`을 적재합니다.
+검색 인덱스는 최종 발행 시점 이후에 오며 `publication_status=published`로 바꾼 뒤, 트랜잭션 commit 이후에 `search index job`을 적재합니다.
 
 ```python
 # mark published
@@ -332,11 +332,11 @@ def enqueue_search_index_after_publish(*, course_id: int) -> None:
     )
 ```
 
-`on_commit`을 쓰는 이유는 발행이 완료되면 인덱싱을 돌게하고, 인덱싱이 실패해도 발행에는 영향을 주지 않기 위함입니다.
+`on_commit`을 쓰는 이유는 발행이 완료되면 인덱싱을 돌게 하고, 인덱싱이 실패해도 발행에는 영향을 주지 않기 위함입니다.
 
 ### 청킹
-청크를 만드느건 `VideoTimeline` 구간을 우선합니다.<br/>
-하지만 청크에 넣는 본문 텍스트는 `transcript` 유무에 따라 갈리는데, transcript는 AI 메타 잡(`type=metadata`)의 STT/자막 단계에서만 생기고, 인코딩만으로는 만들어지지 않기 때문에 사용자에 행동에 따라 없을 수도 있습니다.
+청크를 만드는 건 `VideoTimeline` 구간을 우선합니다.<br/>
+하지만 청크에 넣는 본문 텍스트는 `transcript` 유무에 따라 갈리는데, transcript는 AI 메타 잡(`type=metadata`)의 STT/자막 단계에서만 생기고, 인코딩만으로는 만들어지지 않기 때문에 사용자의 행동에 따라 없을 수도 있습니다.
 그래서 아래와 같이 동작합니다.
 
 ```mermaid
@@ -356,14 +356,14 @@ flowchart TB
 | metadata-only | transcript가 없거나 segment가 비어 있음 | `Video.name`, `description`, 태그, `VideoTimeline` 라벨/설명 |
 
 metadata-only에 쓰이는 필드는 “사용자가 직접 쓴 값”일 수도 있고, 이전에 AI 요약이 채워 둔 값일 수도 있습니다.<br/>
-AI 없이 바로 발행(`after_upload=publish`)하면 보통의 경우 transcript가 없어, 사람이 입력했거나 비어 있는 메타만으로 인덱싱됩니다. 
+AI 없이 바로 발행(`after_upload=publish`)하면 보통의 경우 transcript가 없어, 사람이 입력했거나 비어 있는 메타만으로 인덱싱됩니다.
 
 필드가 `SEARCH_CHUNK_MIN_CHARS`(기본 40)보다 짧으면 그 구간 청크는 만들지 않습니다.
 
 transcript가 있을 때는 `VideoTimeline` 구간별로 segment를 모으고, `SEARCH_CHUNK_MAX_CHARS`(기본 1200)를 넘기면 저장(flush)하며 진행합니다. 이때도 영상명, 타임라인 라벨, 태그, 타임라인 설명은 헤더/보조 정보로 본문 앞에 붙습니다.
 
 ### 임베딩과 SearchChunk 적재
-준비된 텍스트 목록을 `embed_texts`에 넘겨서 임베딩 작업을 합니다. <br/>
+준비된 텍스트 목록을 `embed_texts`에 넘겨서 임베딩 작업을 합니다.<br/>
 **※ 임베딩(Embedding)**: 사람이 쓰는 단어, 문장, 이미지 같은 복잡한 데이터를 컴퓨터가 이해할 수 있도록 숫자들의 배열(벡터)로 바꾸는 과정과 그 결과물
 
 - 영상 소유자(`video.user`)의 OpenAI(transcript) 키가 있으면 `text-embedding-3-small`로 임베딩합니다.
@@ -375,7 +375,7 @@ prepared = build_chunks_for_video(...)
 texts = [c.text for c in prepared]
 
 # embed_texts 내부: 키 유무 분기
-# 내부에서 embedding_model_version를 토대로 사용
+# 내부에서 embedding_model_version을 토대로 사용
 api_key, version = resolve_embedding_api_key(user=video.user)
 if not api_key:
     embeddings = stub_embed_texts(texts)             # stub, 더미 벡터값 부여해서 의미 검색에서는 안쓰임
@@ -394,8 +394,8 @@ chunk_count = _replace_chunks(
 임베딩이 끝나면 `_replace_chunks`가 해당 영상의 기존 `SearchChunk`를 지우고 새 행으로 업데이트합니다.<br/>
 한 행에는 검색에 쓸 본문, FTS용 `search_vector`, 1536차원 `embedding`, 구간 시각, `metadata_version`이 같이 들어갑니다.
 
-이미 같은 `metadata_version`으로 `COMPLETED`인 인덱싱 잡이 있으면 다시 인덱싱하지 않게 하고
-강좌를 다시 draft로 내려도(`unpublish`) 청크 행은 지우지 않게합니다. 대신 검색 API가 published 코스만 읽도록 막아 두었기 때문이죠.
+이미 같은 `metadata_version`과 `embedding_model_version`으로 `COMPLETED`인 인덱싱 잡이 있으면 다시 인덱싱하지 않게 하고,
+강좌를 다시 draft로 내려도(`unpublish`) 청크 행은 지우지 않게 합니다. 대신 검색 API가 published 코스만 읽도록 막아 두었기 때문입니다.
 
 ```mermaid
 sequenceDiagram
@@ -510,17 +510,18 @@ def combine_hybrid_scores(...):
 다만 전체 흐름과 랭킹 알고리즘 기준으로는 검증·개선 후보가 분명합니다. -->
 
 # 정리
-인덱싱부터 검색까지를 한 장으로 보면 다음과 같습니다.
+인덱싱부터 검색까지를 한 장으로 보면 다음과 같습니다. metadata는 선택 경로이고, 검색 인덱싱은 발행 이후에만 붙습니다.
 
 ```mermaid
 flowchart LR
   A["업로드"] --> B["publish<br/>HLS"]
-  B --> C["metadata<br/>STT / 요약 / DB"]
-  C --> D["최종 발행"]
+  B --> C["metadata<br/>(선택: AI 채우기)"]
+  B --> D["최종 발행"]
+  C --> D
   D --> E["search_index<br/>청킹 / 임베딩"]
   E --> F["SearchChunk"]
   F --> G["search API<br/>FTS + vector + 조회수"]
 ```
 
 다음 글에서는 최적화와 테스트, 코드 리뷰를 더 정밀히 진행할 예정입니다.<br/>
-가중치·융합 방식·임베딩 버전 일치·결과 집계처럼 파이프라인과 알고리즘 단위로 좀 더 나은 방안과 흐름을 이해하는게 목적입니다.
+가중치·융합 방식·임베딩 버전 일치·결과 집계처럼 파이프라인과 알고리즘 단위로 좀 더 나은 방안과 흐름을 이해하는 게 목적입니다.
