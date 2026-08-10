@@ -469,39 +469,27 @@ sequenceDiagram
 
 구현 흐름은 다음과 같습니다.
 
-1. 키워드 점수: FTS로 `search_vector`에 걸린 청크를 상위 N개 뽑습니다. N은 `SEARCH_QUERY_CANDIDATE_LIMIT`(기본 50)입니다.
-2. API는 검색 요청 유저의 transcript용 OpenAI credential을 확인합니다. 익명이거나 키가 없거나 provider가 OpenAI가 아니면 `stub-v1`입니다.
+1. 키워드 점수: FTS로 `search_vector`에 걸린 청크를 상위 N개 뽑습니다. N은 `SEARCH_QUERY_CANDIDATE_LIMIT`(기본 100)입니다.
+2. API는 검색 요청 유저의 transcript용 OpenAI credential을 확인합니다. 익명이거나 키가 없거나 provider가 OpenAI가 아니면 스텁으로 더미처리합니다.
 3. OpenAI 키가 있으면 그 키로 검색어를 임베딩하고, 쿼리 벡터와 `openai:<모델명>`을 얻습니다.
-4. `SearchChunk.embedding_model_version`이 그 모델명과 같은 행만 cosine 상위 N개로 뽑습니다. 후보가 있으면 FTS와 합쳐 `hybrid`입니다.<br/>
-   인덱스 벡터는 영상 소유자(교사) 키로 만들어지고, 검색 벡터는 요청 유저 키로 만들어집니다. 키가 달라도 모델명이 같으면 의미 점수를 쓸 수 있고, 모델명이 다르면 의미 점수만 빠집니다.
+4. `SearchChunk.embedding_model_version`이 그 모델명과 같은 행만 cosine으로 의미간의 거리를 파악해 상위 N개로 뽑아서 FTS와 합쳐 `hybrid`로 검색이 가능케합니다.<br/>
+   인덱스 벡터는 영상 소유자(교사) 키로 만들어지고, 검색 벡터는 요청 유저 키로 만들어집니다. 모델명이 같으면 의미 점수를 쓸 수 있고, 모델명이 다르면 의미 점수만 빠집니다. (나중에 모델명 상관없이 되도록 고도화 필요)
 5. stub이거나 임베딩 실패이거나 같은 모델명 후보가 없으면 `fts_only`로, FTS+조회수 기본 베이스만 씁니다.
 6. 인기 점수: 후보에 강좌 `view_count`를 붙입니다.
 7. 세 점수를 각각 min-max로 0~1에 맞춘 뒤 가중합합니다. `hybrid`는 FTS 0.45 + Vector 0.45 + 조회수 0.10입니다. `fts_only`는 벡터 항을 빼고 두 비중의 합으로 나눕니다.
 
 키워드 점수는 Postgres FTS로 가져옵니다. <br/>
-`SearchQuery`로 `search_vector`에 걸린 발행 청크만 남기고, `SearchRank`로 정렬합니다, 짧은 검색어에서 `websearch`가 비면 `plain`으로 한 번 더 조회합니다.
+검색어를 공백 기준 토큰으로 나눈 뒤, 각 토큰을 `SearchQuery(config="simple")`로 OR 결합해 `search_vector`에 걸린 발행 청크만 남깁니다. 점수는 `SearchRank`에 토큰 적중 비율(coverage)을 곱한 `fts_score`입니다. 토큰 여러 개가 모두 걸린 청크가, 하나만 걸린 청크보다 위로 올라가게 됩니다.
 
 ```python
-# chunk_id -> raw FTS rank (높을수록 좋음)
-def _fts_candidates(*, query: str, limit: int) -> dict[int, float]:
-    sq = SearchQuery(query, config="simple", search_type="websearch")
-    qs = (
-        _published_chunks()
-        .filter(search_vector=sq)
-        .annotate(fts_rank=SearchRank(F("search_vector"), sq))
-        .order_by("-fts_rank")[:limit]
-    )
-    rows = list(qs)
-    if not rows:
-        sq = SearchQuery(query, config="simple")
-        qs = (
-            _published_chunks()
-            .filter(search_vector=sq)
-            .annotate(fts_rank=SearchRank(F("search_vector"), sq))
-            .order_by("-fts_rank")[:limit]
-        )
-        rows = list(qs)
-    return {row.id: float(row.fts_rank or 0.0) for row in rows}
+# chunk_id -> fts_score = SearchRank * (적중 토큰 수 / 전체 토큰 수)
+def _fts_candidates_postgres(*, terms: list[str], limit: int) -> dict[int, float]:
+    term_queries = [SearchQuery(term, config="simple") for term in terms]
+    combined = term_queries[0]
+    for tq in term_queries[1:]:
+        combined = combined | tq
+    # SearchRank + term coverage → order_by("-fts_score")[:limit]
+    ...
 ```
 
 의미 점수는 같은 `embedding_model_version` 행만 대상으로 `CosineDistance`를 씁니다. 거리가 작을수록 가깝고, 점수로 쓸 때는 `1 - distance`로 바꿔 대략 0~1 유사도로 둡니다.
