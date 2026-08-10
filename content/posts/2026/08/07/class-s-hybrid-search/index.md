@@ -185,8 +185,8 @@ def apply_after_upload_action(*, course, user, after_upload):
 정확히는 AI로 값을 채우는 잡은 설명·태그·타임라인을 채우는 옵션이기에, 이후 검수 후 사람이 발행할 때 비로소 인덱싱이 붙습니다.
 바로 발행(`publish`)하면 AI 없이 공개 상태가 되며, `transcript`를 따로 만들지 않기에 인덱싱할 데이터는 입력한 `description`/`tags`/`timeline` 같은 media 필드로 청크를 만듭니다. (AI 키는 강의를 올리는 사람의 것을 쓰므로, 키 등록 여부에 따라 선택 가능한 플로우로 구상했습니다)
 
-이를 아래 다이어그램으로 표현이 가능하죠.
-
+이를 아래 다이어그램으로 표현이 가능하죠.<br/>
+※ manifest: 업로드시 파일로 생기는 설정 json 파일로 배치 처리를 위한 임시 데이터입니다, db에는 최종 데이터만 저장합니다.
 ```mermaid
 sequenceDiagram
   participant Worker
