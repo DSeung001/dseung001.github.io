@@ -4,7 +4,6 @@ date: 2026-08-11T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "A/B 테스트", "하이브리드 검색", "랭킹", "실험" ]
 draft: false
-math: true
 description: "Class S 하이브리드 검색 가중치를 A/B 테스트로 검증하는 구조"
 keywords: [ "Class Project", "A/B 테스트", "검색 랭킹", "Success@N", "TTFC", "SearchExperiment" ]
 author: "DSeung001"
@@ -114,61 +113,40 @@ sequenceDiagram
 
 ![result](./result.webp)
 
+위 표는 시드(더미) 행동 데이터입니다. 성공률 차이는 있어도 `p-value`가 커 `no clear winner` 쪽으로 읽히는 경우가 많은데 더미라 그런 결과가 나와도 이상하지 않았습니다.
+
 ## p-value
-지금 `p-value`는 [two-proportion z-test](https://en.wikipedia.org/wiki/Two-proportion_Z-test)(두 비율 비교 z검정)로 계산합니다.
-> A와 B의 진짜 성공률이 같다고 가정했을 때, 지금처럼 성공률 차이가 나는 표를 우연히 얻을 확률이 얼마인지에 대한 값입니다. 입력은 복잡한 로그가 아니라, 가중치마다 집계해 둔 네 가지 수입니다.
+지금 `p-value`는 [two-proportion z-test](https://en.wikipedia.org/wiki/Two-proportion_Z-test)(두 비율 비교 z검정)로 계산합니다. <br/>
+수식 설명까지는 깊게 들어가지는 않았습니다. 운영에서는 “A와 B의 성공률이 사실 같다”고 가정했을 때, 현재 차이가 발생하는 확률을 수치화한거로 이해하시면 됩니다.
 
-| 입력 | 의미 | 어디서 오나 |
-|------|------|------------|
-| `n_A`, `n_B` | 각 variant의 검색 수 (`searches`) | `search_request` 건수 |
-| `s_A`, `s_B` | 각 variant의 성공 수 (`success@10s`) | 같은 `search_id`에서 10초 안 첫 `play`/`seek` |
+예를 들어 A가 검색 200건 중 성공 80건(40%), B가 200건 중 100건(50%)이면 uplift는 `+10pp`입니다. 표본이 작으면 동전을 여러 번 던져도 한쪽이 잠깐 앞설 수 있듯이, 이 10pp도 우연일 수 있습니다. p-value가 그 “우연일 수 있음”을 0~1 사이 숫자로 보여 줍니다.
 
-예를 들어 A가 검색 200건 중 성공 80건, B가 검색 200건 중 성공 100건이면 성공률은 40%와 50%입니다.<br/>
-uplift로 보면 두 수의 차이는 `+10pp`로 보이지만, 표본이 작으면 동전을 여러 번 던져도 한쪽이 잠깐 앞설 수 있듯이, 이 10pp도 우연일 수 있습니다. p-value는 그 “우연일 수 있음”을 수치로 나타냅니다.
+읽는 법은 다음이면 충분합니다.
 
-같은 예로 계산 순서를 따라가면 다음과 같습니다.<br/>
-저는 완전히 이해하지 못했지만 아래 방법을 통해 우연을 수치화할 수 있습니다.
+| p-value | 읽는 법 |
+|---------|---------|
+| 큼 (예: 0.3) | 성공률이 같아도 이런 표는 자주 나올 수 있다 → 차이만으로 승자를 정하지 않음 |
+| 작음 (예: 0.01) | 같아도 이런 차이가 나기는 드물다 → uplift 방향을 더 믿어 볼 만함 |
+| 우리 기준 | `p < 0.05`일 때만 `likely better` / `likely worse`, 아니면 `no clear winner` |
 
-1. 성공률을 구한다.
-   $$p_A=\frac{80}{200}=0.40,\quad p_B=\frac{100}{200}=0.50$$
-2. “둘의 성공률이 같다”는 가정 아래, 두 군을 합쳐 공통 성공률을 만든다.
-   $$p_{\mathrm{pool}}=\frac{80+100}{200+200}=0.45$$
-3. 표본 크기($n_A=200$, $n_B=200$)를 반영한 표준오차 $SE$를 구한다. 검색이 많을수록 $SE$는 작아지고, 같은 성공률 차이라도 우연으로 보기 어려워진다.
-   $$SE=\sqrt{0.45\times(1-0.45)\times\left(\frac{1}{200}+\frac{1}{200}\right)}\approx 0.0497$$
-4. 관측한 성공률 차이를 $SE$로 나눈 절댓값이 $z$다. 차이가 $SE$보다 훨씬 크면 $z$가 커진다.
-   $$z=\frac{|0.50-0.40|}{0.0497}\approx 2.01$$
-5. $z$를 양측 정규분포 꼬리 확률로 바꾼 값이 p-value다. 구현에서는 $\mathrm{erfc}(z/\sqrt{2})$를 쓴다. (erfc: 여오차함수)
-   $$\text{p-value}=\mathrm{erfc}\left(\frac{2.01}{\sqrt{2}}\right)\approx 0.044$$
+입력은 로그 데이터 전체가 아닌 이미 집계된 네 숫자입니다. `searches`(검색 수)와 `success@10s`(성공 수)를 A/B 각각 넣어서 p-value로 계산합니다. 수식 내부에서는 표준오차, z, erfc 같은 중간식은 그 검정 구현 안에 있는데 우리는 결과만 보면 됩니다.
 
-일반식은 다음과 같습니다.
-
-$$
-\begin{aligned}
-p_A &= \frac{s_A}{n_A},\quad p_B=\frac{s_B}{n_B} \\
-p_{\mathrm{pool}} &= \frac{s_A+s_B}{n_A+n_B} \\
-SE &= \sqrt{p_{\mathrm{pool}}(1-p_{\mathrm{pool}})\left(\frac{1}{n_A}+\frac{1}{n_B}\right)} \\
-z &= \frac{|p_B-p_A|}{SE} \\
-\text{p-value} &= \mathrm{erfc}\left(\frac{z}{\sqrt{2}}\right)
-\end{aligned}
-$$
-
-이 예시에서는 $p\approx 0.044$라서 임계값 $0.05$보다 작습니다. 그래서 uplift가 `+10pp`인 방향이면 `likely better`로 읽고, $p\ge 0.05$였다면 `no clear winner`로 둡니다.
-
-이 데이터는 사용자 데이터를 기준으로 하기 때문에 사용자들이 장난치는 데이터가 있을 경우 오염이 발생할 수 있습니다.
-그래서 지금은 Admin에서 A와 다른 variant의 성공 비율을 빠르게 비교하기 위한 운영용 지표로 사용합니다.
+이 데이터는 사용자 행동을 기준으로 하기 때문에, 장난치거나 비정상인 검색이 섞이면 오염될 수 있습니다. 지금은 Admin에서 A와 다른 variant의 성공 비율을 빠르게 비교하기 위한 운영용 지표로 씁니다.
 
 ## verdict
-`verdict`로 다음처럼 내부적으로 판단할 수 있게 정의했습니다.
+`verdict`는 p-value와 표본 수, uplift 방향을 문구로 요약한 값입니다.
 
 | verdict | 조건 | 의미 |
 |---|---|---|
 | `baseline` | A variant | 비교 기준 |
-| `insufficient` | A 또는 비교 variant의 `searches < 100` | 표본이 적어서 판단 보류 (데이터 각각 100건 이상) |
+| `insufficient` | A 또는 비교 variant의 `searches < 100` | 표본이 적어서 판단 보류 (각 100건 이상) |
 | `no clear winner` | `p-value >= 0.05` | 차이가 있어 보여도 통계적으로 뚜렷하지 않음 |
 | `likely better` | `p-value < 0.05` 그리고 `uplift vs A > 0` | A보다 성공률이 높을 가능성이 큼 |
 | `likely worse` | `p-value < 0.05` 그리고 `uplift vs A < 0` | A보다 성공률이 낮을 가능성이 큼 |
 
-현재는 `p-value` 수치가 높게 나와 우연으로 보이는데, 이 데이터는 더미 데이터이므로 일리가 있어 보입니다.
+앞의 `result.webp`는 더미 원본이라 p가 커 우연에 가깝게 보입니다. <br/>
+아래는 확실히 차이가 발생한다는 가정하에 p 값이 작게 나온 시나리오로 데이터를 넣었을 때 화면입니다.
+![result2](./result2.webp)
 
 # 고도화
 현재 구조도 가중치에 한해서는 여러 번 실험을 할 수 있지만, 좀 더 넓은 단위나 기능별로도 한 번의 실험으로 끝내지 않고, 실험을 반복해서 돌릴 수 있는 구조를 만드는 일이 앞으로 더 중요해 보였습니다.
