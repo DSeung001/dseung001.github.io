@@ -113,7 +113,7 @@ sequenceDiagram
 
 ![result](./result.webp)
 
-위 표는 시드(더미) 행동 데이터입니다. 성공률 차이는 있어도 `p-value`가 커 `no clear winner` 쪽으로 읽히는 경우가 많은데 더미라 그런 결과가 나와도 이상하지 않았습니다.
+위 이미지처럼 나오게 됩니다!
 
 ## p-value
 지금 `p-value`는 [two-proportion z-test](https://en.wikipedia.org/wiki/Two-proportion_Z-test)(두 비율 비교 z검정)로 계산합니다. <br/>
