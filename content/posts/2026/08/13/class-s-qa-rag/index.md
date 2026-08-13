@@ -1,13 +1,13 @@
 ---
 title: "Class Project 질의응답 RAG"
-date: 2026-08-12T00:00:00+09:00
+date: 2026-08-13T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 tags: [ "Class Project", "RAG", "질의응답", "LLM" ]
 draft: true
 description: "Class S에 질의응답 RAG를 붙이기 위한 방향"
 keywords: [ "Class Project", "RAG", "질의응답", "LLM", "검색 증강 생성" ]
 author: "DSeung001"
-lastmod: 2026-08-12T00:00:00+09:00
+lastmod: 2026-08-13T00:00:00+09:00
 ---
 
 # 개요
