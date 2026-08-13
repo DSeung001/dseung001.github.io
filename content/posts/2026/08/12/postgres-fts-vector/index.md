@@ -21,6 +21,18 @@ FTS는 Full Text Search입니다. `LIKE '%키워드%'`보다 키워드와 토큰
 - `tsquery`: PostgreSQL의 데이터 타입으로, 검색 조건을 표현합니다. `plainto_tsquery()`, `to_tsquery()` 같은 함수가 `tsquery` 값을 만듭니다
 - `GIN index`: `tsvector`의 토큰을 빠르게 찾기 위한 인덱스 구조입니다
 
+GIN은 역인덱스(Inverted Index) 구조를 사용합니다.
+일반적인 저장이 `행 → 토큰`이라면, 역인덱스는 이를 뒤집어 `토큰 → 해당 토큰이 들어 있는 인덱스(행 위치) 목록`으로 저장합니다.
+
+```text
+postgres → [1, 3]
+index    → [1, 2]
+vector   → [2, 3]
+```
+
+그래서 `postgres`를 검색할 때 모든 행을 처음부터 읽지 않고, 해당 토큰에 연결된 인덱스 목록을 가져올 수 있습니다,
+Elasticsearch도 같은 방식을 사용합니다.
+
 주의점으로는 PostgreSQL 기본 FTS가 영어처럼 사전과 어간 추출 설정이 제공되는 언어에서 더 잘 동작한다는 점입니다. 한국어는 조사와 형태소 때문에 기본 `simple` 설정만으로는 검색 품질이 제한적일 수 있는 게 아쉽죠.
 
 Class S에서는 각 청크의 `text`를 PostgreSQL FTS 검색용 데이터인 `tsvector`로 변환해 `search_vector` 컬럼에 저장했습니다.
