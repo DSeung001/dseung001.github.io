@@ -7,7 +7,7 @@ draft: false
 description: "Class S에 질의응답 RAG를 붙이기 위한 방향"
 keywords: [ "Class Project", "RAG", "질의응답", "LLM", "검색 증강 생성" ]
 author: "DSeung001"
-lastmod: 2026-08-14T12:00:00+09:00
+lastmod: 2026-08-14T22:00:00+09:00
 ---
 
 # 개요
@@ -16,7 +16,7 @@ lastmod: 2026-08-14T12:00:00+09:00
 
 RAG는 사용자의 질문과 관련된 정보를 외부 데이터 소스에서 검색(Retrieval)하고, 검색된 정보를 LLM의 컨텍스트로 제공해 답변을 생성(Generation)하는 방식으로 설명됩니다.
 
-이번 글의 목표는 이 방식으로 1차 개발에서 사용자의 상황과 의도를 파악해 강좌를 매칭하는 걸 우선적으로 만들어 보고
+이번 글의 목표는 이 방식으로 1차 개발에서 사용자의 상황과 의도를 파악해 강좌를 매칭하는 걸 우선적으로 만들어 보고,
 고도화로 아마존 큐처럼 내부 문서 기반으로 사이트가 이동되거나 질문에 답변해 주기도 하는 시스템을 만들 겁니다.
 
 벡터 검색은 이전 [Anime Search Project](/posts/2026/05/10/anime-search-project/) 글로 어느 정도 익숙해서 접근이 가벼웠지만, RAG는 구조와 이론 공부가 더 필요해 다음 글을 참고했습니다.
@@ -144,7 +144,7 @@ def ask_rag(message: str, *, user, ...) -> RagPipelineAnswer:
     # 3) Generation: Context 기반 Gemini JSON 추천
     generated = generate_rag_answer(context, user=user)
 
-    # 4) 추천 카드용 제목·썸네일·score 보강
+    # 4) 추천 카드용 제목, 썸네일, score 보강
     recommendations = _enrich_recommendations(
         generated.recommendations,
         context=context,
@@ -182,7 +182,7 @@ flowchart TD
 사용자 요청에 맞춰 관련 강의 구간을 찾는 단계입니다.
 
 사용자가 "Django로 검색 기능을 만들고 싶어요"처럼 입력하면, 바로 답변을 만들지 않고 먼저 공개 강좌 청크 안에서 후보를 고릅니다.
-이때는 이전 [하이브리드 검색](../../07/class-s-hybrid-search/)과 같이 키워드(FTS)와 의미(임베딩)를 같이 보고, 맞은 청크에는 본문·타임라인·태그까지 붙여서 응답을 줍니다.
+이때는 이전 [하이브리드 검색](../../07/class-s-hybrid-search/)과 같이 키워드(FTS)와 의미(임베딩)를 같이 보고, 맞은 청크에는 본문, 타임라인, 태그까지 붙여서 응답을 줍니다.
 
 만약 한 번에 원하는 응답이 생성되지 않는 질문인 경우, 예를 들어 청크가 거의 없거나 점수가 낮으면(기본값 기준 `top_score` 0.3 미만), 채팅 문장을 검색용 짧은 문장으로 다시 써서 한 번 더 찾습니다.<br/>
 재작성 프롬프트는 답변을 만들지 않고, 인사말이나 감탄사를 필터링하고 없는 기술명을 지어내지 않게 합니다.
@@ -300,7 +300,7 @@ Context에 없는 `course_id` / `video_id` / `chunk_id`를 만들지 말 것, �
 ...
 ```
 
-LLM 응답 뒤에는 course/video/chunk_id를 Context와 교차 검증합니다. 맞지 않는 id는 버리고 통과한 추천에 강좌·영상 제목, 썸네일, score를 붙여 프론트 추천 카드용 응답으로 만듭니다.
+LLM 응답 뒤에는 course/video/chunk_id를 Context와 교차 검증합니다. 맞지 않는 id는 버리고 통과한 추천에 강좌, 영상 제목, 썸네일, score를 붙여 프론트 추천 카드용 응답으로 만듭니다.
 
 Retrieval에서 청크가 비면 Generation 호출 자체를 건너뛰고(`skipped`) `no_result` 안내 문구만 반환합니다.
 
@@ -317,7 +317,7 @@ Retrieval에서 청크가 비면 Generation 호출 자체를 건너뛰고(`skipp
 ![none-login](./none-login.webp#panel)
 
 직접 테스트해 보면 LLM 키를 등록한 쪽 결과가 더 나은 건 보이지만, 실제 서비스에서 이런 식으로 일일이 비교하는 방식은 좋지 않습니다.
-그래서 이런 작업은 테스트·검증·비교·수치화를 코드로 자동화해 두는 작업이 필요하고, 특히 LLM 결과는 주관적인 면이 커서 이 부분이 더 중요합니다.
+그래서 이런 작업은 테스트, 검증, 비교, 수치화를 코드로 자동화해 두는 작업이 필요하고, 특히 LLM 결과는 주관적인 면이 커서 이 부분이 더 중요합니다.
 
 # 테스트는 어떻게?
 LLM API로 외부 모델을 가져와 결과를 도출하는 것 자체가 내부 로직을 알기 어려운 블랙박스고, 여기에 프롬프트를 통한 전처리까지 추가된다면, 각 단계에서 발생하는 작은 오차가 다음 단계로 전달되며 점점 커지는 오차 누적과 오류가 다른 데이터로 전파되는 문제가 발생합니다.
@@ -347,7 +347,7 @@ LLM-as-a-Judge가 그 기준을 보고 답변 품질을 자동 평가하고, 같
 | `RagEvalCaseResult` | case별 실제 결과와 pass/fail |
 | `RagEvalCredential` | Eval에서 사용할 LLM API 키 (채팅용 사용자 키와 분리) |
 
-`RagEvalDataset`을 Golden과 canary로 역할을 나눠서 관리하는데
+`RagEvalDataset`을 Golden과 canary로 역할을 나눠서 관리하는데,
 - golden은 “이 질문이면 이 강좌/영상이 나와야 한다”를 모아 둔 본 테스트
 - canary는 작은 case만 넣어 전체 golden을 돌리기 전에 체크해 보는 용도이다
 
@@ -377,20 +377,33 @@ flowchart LR
 - `retrieval`(검색 hit)
 - `full`(rewrite/generation 포함)
 
-# 검증 결과
+## 검증 결과
 
 ### 목적
 
-분석중
+Golden Dataset을 DB에 두고 dataset, split, mode를 골라 `full`로 돌릴 수 있는지 확인합니다.<br/>
+추천해야 하는 질문은 기대 강좌와 영상이 목록에 나오는지, 추천하면 안 되는 질문은 `no_result`로 끝나는지 체크해 LLM 결과를 검증할 수 있게 합니다.
 
 ### 조건
 
-분석중
+`RagEvalRun` id=2를 golden, split=`all`, mode=`full`로 실행했습니다. 생성은 `gemini-2.5-flash-lite`, 임베딩은 `openai:text-embedding-3-small`이고, case는 13건(추천 11건, 없어야 하는 질문 2건)입니다. 실행은 약 32초가 걸렸습니다. 잘 돌아가는지 확인하기 위해 일단 소량으로 돌려 보고, 이후 실서버용으로 집중해서 볼 예정입니다.
+
+pass 기준은 앞에서 적은 것과 같습니다.
+미리 선정해 둔 챗봇 메시지별로 기대 course와 video가 목록에 적절하게 나오고, 매칭되지 않는 건 `no_result`여야 합니다.
 
 ### 결과
 
-분석중
+| 지표 | 값 |
+| --- | --- |
+| pass | 13 / 13 (실패 0, not_ready 0) |
+| course hit / video hit | 1.0 / 1.0 (추천 11건) |
+| no_result | 1.0 (2건) |
+| 평균 generation | 약 1.74s |
+
+※ `not_ready`는 기대 강좌나 영상 인덱스가 없어 채점을 못한 경우입니다.
 
 ### 분석
 
-분석중
+설정한 Golden `full` run이 끝까지 돌았고, 지금 재는 추천 계약은 13건 모두 맞았습니다.
+
+현재 단계는 Judge LLM이나 문장 품질이 아니라, case를 고치고 split과 mode를 바꿔 같은 평가를 다시 돌릴 수 있게 만든 단계입니다. 목록 안의 hit만 보고 1위 적중, 메시지 키워드, 같은 영상 중복 추천은 이 pass에 들어가지 않으므로 다음 개선 때 보면 됩니다.
