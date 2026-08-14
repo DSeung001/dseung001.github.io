@@ -7,7 +7,7 @@ draft: false
 description: "Class S에 질의응답 RAG를 붙이기 위한 방향"
 keywords: [ "Class Project", "RAG", "질의응답", "LLM", "검색 증강 생성" ]
 author: "DSeung001"
-lastmod: 2026-08-14T00:00:00+09:00
+lastmod: 2026-08-14T12:00:00+09:00
 ---
 
 # 개요
@@ -333,8 +333,51 @@ LLM API로 외부 모델을 가져와 결과를 도출하는 것 자체가 내�
 
 ## 검증 구조
 
-## 로컬에서 테스트
+LLM을 주로 측정하는 방식은 두 가지입니다.
+- 사용자에게 직접적인 선호도 피드백 받기
+- 어떤 입력이 들어오면 어떤 답이 나오게 할지 미리 정해 둬서 테스트 (`Golden Dataset`)
 
-## 실서버 테스트
+사용자의 직접적인 피드백은 서비스가 트래픽을 받을 때 유리하며, 개발 단계에서는 `Golden Dataset`이 유리합니다.
+그래서 이 글에서는 `Golden Dataset`으로 테스트할 수 있게 해봅니다.
 
-## 테스트 고도화?
+LLM-as-a-Judge가 그 기준을 보고 답변 품질을 자동 평가하고, 같은 실패가 반복될 때만 프롬프트를 고치는 식으로 프롬프트가 한쪽으로 쏠리는 과적합을 방지하는 걸 고려할 거지만, 현재는 테스트 결과를 판독하는 Judge LLM까지는 아직 두지 않고, `Golden Dataset`은 관리자단에서 쉽게 수정하고 추가할 수 있게 DB에 데이터로 관리하고 이걸 기반으로 course/video hit와 응답 결과의 답을 회귀로 잡습니다.
+
+실제 적용 구조는 아래처럼 나뉩니다.
+
+| 모델 | 역할 |
+| --- | --- |
+| `RagEvalDataset` | golden/canary 같은 case 묶음 (`slug`, `name`) |
+| `RagEvalCase` | 질문 한 건에 따르는 기댓값 |
+| `RagEvalRun` | 특정 dataset/split/mode로 돌린 실행 기록과 snapshot |
+| `RagEvalCaseResult` | case별 실제 결과와 pass/fail |
+| `RagEvalCredential` | Eval에서 사용할 LLM API 키 (채팅용 사용자 키와 분리) |
+
+`RagEvalDataset`을 Golden과 canary로 역할을 나눠서 관리하는데
+- golden은 “이 질문이면 이 강좌/영상이 나와야 한다”를 모아 둔 본 테스트
+- canary는 작은 case만 넣어 전체 golden을 돌리기 전에 체크해 보는 용도이다
+
+운영 Golden 전체를 바로 돌리면 비용과 실패 이력이 많이 쌓일 수 있으므로 canary로 미리 확인한 뒤 golden을 실행하는 방식입니다.
+성능 측정은 `RagEvalCase`에 데이터 로우로 쌓이게 되고, 여기에 들어가는 필드는 다음과 같습니다.
+
+- `question`: 사용자 질문
+- `should_answer`: 이 질문에 추천을 내야 하는지 여부. `true`면 `recommendation`과 기대 course/video hit를 보고, `false`면 억지로 추천하지 않고 `no_result`로 끝낸다. 예외 처리를 위한 플래그
+- `expected_course_ids` / `expected_video_ids`: 나와야 할 강좌와 영상
+- `expected_keywords`: 답변에 기대하는 키워드
+- `split`: dataset 안에서 언제 쓸지 나눈다. `train`은 반복해서 개선하는 부분이고, `holdout`은 최종 비교용이다. 후에 자동 프롬프트 개선 기능을 고려해 분리했다
+
+**Table 관계**
+```mermaid
+flowchart LR
+  dataset["RagEvalDataset"] --> case["RagEvalCase"]
+  dataset --> run["RagEvalRun"]
+  run --> result["RagEvalCaseResult"]
+  cred["RagEvalCredential"] --> run
+```
+
+결과 데이터에 대한 정보를 남기고 싶었고, 모델이나 관련 사항이 언제든지 바뀔 수 있기에 따로 저장하는 방법을 고려했고 결과적으로
+`RagEvalRun`을 실행할 때 실행 시점의 case 사양을 후에 참고할 수 있도록 `dataset_snapshot` JSON 필드로 남기게 했습니다.
+
+테스트 실행할 때 모드를 정할 수 있습니다. 아래로 내려갈수록 실행 로직과 비용이 커집니다.
+- `readiness`(DB/index만, API 없음)
+- `retrieval`(검색 hit)
+- `full`(rewrite/generation 포함)
