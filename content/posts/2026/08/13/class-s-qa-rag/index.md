@@ -7,7 +7,7 @@ draft: true
 description: "Class S에 질의응답 RAG를 붙이기 위한 방향"
 keywords: [ "Class Project", "RAG", "질의응답", "LLM", "검색 증강 생성" ]
 author: "DSeung001"
-lastmod: 2026-08-13T00:00:00+09:00
+lastmod: 2026-08-14T00:00:00+09:00
 ---
 
 # 개요
@@ -23,9 +23,9 @@ RAG는 사용자의 질문과 관련된 정보를 외부 데이터 소스에서 
 많은 서비스에 예시가 있어서 접근하기 편해져서 좋더군요.
 
 ## 어떤 걸 참고할까
-위 개요처럼 RAG 시스템을 구현하기로 마음먹은 다음 생각한 점은 두가지를 기본 틀로 잡았습니다.
+위 개요처럼 RAG 시스템을 구현하기로 마음먹은 다음 생각한 점은 두 가지를 기본 틀로 잡았습니다.
 > 무조건 서비스를 하는 만큼 실무적으로 접근해야 한다.
-> 비용 대비 성능 최적화를 하는 걸 목적으로 하자 
+> 비용 대비 성능 최적화를 하는 걸 목적으로 하자
 
 고등학교 해커톤 심사로도 나가고 제가 직접 AI 해커톤에 나가보며 느낀 거는 대부분 LLM API와 AI 툴 덕분에 곧잘 개발합니다.
 하지만 이를 실무에서 적용하기에는 믿을 수 없는 서비스가 대부분이죠.
@@ -93,16 +93,221 @@ flowchart LR
 ```
 
 # RAG 시스템 구현
-테스트를 하기 위한 RAG 시스템의 구현은 아래와 같습니다. 
+1차 버전은 이전 [하이브리드 검색](../../07/class-s-hybrid-search/)에서 쌓아 둔 `SearchChunk`를 그대로 씁니다.
+한 행이 청크 하나를 담당하며, 같은 행에 FTS용 `search_vector`와 1536차원 `embedding`이 함께 들어 있습니다.
+
+데이터는 저장될 때 `text`를 `simple` 기준으로 토큰화해 `search_vector`에 넣고, GIN 역인덱스(`토큰 → 청크 행`)로 찾아갑니다.
+검색할 때도 질문을 같은 규칙으로 토큰화한 뒤 매칭됩니다.
+
+임베딩은 문장을 숫자 벡터로 바꾼 뒤 코사인 유사도로 의미가 가까운 청크를 고릅니다.
+RAG Retrieval은 이 두 길을 `hybrid_search`로 섞어 후보 청크를 고른 다음, 그 결과를 LLM Context로 넘깁니다.
+
+| 컬럼 | 역할 |
+| --- | --- |
+| `text` | 청크 본문으로 타임라인과 같이 1200자 기준으로 자름 |
+| `start_seconds` / `end_seconds` | 영상 구간 |
+| `search_vector` | `tsvector` (GIN 역인덱스) |
+| `embedding` | `vector(1536)` (HNSW, cosine) |
+| `metadata` | timeline_label, tags 등 |
+
+예시 행은 대략 아래처럼 보면 됩니다.
+
+| id | video_id | start | end | text | search_vector | embedding |
+| --- | --- | --- | --- | --- | --- | --- |
+| 101 | 10 | 325 | 400 | postgres 인덱스로 검색 속도를... | `'postgres':1 '인덱스':2 ...` | `[0.01, -0.02, ...]` (1536) |
+| 102 | 10 | 410 | 480 | 벡터 검색으로 비슷한 문장을... | `'벡터':1 '검색':2 ...` | `[0.03, 0.01, ...]` (1536) |
+
+API 엔드포인트로 `POST /api/v1/rag/chat`를 추가하고, 오케스트레이션은 `ask_rag()`에서 진행합니다.
+사용자가 질문을 하면 Retrieval → Augmentation → Generation을 순서대로 호출하는 진입점입니다.
+```python
+def ask_rag(message: str, *, user, ...) -> RagPipelineAnswer:
+    query = (message or "").strip()
+
+    # 1) Retrieval: 필요하면 query rewrite 후 hybrid 재검색
+    retrieval, query_rewrite = _retrieve_with_conditional_rewrite(
+        query=query,
+        user=user,
+        ...
+    )
+    context = replace(build_rag_context(retrieval), query=query)
+
+    # 2) 후보가 없으면 Generation을 건너뛰고 no_result
+    if not retrieval.chunks or not context.items:
+        return RagPipelineAnswer(
+            answer_type="no_result",
+            message=_NO_RESULT_MESSAGE,
+            recommendations=[],
+            generation=_skipped_generation(),
+            ...
+        )
+
+    # 3) Generation: Context 기반 Gemini JSON 추천
+    generated = generate_rag_answer(context, user=user)
+
+    # 4) 추천 카드용 제목·썸네일·score 보강
+    recommendations = _enrich_recommendations(
+        generated.recommendations,
+        context=context,
+    )
+    if generated.answer_type == "recommendation" and not recommendations:
+        return RagPipelineAnswer(answer_type="no_result", ...)
+
+    return RagPipelineAnswer(
+        answer_type=generated.answer_type,
+        message=generated.message,
+        recommendations=recommendations,
+        ...
+    )
+```
+
+전체 오케스트레이션 흐름은 아래와 같습니다.
+
+```mermaid
+flowchart TD
+  msg["사용자 message"] --> retrieve1["1차 retrieve_rag_chunks"]
+  retrieve1 --> rewriteGate{"결과 충분한가"}
+  rewriteGate -->|"충분"| context["build_rag_context"]
+  rewriteGate -->|"부족"| rewrite["rewrite_rag_query(사용자 요청을 전처리)"]
+  rewrite --> retrieve2["재검색"]
+  retrieve2 --> pick["top_score 비교 후 채택"]
+  pick --> context
+  context --> empty{"관련된 강좌가 있는지"}
+  empty -->|"아니오"| noResult["no_result<br/>generation skipped"]
+  empty -->|"예"| gen["generate_rag_answer"]
+  gen --> enrich["추천 카드 포맷"]
+  enrich --> resp["응답 반환"]
+```
 
 ## Retrieval
-관련 문서를 검색합니다.
+사용자 요청에 맞춰 관련 강의 구간을 찾는 단계입니다.
+
+사용자가 "Django로 검색 기능을 만들고 싶어요"처럼 입력하면, 바로 답변을 만들지 않고 먼저 공개 강좌 청크 안에서 후보를 고릅니다.
+이때는 이전 [하이브리드 검색](../../07/class-s-hybrid-search/)과 같이 키워드(FTS)와 의미(임베딩)를 같이 보고, 맞은 청크에는 본문·타임라인·태그까지 붙여서 응답을 줍니다.
+
+만약 한 번에 원하는 응답이 생성되지 않는 질문인 경우, 예를 들어 청크가 거의 없거나 점수가 낮으면(기본값 기준 `top_score` 0.3 미만), 채팅 문장을 검색용 짧은 문장으로 다시 써서 한 번 더 찾습니다.<br/>
+재작성 프롬프트는 답변을 만들지 않고, 인사말이나 감탄사를 필터링하고 없는 기술명을 지어내지 않게 합니다.
+재검색 점수가 원래보다 높을 때만 그 결과를 쓰고, 아니면 1차 결과를 유지합니다.
+
+```text
+원문: 혹시 Django로 검색 기능 만들고 싶은데 뭐부터 보면 좋을까요?
+재작성 예: Django 검색 기능
+```
+
+```python
+# Django 검색 기능이 쿼리로 들어가서 검색을 진행
+hits, mode, count = hybrid_search(
+    query=query,
+    user=user,
+    page=1,
+    page_size=resolved_top_k,
+    min_score=resolved_min_score,
+    max_hits_per_video=resolved_max_chunks_per_video,
+)
+```
 
 ## Augmentation
-검색된 문서를 LLM이 사용할 수 있도록 프롬프트의 Context에 추가합니다.
+검색된 청크를 LLM이 읽을 Context 문자열로 조립하는 단계입니다.
+
+흐름은 단순합니다. Retrieval이 고른 청크 id를 기준으로 Course / Curriculum / Video와 청크 본문을 DB에서 읽고, `[Course]` / `[Video]` / `[Evidence]` 형태로 정리한 뒤 Generation으로 넘깁니다.
+같은 강좌에 속한 영상은 하나만 노출되며 Evidence는 데이터마다 표시됩니다.
+
+조립 결과 예시는 아래와 같죠.
+
+```bash
+# 검색된 강좌
+[Course] 
+id: 1
+name: Django 검색 기능 만들기
+description: ...
+curriculum_id: 3
+curriculum: 백엔드
+curriculum_description: ...
+
+# 검색된 영상들
+[Video]
+id: 10
+name: 검색 인덱싱과 점수 결합
+description: ...
+
+# 검색에 근거가 된 본문
+[Evidence]
+chunk_id: 101
+00:05:25 ~ 00:06:40
+timeline: 하이브리드 점수
+tags: FTS, pgvector
+score: 0.82
+mode: hybrid
+(...청크 본문...)
+```
 
 ## Generation
-추가된 Context를 기반으로 답변을 생성합니다.
+Augmentation으로 받은 Context를 채팅에 쓸 수 있는 JSON으로 만드는 단계입니다.
+
+Gemini는 응답 형식을 JSON schema로 고정할 수 있어서, `generate_rag_answer`에서 `response_mime_type=application/json`과 아래 schema를 같이 넘깁니다.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "answer_type": {
+      "type": "string",
+      "enum": ["recommendation", "no_result"]
+    },
+    "message": { "type": "string" },
+    "recommendations": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "properties": {
+          "course_id": { "type": "integer" },
+          "video_id": { "type": "integer" },
+          "timestamp_seconds": { "type": "integer" },
+          "reason": { "type": "string" },
+          "evidence_chunk_ids": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        },
+        "required": [
+          "course_id",
+          "video_id",
+          "timestamp_seconds",
+          "reason",
+          "evidence_chunk_ids"
+        ]
+      }
+    }
+  },
+  "required": ["answer_type", "message", "recommendations"]
+}
+```
+
+스키마로 형태는 잡아 두고, 내용은 프롬프트 규칙으로 한 번 더 묶습니다.
+Context에 없는 `course_id` / `video_id` / `chunk_id`를 만들지 말 것, 근거가 부족하면 `no_result`로 둘 것, 숫자 맞추기용 약한 추천을 넣지 말 것입니다.
+
+```bash
+당신은 Class S 강좌 추천 챗봇입니다.
+...
+- Context에 없는 course_id, video_id, chunk_id를 절대 만들지 마세요.
+- 검색된 Context만 근거로 사용하세요.
+- 근거가 부족하면 answer_type을 no_result로 두세요.
+- 추천은 최대 3개입니다.
+...
+[User Message]
+...
+[Context]
+...
+```
+
+LLM 응답 뒤에는 course/video/chunk_id를 Context와 교차 검증합니다. 맞지 않는 id는 버리고 통과한 추천에 강좌·영상 제목, 썸네일, score를 붙여 프론트 추천 카드용 응답으로 만듭니다.
+
+Retrieval에서 청크가 비면 Generation 호출 자체를 건너뛰고(`skipped`) `no_result` 안내 문구만 반환합니다.
+
+## 실서버
+
+`https://class.devseung.com/`에서 사용할 수 있지만, LLM 키 관리를 사용자가 직접 하는 방식을 택했기에 LLM을 사용한 의미 유사도 검색을 하려면 직접 등록한 뒤에 LLM 서비스가 동작합니다. 그래서 키가 없는 비로그인 상태에서는 FTS를 기반으로 동작하게 구성되었습니다.
+
 
 
 # 테스트는 어떻게?
