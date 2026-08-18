@@ -646,6 +646,15 @@ html.cursor-follower-off #cursor-ink-trail {
     outline-offset: 2px;
 }
 
+.image-dialog__time {
+    flex: 0 0 auto;
+    color: var(--secondary);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 .bench-table-wrap {
     overflow-x: auto;
     margin-bottom: var(--content-gap);

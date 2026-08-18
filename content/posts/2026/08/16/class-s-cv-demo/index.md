@@ -48,7 +48,8 @@ flowchart LR
 
 ## 업로드 과정
 코스를 등록한 뒤 강의 내용 분석을 AI에게 맡기고, 사람이 한 번 검수한 다음 발행하는 시연입니다.
-원본은 Presigned URL로 S3에 올라가고, 큐가 쌓이면 워커가 HLS로 인코딩합니다.
+원본은 Presigned URL로 S3에 올라가고, 큐가 쌓이면 워커가 HLS로 인코딩합니다. <br/>
+※ 유튜브 업로드와 영상 업로드 두 개를 지원합니다.
 ![create](./gif/create.gif)
 다음과 같이 메타데이터가 자동으로 생성되는 걸 확인해 볼 수 있고, 이를 수정할 수 있죠.
 ![edit](./gif/edit.gif)
@@ -64,7 +65,7 @@ flowchart LR
 사용자는 강좌를 시청할 때 영상별로 마지막 시청 구간부터 볼 수 있습니다.
 ![view](./gif/view.gif)
 기획에서 시청완료를 영상 개수 기준으로 정했습니다. 그렇기 때문에 시청 기록은 해당 강좌의 영상 개수 기준으로 표시하며 시청 완료 기준은 영상의 끝 부분을 본 걸로 합니다.
-[history](./image/history.webp)
+![history](./image/history.webp)
 
 관련글
 - <a href="../../../06/09/class-project-retrospective-1/#기능" target="_blank" rel="noopener">Class Project 1차 회고 - 기능</a>
@@ -72,15 +73,15 @@ flowchart LR
 ## 검색
 위에서 언급했듯이 LLM 키는 사용자 계정에 귀속되게 구상했습니다.
 그래서 검색은 로그인과 비로그인, LLM 키 등록 여부에 따라 달라집니다, 키가 없으면 FTS만 쓰고, 키가 있으면 의미 검색이 붙습니다.
-![search](./video/search.gif)
+![search](./gif/search.gif)
 검색 시 키워드를 임베딩할 때 캐싱을 하는데, 그래서 비로그인 사용자라도 캐싱된 데이터를 검색하면 하이브리드로 검색이 됩니다.
-[영상]
+![no login caching](./gif/no-login-caching.gif)
 
 비로그인 상태에서 임배딩되지 않은 걸 검색하면 FTS로 검색이 됩니다.
-[사진]
+![no login](./image/no-login.webp)
 
 검색에서 가중치 비중은 A/B 테스트를 적용할 수 있게 구상했습니다.
-[사진]
+![a/b test](./image/ab.webp)
 
 관련글
 - <a href="../../07/class-s-hybrid-search/#하이브리드-인덱싱" target="_blank" rel="noopener">Class Project 하이브리드 검색 구현하기 - 하이브리드 인덱싱</a>
@@ -90,12 +91,11 @@ flowchart LR
 
 ## 챗봇
 검색을 감싸 챗봇처럼 강좌를 추천하게 했습니다.
-사용자 질문을 검색어로 다시 쓸 수는 있지만, 원문 질문이 충분하면 그대로 써서 비용을 줄이도록 구상했습니다.
-[영상]
+사용자 질문에 결과에 따라 바로 하이브리드 검색을 통해 데이터를 생성하거나, 결과의 데이터의 점수가 부족할 경우 프롬프트로 요청을 재가공해 요청합니다.
+![chat](./gif/chat.gif)
 
-챗봇은 현재 두 가지로 검증할 수 있습니다. 사용자 평가는 위 영상에서 볼 수 있었고 데이터 셋은 관련글에서 볼 수 있습니다.
-- 사용자 평가
-- Golden Dataset으로 추천 계약 확인
+비로그인시 아래처럼 표시됩니다.
+![no login chat](./image/no-login-chat.webp#panel)
 
 관련글
 - <a href="../../13/class-s-qa-rag/#retrieval" target="_blank" rel="noopener">Class Project 질의응답 RAG - Retrieval</a>

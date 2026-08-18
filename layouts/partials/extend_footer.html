@@ -274,6 +274,13 @@
     return d;
   }
 
+  function formatGifTime(ms) {
+    var totalSec = Math.max(0, Math.floor(Number(ms) / 1000));
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
   function createGifPlayer(url, mountEl) {
     var player = {
       destroyed: false,
@@ -334,14 +341,21 @@
     scrub.step = '1';
     scrub.setAttribute('aria-label', '재생 위치');
 
+    var timeEl = document.createElement('span');
+    timeEl.className = 'image-dialog__time';
+    timeEl.setAttribute('aria-live', 'off');
+    timeEl.textContent = '0:00 / 0:00';
+
     controls.appendChild(playBtn);
     controls.appendChild(scrub);
+    controls.appendChild(timeEl);
     wrapper.appendChild(canvas);
     wrapper.appendChild(controls);
 
     player.canvas = canvas;
     player.scrub = scrub;
     player.playBtn = playBtn;
+    player.timeEl = timeEl;
     player.ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     function syncPlayUi() {
@@ -372,6 +386,10 @@
       player.frameIndex = index;
       if (!player.scrubbing && player.scrub) {
         player.scrub.value = String(player.elapsedAt(index));
+      }
+      if (player.timeEl) {
+        player.timeEl.textContent =
+          formatGifTime(player.elapsedAt(index)) + ' / ' + formatGifTime(player.totalMs);
       }
     }
 
@@ -442,6 +460,7 @@
       player.ctx = null;
       player.scrub = null;
       player.playBtn = null;
+      player.timeEl = null;
     };
 
     playBtn.addEventListener('click', function (e) {
