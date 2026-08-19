@@ -399,8 +399,8 @@ html.cursor-follower-off #cursor-ink-trail {
 .content-image-expand {
     display: none;
     position: absolute;
-    /* .post-content img { margin: 1rem 0 } 만큼 내려 실제 이미지 영역 안에 둠 */
-    top: calc(1rem + 6px);
+    /* html .post-content img { margin: 0.6rem 0 } 만큼 내려 실제 이미지 영역 안에 둠 */
+    top: calc(0.6rem + 6px);
     right: 6px;
     z-index: 2;
     margin: 0;
