@@ -97,7 +97,7 @@ flowchart LR
 CloudWatch는 SQS를 옵저빙하며 메시지가 쌓이면 알림으로 워커 ASG를 동작시키는데, 이때 이 이미지를 사용합니다.
 
 현재는 에러 체크 시스템은 제가 편한 메일로 받을 있게 구성했습니다.
-![error](./image/error.webp)
+![error](./image/error.webp#panel)
 
 관련글
 - <a href="../../../06/26/class-project-github-actions-auto-deploy/#개요" target="_blank" rel="noopener">Class Project GitHub Actions 자동 배포 - 개요</a>
