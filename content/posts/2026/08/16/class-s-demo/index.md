@@ -48,7 +48,7 @@ flowchart LR
 다음과 같이 메타데이터가 자동으로 생성되는 걸 확인해 볼 수 있고, 이를 수정할 수 있죠.
 ![edit](./gif/edit.gif)
 썸네일은 영상 프레임을 고르는 것 외에도 업로드에서 직접 만들기로 모델과 테마를 고르고 프롬프트를 넣으면 AI가 이미지, 도형, 텍스트 레이어로 만들어 주고 수정할 수 있습니다.
-[영상]
+![ai](./gif/ai.gif)
 
 관련글
 - <a href="../../07/class-s-hybrid-search/#데이터-흐름" target="_blank" rel="noopener">Class Project 하이브리드 검색 구현하기 - 데이터 흐름</a>
@@ -60,6 +60,8 @@ flowchart LR
 ![view](./gif/view.gif)
 기획에서 시청 완료를 영상 개수 기준으로 정했습니다. 그렇기 때문에 시청 기록은 해당 강좌의 영상 개수 기준으로 표시하며 시청 완료 기준은 영상의 끝 부분을 본 걸로 합니다.
 ![history](./image/history.webp)
+데이터 정보를 토대로 편의를 위해 프린팅 기능도 추가했죠.
+![print](./gif/print.gif)
 
 ## 검색
 위에서 언급했듯이 LLM 키는 사용자 계정에 귀속되게 구상했습니다.
