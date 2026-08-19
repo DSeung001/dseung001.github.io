@@ -17,16 +17,13 @@
 `Presigned URL → S3 → SQS → Encoding Worker → FFmpeg/HLS → S3/CloudFront → Playback`
 
 **Class S**
-
 - Class S: https://class.devseung.com/
-- Backend 시연 및 기술 설명: https://class.devseung.com/posts/2026/08/16/class-s-demo/
+- Backend 시연 및 기술 설명: https://dseung001.github.io/posts/2026/08/16/class-s-demo/
 - Class S 개발 기록: https://dseung001.github.io/categories/project/
 - LinkedIn: https://www.linkedin.com/in/%EC%8A%B9%EB%A0%AC-%EC%A7%80-190a73282/
 
 이력서와 참여했던 프로젝트들을 첨부해서 드립니다.
-
-현재 바로 채용 계획이 없더라도, 제 경험이 라프텔 Backend 팀에서 다루는 콘텐츠 API, 영상 처리, 비동기 작업 및 서비스 운영과 접점이 있다고 판단되신다면 짧게 이야기 나눌 기회를 얻을 수 있다면 감사하겠습니다.
-
+제 경험이 라프텔 Backend 팀에서 다루는 콘텐츠 API, 영상 처리, 비동기 작업 및 서비스 운영과 접점이 있다고 판단되시고 짧게 이야기 나눌 기회를 얻을 수 있다면 감사하겠습니다.
 읽어주셔서 감사합니다.
 
 지승렬 드림

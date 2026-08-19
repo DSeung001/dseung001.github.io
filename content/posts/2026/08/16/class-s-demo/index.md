@@ -10,7 +10,7 @@ author: "DSeung001"
 lastmod: 2026-08-18T00:00:00+09:00
 ---
 # 사이드 프로젝트
-[사이트 주소](http://class.devseung.com/)  
+[Class s 사이트 주소](http://class.devseung.com/)  
 > OTT 서비스 구조를 직접 만들어보고 싶어서 진행한 사이드 프로젝트
 
 관련해서 전체 히스토리를 보고 싶으시다면, [Class Project 카테고리](/categories/class-project/)로 가시면 됩니다.
@@ -24,7 +24,9 @@ Class 프로젝트의 경우는 비용으로 인해 서비스 제약이 있습�
 - 비용 측면 때문에 RAG를 사용할 때 사용자가 직접 API를 등록함
 - 강의 업로드는 특정 사용자에게만 권한이 부여되므로 업로드를 직접 할 수 없음
 
-이를 해결할 방법으로 `GIF`로 보여주기로 결정했습니다. 해당 블로그에서 `GIF`는 클릭해서 확대해서 볼 수 있고 정지/실행이 가능합니다.
+이를 해결할 방법으로 `GIF`로 보여주기로 결정했습니다. <br/>
+**해당 블로그에서 `GIF`는 클릭해서 확대해서 볼 수 있고 정지/실행이 가능합니다.**
+
 현재 서비스를 하나의 흐름으로 아주 간단히 요약하면 다음과 같습니다.
 
 ```mermaid
@@ -45,7 +47,7 @@ flowchart LR
 ![create](./gif/create.gif)
 다음과 같이 메타데이터가 자동으로 생성되는 걸 확인해 볼 수 있고, 이를 수정할 수 있죠.
 ![edit](./gif/edit.gif)
-썸네일은 영상 프레임을 고르는 것 외에도 업로드에서 직접 만들기로 모델과 테마를 고르고 프롬프트를 넣으면 AI가 이미지, 도형, 텍스트 레이어로 만들어 주고 수정할 수 있습니다. 현재는 이상적인 썸네일 디자인에 대해서 정의를 하는 중이라 테마는 단일로 추가해뒀습니다. 아직 MVP적인 요소가 많은 기능입니다.
+썸네일은 영상 프레임을 고르는 것 외에도 업로드에서 직접 만들기로 모델과 테마를 고르고 프롬프트를 넣으면 AI가 이미지, 도형, 텍스트 레이어로 만들어 주고 수정할 수 있습니다.
 [영상]
 
 관련글
@@ -95,9 +97,6 @@ flowchart LR
 ![deploy](./image/deploy.webp)
 ![deploy detail](./image/deploy_detail.webp)
 CloudWatch는 SQS를 옵저빙하며 메시지가 쌓이면 알림으로 워커 ASG를 동작시키는데, 이때 이 이미지를 사용합니다.
-
-현재는 에러 체크 시스템은 제가 편한 메일로 받을 있게 구성했습니다.
-![error](./image/error.webp#panel)
 
 관련글
 - <a href="../../../06/26/class-project-github-actions-auto-deploy/#개요" target="_blank" rel="noopener">Class Project GitHub Actions 자동 배포 - 개요</a>
