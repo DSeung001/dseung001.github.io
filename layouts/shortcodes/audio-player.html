@@ -1,0 +1,19 @@
+{{- $rawSrc := .Get "src" -}}
+{{- with not $rawSrc }}{{ errorf "audio-player shortcode requires 'src' (%s)" $.Position }}{{ end -}}
+{{- $u := urls.Parse $rawSrc -}}
+{{- $src := $u.String -}}
+{{- if not $u.IsAbs -}}
+  {{- $path := strings.TrimPrefix "./" $u.Path -}}
+  {{- with or (.Page.Resources.Get $path) (resources.Get $path) -}}
+    {{- $src = .RelPermalink -}}
+  {{- end -}}
+{{- end -}}
+{{- $title := .Get "title" -}}
+<div class="audio-player" data-audio-player>
+  {{- with $title }}<div class="audio-player__title">{{ . }}</div>{{ end }}
+  <audio class="audio-player__el" data-audio-el controls preload="metadata" src="{{ $src }}"></audio>
+</div>
+{{- if not (.Page.Scratch.Get "audioPlayerJS") -}}
+{{- .Page.Scratch.Set "audioPlayerJS" true -}}
+<script defer src="{{ "js/audio-player/player.js" | relURL }}"></script>
+{{- end -}}
