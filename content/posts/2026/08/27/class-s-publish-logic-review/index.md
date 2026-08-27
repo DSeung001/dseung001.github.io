@@ -27,8 +27,6 @@ lastmod: 2026-08-27T00:00:00+09:00
 - 뉴스레터: 매일 아침 9시에 메일로 전날에 올라온 강의들에 대한 내용과 관련 문제를 받아볼 수 있어 리마인드의 도움이 됩니다.
 ![newsletter](./image/newsletter.webp)
 
-
-아래 흐름 컨펌
 # 흐름
 세 기능은 하나 소스로 묶입니다.
 강의 업로드 시 위스퍼 모델로 추출한 Text를 가지고 문제를 만들고, 그 문제를 풀거나 영상을 본 기록을 바탕으로 랭킹으로 보여 주며, 다음날 아침 메일로 강의에 대한 메타데이터랑 문제를 보내줍니다.
@@ -40,9 +38,6 @@ lastmod: 2026-08-27T00:00:00+09:00
 ## 문제 발행
 이를 더 자세히 보면 `metadata` 잡은 `transcribe` 다음에 `summarize`로 넘어가고, 여기서 Gemini가 `description`, `tags`, `timelines`와 함께 `problems`를 한 JSON으로 돌려줍니다.
 사실상 프롬프트 측면에서는 확장과 다름없죠.
-
-{{< audio-player src="./audio/test.mp3" title="테스트 트랙" >}}
-{{< audio-player src="./audio/test.mp3" title="두 번째 트랙" >}}
 
 ## 랭킹
 
