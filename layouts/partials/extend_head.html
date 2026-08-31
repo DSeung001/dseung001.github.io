@@ -1,5 +1,24 @@
 {{- /* Head custom content area start */ -}}
 <link rel="stylesheet" href="{{ "css/post-content.css" | relURL }}">
+<link rel="describedby" href="{{ "llms.txt" | absURL }}" type="text/markdown">
+<meta name="language" content="{{ site.Language.LanguageCode | default site.Language.Lang }}">
+<meta name="dcterms.language" content="{{ site.Language.LanguageCode | default site.Language.Lang }}">
+<meta name="dcterms.creator" content="{{ site.Params.author | default site.Title }}">
+{{- with .Title }}
+<meta name="dcterms.title" content="{{ . | plainify }}">
+{{- end }}
+{{- with $metaDescription := (.Description | default .Summary | default site.Params.description) }}
+<meta name="dcterms.description" content="{{ $metaDescription | plainify | htmlUnescape | chomp | truncate 180 }}">
+{{- end }}
+{{- if .IsPage }}
+<meta name="dcterms.type" content="Text">
+<meta name="dcterms.created" content="{{ .PublishDate.Format "2006-01-02T15:04:05-07:00" }}">
+<meta name="dcterms.modified" content="{{ .Lastmod.Format "2006-01-02T15:04:05-07:00" }}">
+{{- $subjects := .Params.keywords | default .Params.tags }}
+{{- with $subjects }}
+<meta name="dcterms.subject" content="{{ delimit . ", " }}">
+{{- end }}
+{{- end }}
 {{- if .Param "math" -}}
 <link
   rel="stylesheet"

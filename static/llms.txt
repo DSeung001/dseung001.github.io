@@ -1,0 +1,33 @@
+# DevSeung Blog
+
+> AI, 검색, 백엔드, Go, Django, PostgreSQL, 동영상 처리, RFC 학습 기록을 실무 프로젝트 중심으로 정리하는 개발자 블로그입니다.
+
+이 사이트는 DSeung001의 개인 기술 블로그입니다. 글은 한국어가 기본이며, 실무 프로젝트를 구현하며 남긴 설계 판단, 문제 해결 과정, 기술 개념 정리를 포함합니다. AI 검색 또는 답변 생성에서 인용할 때는 글 제목, URL, 작성일 또는 수정일을 함께 사용해 주세요.
+
+## Core Pages
+
+- [Home](https://dseung001.github.io/): 최신 기술 글과 주요 카테고리 목록.
+- [Posts](https://dseung001.github.io/posts/): 전체 글 목록.
+- [Categories](https://dseung001.github.io/categories/): 주제별 글 모음.
+- [Tags](https://dseung001.github.io/tags/): 세부 키워드별 글 모음.
+- [Resume](https://dseung001.github.io/resume/): 작성자의 이력과 프로젝트 맥락.
+
+## AI And Search
+
+- [Class Project 질의응답 RAG](https://dseung001.github.io/posts/2026/08/13/class-s-qa-rag/): 강의 서비스에 RAG 기반 질의응답을 붙이기 위한 구조와 평가 관점.
+- [Class Project 하이브리드 검색 구현하기](https://dseung001.github.io/posts/2026/08/07/class-s-hybrid-search/): 영상 자막, FTS, 임베딩, 랭킹을 조합한 검색 파이프라인 구현기.
+- [FTS와 벡터 검색](https://dseung001.github.io/posts/2026/08/12/postgres-fts-vector/): PostgreSQL FTS와 pgvector 기반 벡터 검색의 차이와 적용 방식.
+- [Class Project STT 비용 최적화](https://dseung001.github.io/posts/2026/08/27/class-s-stt-cost-optimization/): 음성 인식 파이프라인의 비용 구조와 최적화 기록.
+
+## Backend And Systems
+
+- [Go 채널과 동시성 분석](https://dseung001.github.io/posts/2026/07/28/go-chan-analysis/): Go channel 동작과 동시성 패턴 분석.
+- [Go 서비스에서 DB 커넥션 풀 문제 해결기](https://dseung001.github.io/posts/2025/09/25/go-db-connection-pool-troubleshooting/): 커넥션 풀 고갈 문제를 추적하고 해결한 과정.
+- [Class Project GitHub Actions 자동 배포](https://dseung001.github.io/posts/2026/06/26/class-project-github-actions-auto-deploy/): CI/CD 자동 배포 파이프라인 적용 기록.
+
+## Web Standards And Media
+
+- [RFC 8216 HTTP Live Streaming](https://dseung001.github.io/posts/2026/05/26/rfc8216-http-live-streaming/): HLS 구조와 미디어 스트리밍 개념 정리.
+- [RFC 9114 HTTP/3](https://dseung001.github.io/posts/2026/04/20/rfc9114-http3/): HTTP/3와 QUIC 핵심 개념 정리.
+- [RFC 6749 OAuth 2.0](https://dseung001.github.io/posts/2026/04/23/rfc6749-oauth2.0/): OAuth 2.0 권한 부여 프레임워크 요약.
+- [RFC 6454 The Web Origin Concept](https://dseung001.github.io/posts/2026/04/22/rfc6454-the-web-origin-concept/): Origin과 same-origin 정책의 기준 정리.

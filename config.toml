@@ -1,8 +1,10 @@
 baseURL = "https://dseung001.github.io/"
-languageCode = "ko-kr"
-title = "DevSeung Blog"
+languageCode = "ko-KR"
+defaultContentLanguage = "ko"
+title = "DevSeung Blog | AI·백엔드·검색 시스템 개발 기록"
 theme = "PaperMod"
 enableGitInfo = true
+summaryLength = 35
 
 # 콘텐츠 디렉토리 설정
 contentDir = "content"
@@ -45,7 +47,23 @@ contentDir = "content"
 [params]
   # 기본 정보
   author = "DSeung001"
-  description = "개발자 블로그 - AI, 개발, 기술 관련 경험과 인사이트를 공유합니다"
+  description = "AI, 검색, 백엔드, Go, Django, PostgreSQL, 동영상 처리, RFC 학습 기록을 실무 프로젝트 중심으로 정리하는 개발자 블로그입니다."
+  keywords = [
+    "AI 개발",
+    "백엔드 개발",
+    "검색 시스템",
+    "RAG",
+    "하이브리드 검색",
+    "Go",
+    "Django",
+    "PostgreSQL",
+    "FFmpeg",
+    "HTTP RFC"
+  ]
+  mainSections = [ "posts" ]
+
+  [params.label]
+    text = "DevSeung Blog"
   
   # PaperMod 테마 설정
   ShowReadingTime = true
@@ -54,6 +72,7 @@ contentDir = "content"
   ShowPostNavLinks = true
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
+  ShowRssButtonInSectionTermList = true
   
   # 댓글 시스템 설정
   comments = true
@@ -71,22 +90,29 @@ contentDir = "content"
     goatcounter = "dseung001"
     googleSiteVerification = "KSM9sb3fEefTWY29y1QZ9aTr1GxlxapE8xI-2lKjvZA"
     naverSiteVerification = "c15cf65c023f2d9602a5d788b26bf2ff511c407b"
-    bingSiteVerification = "your-bing-verification-code"
   
   # 소셜 링크
   [[params.socialIcons]]
     name = "github"
     url = "https://github.com/dseung001"
 
-  [[params.socialIcons]]
-    name = "email"
-    url = "mailto:your-email@example.com"
-
   # Schema.org 설정
   [params.schema]
     publisherType = "Person"
+    jobTitle = "Backend Developer"
     sameAs = [
       "https://github.com/dseung001"
+    ]
+    knowsAbout = [
+      "AI application development",
+      "Retrieval-Augmented Generation",
+      "Hybrid search",
+      "Backend engineering",
+      "Go programming",
+      "Django",
+      "PostgreSQL",
+      "Video streaming",
+      "HTTP and web standards"
     ]
 
   # 이미지 설정

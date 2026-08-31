@@ -2,7 +2,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 {{- if hugo.IsProduction | or (eq site.Params.env "production") | and (ne .Params.robotsNoIndex true) }}
-<meta name="robots" content="index, follow">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
 {{- else }}
 <meta name="robots" content="noindex, nofollow">
 {{- end }}
@@ -18,9 +18,17 @@
     {{- range $i, $e := .Params.keywords }}{{ if $i }}, {{ end }}{{ $e }}{{ end }} {{- else }}
     {{- range $i, $e := .Params.tags }}{{ if $i }}, {{ end }}{{ $e }}{{ end }} {{- end -}}">
 {{- end }}
-<meta name="description" content="{{- with .Description }}{{ . }}{{- else }}{{- if or .IsPage .IsSection}}
-    {{- .Summary | default (printf "%s - %s" .Title  site.Title) }}{{- else }}
-    {{- with site.Params.description }}{{ . }}{{- end }}{{- end }}{{- end -}}">
+{{- $metaDescription := "" -}}
+{{- with .Description -}}
+    {{- $metaDescription = . -}}
+{{- else -}}
+    {{- if or .IsPage .IsSection -}}
+        {{- $metaDescription = (.Summary | default (printf "%s - %s" .Title site.Title)) -}}
+    {{- else -}}
+        {{- with site.Params.description }}{{ $metaDescription = . }}{{- end -}}
+    {{- end -}}
+{{- end }}
+<meta name="description" content="{{- $metaDescription | plainify | htmlUnescape | chomp | truncate 180 -}}">
 <meta name="author" content="{{ (partial "author.html" . ) }}">
 <link rel="canonical" href="{{ if .Params.canonicalURL -}} {{ trim .Params.canonicalURL " " }} {{- else -}} {{ .Permalink }} {{- end }}">
 
