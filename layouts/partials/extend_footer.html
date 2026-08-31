@@ -666,9 +666,7 @@
 {{- $cf := partialCached "cursor_follower_config.html" site -}}
 {{- if gt (len $cf.chars) 0 -}}
 {{- $cfgDict := dict "chars" $cf.chars -}}
-<div id="cursor-follower" aria-hidden="true">
-  <img src="{{ (index $cf.chars 0).url }}" alt="" decoding="async" fetchpriority="low">
-</div>
+<div id="cursor-follower" aria-hidden="true"></div>
 <canvas id="cursor-ink-trail" aria-hidden="true"></canvas>
 <script>
 (function () {
@@ -677,8 +675,7 @@
   var el = document.getElementById("cursor-follower");
   if (!cfg || !el) return;
   var chars = cfg.chars || [];
-  var img = el.querySelector("img");
-  if (!chars.length || !img) return;
+  if (!chars.length) return;
 
   function dispatchReady() {
     document.dispatchEvent(new Event("cursor-follower:ready"));
@@ -692,6 +689,12 @@
     dispatchReady();
     return;
   }
+
+  var img = document.createElement("img");
+  img.alt = "";
+  img.decoding = "async";
+  img.fetchPriority = "low";
+  el.appendChild(img);
 
   var LS_ON = "cursor-follower-enabled";
   var LS_IMG = "cursor-follower-img-idx";
