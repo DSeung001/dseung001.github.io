@@ -77,7 +77,7 @@
 <script type="application/ld+json">
 {{- $schema | jsonify (dict "noHTMLEscape" true "indent" "  ") | safeJS -}}
 </script>
-{{- else if or .IsPage .IsSection -}}
+{{- else if or .IsPage .IsSection .IsNode -}}
   {{- $crumbs := slice (dict "@type" "ListItem" "position" 1 "name" "Home" "item" site.Home.Permalink) -}}
   {{- if and .IsPage .Section -}}
     {{- with site.GetPage (printf "/%s" .Section) -}}
