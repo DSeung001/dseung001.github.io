@@ -1,0 +1,52 @@
+{{- $page := . -}}
+{{- $images := slice -}}
+{{- $defaultArticleImage := site.Params.schema.defaultArticleImage | default site.Params.schema.publisherImage | default site.Params.assets.apple_touch_icon | default site.Params.assets.favicon -}}
+
+{{- with $page.Params.cover.image -}}
+  {{- if (ne $page.Params.cover.relative true) -}}
+    {{- $images = $images | append (. | absURL) -}}
+  {{- else -}}
+    {{- $images = $images | append ((path.Join $page.RelPermalink .) | absURL) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $images -}}
+  {{- $rawImage := "" -}}
+  {{- with findRE `!\[[^\]]*\]\([^)]+\)` $page.RawContent 1 -}}
+    {{- $rawImage = index . 0 | replaceRE `^!\[[^\]]*\]\(([^)#\s]+).*$` "$1" | strings.TrimPrefix "./" -}}
+  {{- end -}}
+  {{- with $rawImage -}}
+    {{- $url := urls.Parse . -}}
+    {{- if ne $url.Scheme "" -}}
+      {{- $images = $images | append . -}}
+    {{- else -}}
+      {{- with $page.Resources.GetMatch . -}}
+        {{- $images = $images | append .Permalink -}}
+      {{- else -}}
+        {{- $images = $images | append ((path.Join $page.RelPermalink .) | absURL) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $images -}}
+  {{- with partial "templates/_funcs/get-page-images" $page -}}
+    {{- range . | first 6 -}}
+      {{- $images = $images | append .Permalink -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $images -}}
+  {{- with $page.Resources.ByType "image" -}}
+    {{- with index . 0 -}}
+      {{- $images = $images | append .Permalink -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if and (not $images) $defaultArticleImage -}}
+  {{- $images = $images | append ($defaultArticleImage | absURL) -}}
+{{- end -}}
+
+{{- return $images -}}

@@ -30,7 +30,7 @@
 </header>
 {{- end }}
 
-{{- if .Content }}
+{{- if and .Content (not .IsHome) }}
 <div class="post-content">
   {{- if not (.Param "disableAnchoredHeadings") }}
   {{- partial "anchored_headings.html" .Content -}}

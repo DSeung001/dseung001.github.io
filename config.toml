@@ -62,9 +62,6 @@ contentDir = "content"
   ]
   mainSections = [ "posts" ]
 
-  [params.label]
-    text = "DevSeung Blog"
-  
   # PaperMod 테마 설정
   ShowReadingTime = true
   ShowPageViews = true
@@ -73,17 +70,20 @@ contentDir = "content"
   ShowBreadCrumbs = true
   ShowCodeCopyButtons = true
   ShowRssButtonInSectionTermList = true
-  
+
   # 댓글 시스템 설정
   comments = true
-  
+
   # 색상 테마
   colorScheme = "auto"
-  
+
   # 사이드바 설정
   ShowToc = true
   TocOpen = false
-  
+
+  [params.label]
+    text = "DevSeung Blog"
+
   # SEO 최적화 설정
   [params.seo]
     googleAnalytics = "G-FX0PNVWBVG"
@@ -99,6 +99,10 @@ contentDir = "content"
   # Schema.org 설정
   [params.schema]
     publisherType = "Person"
+    publisherName = "DSeung001"
+    publisherUrl = "https://dseung001.github.io/"
+    publisherImage = "android-chrome-512x512.png"
+    defaultArticleImage = "android-chrome-512x512.png"
     jobTitle = "Backend Developer"
     sameAs = [
       "https://github.com/dseung001"

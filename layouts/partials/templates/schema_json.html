@@ -1,6 +1,13 @@
 {{- $lang := site.Language.LanguageCode | default site.Language.Lang | default "ko-KR" -}}
 {{- $siteName := site.Title | plainify -}}
 {{- $siteDescription := site.Params.description | plainify | htmlUnescape | chomp -}}
+{{- $personId := printf "%s#person" site.Home.Permalink -}}
+{{- $websiteId := printf "%s#website" site.Home.Permalink -}}
+{{- $blogId := printf "%s#blog" site.Home.Permalink -}}
+{{- $publisherName := site.Params.schema.publisherName | default site.Params.author | default $siteName -}}
+{{- $publisherUrl := site.Params.schema.publisherUrl | default site.Home.Permalink -}}
+{{- $publisherImage := site.Params.schema.publisherImage | default site.Params.schema.defaultArticleImage | default site.Params.assets.apple_touch_icon | default site.Params.assets.favicon -}}
+{{- $defaultArticleImage := site.Params.schema.defaultArticleImage | default $publisherImage | default site.Params.assets.apple_touch_icon | default site.Params.assets.favicon -}}
 {{- $sameAs := slice -}}
 {{- with site.Params.schema.sameAs -}}
   {{- $sameAs = . -}}
@@ -12,10 +19,13 @@
 
 {{- $person := dict
   "@type" "Person"
-  "@id" (printf "%s#person" site.Home.Permalink)
-  "name" (site.Params.author | default $siteName)
-  "url" site.Home.Permalink
+  "@id" $personId
+  "name" $publisherName
+  "url" ($publisherUrl | absURL)
 -}}
+{{- with $publisherImage -}}
+  {{- $person = merge $person (dict "image" (. | absURL)) -}}
+{{- end -}}
 {{- with site.Params.schema.jobTitle -}}
   {{- $person = merge $person (dict "jobTitle" .) -}}
 {{- end -}}
@@ -28,18 +38,19 @@
 
 {{- $website := dict
   "@type" "WebSite"
-  "@id" (printf "%s#website" site.Home.Permalink)
+  "@id" $websiteId
   "url" site.Home.Permalink
   "name" $siteName
   "description" $siteDescription
   "inLanguage" $lang
-  "publisher" (dict "@id" (printf "%s#person" site.Home.Permalink))
+  "publisher" (dict "@id" $personId)
 -}}
 
 {{- if .IsHome -}}
   {{- $blogPosts := slice -}}
   {{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
   {{- range first 12 $pages -}}
+    {{- $postImages := partial "article_images.html" . -}}
     {{- $post := dict
       "@type" "BlogPosting"
       "@id" (printf "%s#article" .Permalink)
@@ -47,17 +58,19 @@
       "headline" (.Title | plainify)
       "datePublished" (.PublishDate.Format "2006-01-02T15:04:05-07:00")
       "dateModified" (.Lastmod.Format "2006-01-02T15:04:05-07:00")
+      "image" $postImages
     -}}
     {{- $blogPosts = $blogPosts | append $post -}}
   {{- end -}}
   {{- $blog := dict
     "@type" "Blog"
-    "@id" (printf "%s#blog" site.Home.Permalink)
+    "@id" $blogId
     "url" site.Home.Permalink
     "name" $siteName
     "description" $siteDescription
     "inLanguage" $lang
-    "author" (dict "@id" (printf "%s#person" site.Home.Permalink))
+    "author" (dict "@id" $personId)
+    "publisher" (dict "@id" $personId)
     "blogPost" $blogPosts
   -}}
   {{- $schema := dict "@context" "https://schema.org" "@graph" (slice $person $website $blog) -}}
@@ -82,20 +95,7 @@
     {{- $pageDescription := .Description | default .Summary | default site.Params.description | plainify | htmlUnescape | chomp -}}
     {{- $keywords := .Params.keywords | default .Params.tags | default slice -}}
     {{- $sections := .Params.categories | default (slice .Section) -}}
-    {{- $images := slice -}}
-    {{- if .Params.cover.image -}}
-      {{- if (ne .Params.cover.relative true) -}}
-        {{- $images = $images | append (.Params.cover.image | absURL) -}}
-      {{- else -}}
-        {{- $images = $images | append ((path.Join .RelPermalink .Params.cover.image) | absURL) -}}
-      {{- end -}}
-    {{- else -}}
-      {{- with partial "templates/_funcs/get-page-images" . -}}
-        {{- range . | first 6 -}}
-          {{- $images = $images | append .Permalink -}}
-        {{- end -}}
-      {{- end -}}
-    {{- end -}}
+    {{- $images := partial "article_images.html" . -}}
     {{- $about := slice -}}
     {{- range $keywords -}}
       {{- $about = $about | append (dict "@type" "Thing" "name" .) -}}
@@ -110,17 +110,15 @@
       "inLanguage" $lang
       "datePublished" (.PublishDate.Format "2006-01-02T15:04:05-07:00")
       "dateModified" (.Lastmod.Format "2006-01-02T15:04:05-07:00")
-      "author" (dict "@id" (printf "%s#person" site.Home.Permalink))
-      "publisher" (dict "@id" (printf "%s#person" site.Home.Permalink))
-      "isPartOf" (dict "@id" (printf "%s#blog" site.Home.Permalink))
+      "author" (dict "@id" $personId)
+      "publisher" (dict "@id" $personId)
+      "isPartOf" (dict "@id" $blogId)
       "wordCount" .WordCount
       "keywords" $keywords
       "articleSection" $sections
       "about" $about
+      "image" $images
     -}}
-    {{- with $images -}}
-      {{- $article = merge $article (dict "image" .) -}}
-    {{- end -}}
     {{- $schema := dict "@context" "https://schema.org" "@graph" (slice $person $website $breadcrumb $article) -}}
 <script type="application/ld+json">
 {{- $schema | jsonify (dict "noHTMLEscape" true "indent" "  ") | safeJS -}}
@@ -133,7 +131,7 @@
       "name" (.Title | default .Name | plainify)
       "description" (.Description | default .Summary | default site.Params.description | plainify | htmlUnescape | chomp | truncate 240)
       "inLanguage" $lang
-      "isPartOf" (dict "@id" (printf "%s#website" site.Home.Permalink))
+      "isPartOf" (dict "@id" $websiteId)
     -}}
     {{- $schema := dict "@context" "https://schema.org" "@graph" (slice $person $website $breadcrumb $collection) -}}
 <script type="application/ld+json">
