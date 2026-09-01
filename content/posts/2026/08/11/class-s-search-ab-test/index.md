@@ -2,10 +2,10 @@
 title: "Class Project 검색 랭킹 A/B 테스트"
 date: 2026-08-11T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "A/B 테스트", "하이브리드 검색", "랭킹", "실험" ]
+tags: [ "Class Project", "AB 테스트", "하이브리드 검색", "랭킹", "실험" ]
 draft: false
 description: "Class S 하이브리드 검색 가중치를 A/B 테스트로 검증하는 구조"
-keywords: [ "Class Project", "A/B 테스트", "검색 랭킹", "Success@N", "TTFC", "SearchExperiment" ]
+keywords: [ "Class Project", "AB 테스트", "검색 랭킹", "Success@N", "TTFC", "SearchExperiment" ]
 author: "DSeung001"
 lastmod: 2026-08-11T00:00:00+09:00
 ---
