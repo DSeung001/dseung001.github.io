@@ -1,5 +1,5 @@
 ---
-title: "Class Project 검색 랭킹 A/B 테스트"
+title: "검색 랭킹 가중치 A/B 테스트로 검증하기 (Class Project)"
 date: 2026-08-11T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

@@ -1,5 +1,5 @@
 ---
-title: "Class Project GitHub Actions 자동 배포"
+title: "GitHub Actions로 자동 배포 파이프라인 구축하기 (Class Project)"
 date: 2026-06-26T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

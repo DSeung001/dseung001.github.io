@@ -1,5 +1,5 @@
 ---
-title: "Class Project 문제 생성"
+title: "AI로 강의 문제 자동 생성하기 (Class Project)"
 date: 2026-08-27T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

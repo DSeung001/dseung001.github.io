@@ -1,5 +1,5 @@
 ---
-title: "Class Project 인코딩 서버 분리로 비용 절감하기"
+title: "인코딩 서버 분리로 AWS 비용 절감하기 (Class Project)"
 date: 2026-06-23T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

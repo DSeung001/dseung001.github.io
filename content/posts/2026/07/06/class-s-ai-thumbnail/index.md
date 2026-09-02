@@ -1,5 +1,5 @@
 ---
-title: "Class Project 썸네일 직접 만들기 + AI 이미지 생성 기능 추가"
+title: "AI 이미지 생성으로 영상 썸네일 자동화하기 (Class Project)"
 date: 2026-07-06T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

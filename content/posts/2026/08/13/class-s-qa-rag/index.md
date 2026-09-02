@@ -1,5 +1,5 @@
 ---
-title: "Class Project 질의응답 RAG"
+title: "강의 영상에 RAG 기반 질의응답 붙이기 (Class Project)"
 date: 2026-08-13T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

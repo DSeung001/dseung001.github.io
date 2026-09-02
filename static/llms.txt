@@ -15,17 +15,17 @@
 
 ## AI And Search
 
-- [Class Project 질의응답 RAG](https://dseung001.github.io/posts/2026/08/13/class-s-qa-rag/): 강의 서비스에 RAG 기반 질의응답을 붙이기 위한 구조와 평가 관점.
-- [Class Project 하이브리드 검색 구현하기](https://dseung001.github.io/posts/2026/08/07/class-s-hybrid-search/): 영상 자막, FTS, 임베딩, 랭킹을 조합한 검색 파이프라인 구현기.
+- [강의 영상에 RAG 기반 질의응답 붙이기](https://dseung001.github.io/posts/2026/08/13/class-s-qa-rag/): 강의 서비스에 RAG 기반 질의응답을 붙이기 위한 구조와 평가 관점.
+- [PostgreSQL로 하이브리드 검색 구현하기](https://dseung001.github.io/posts/2026/08/07/class-s-hybrid-search/): 영상 자막, FTS, 임베딩, 랭킹을 조합한 검색 파이프라인 구현기.
 - [FTS와 벡터 검색](https://dseung001.github.io/posts/2026/08/12/postgres-fts-vector/): PostgreSQL FTS와 pgvector 기반 벡터 검색의 차이와 적용 방식.
-- [Class Project STT 비용 최적화](https://dseung001.github.io/posts/2026/08/27/class-s-stt-cost-optimization/): 음성 인식 파이프라인의 비용 구조와 최적화 기록.
+- [Whisper STT 비용 절감하기](https://dseung001.github.io/posts/2026/08/27/class-s-stt-cost-optimization/): VAD와 Groq API 조합으로 음성 인식 파이프라인 비용을 줄인 기록.
 - [애니메이션 이미지 검색 프로젝트](https://dseung001.github.io/posts/2026/05/10/anime-search-project/): 임베딩 기반 이미지 유사도 검색 프로젝트 기록.
 
 ## Class S 프로젝트 빌드로그 (Series)
 
 강의 서비스 "Class S"를 만들며 남긴 연재 기록. 전체 목록은 [시리즈 허브](https://dseung001.github.io/series/class-s-project/)에서 볼 수 있습니다.
 
-- [Class Project GitHub Actions 자동 배포](https://dseung001.github.io/posts/2026/06/26/class-project-github-actions-auto-deploy/): CI/CD 자동 배포 파이프라인 적용 기록.
+- [GitHub Actions로 자동 배포 파이프라인 구축하기](https://dseung001.github.io/posts/2026/06/26/class-project-github-actions-auto-deploy/): CI/CD 자동 배포 파이프라인 적용 기록.
 - [인코딩 서버 분리로 비용 절감](https://dseung001.github.io/posts/2026/06/23/class-s-encoding-server-split-cost-saving/): 인코딩 서버를 분리해 비용을 줄인 아키텍처 변경기.
 - [AI 썸네일 생성 기능](https://dseung001.github.io/posts/2026/07/06/class-s-ai-thumbnail/): 이미지 생성 모델로 강의 썸네일을 자동 생성한 과정.
 - [SSE 기반 실시간 알림](https://dseung001.github.io/posts/2026/07/24/class-s-sse-notification/): Server-Sent Events로 구현한 실시간 알림 기능.

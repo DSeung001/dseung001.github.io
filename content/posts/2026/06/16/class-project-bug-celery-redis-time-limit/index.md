@@ -1,5 +1,5 @@
 ---
-title: "Class Project Bug: Celery & Redis Time Limit"
+title: "Celery와 Redis Visibility Timeout 충돌 버그 해결기 (Class Project)"
 date: 2026-06-16T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

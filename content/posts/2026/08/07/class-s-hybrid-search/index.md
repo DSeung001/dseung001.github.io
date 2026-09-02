@@ -1,5 +1,5 @@
 ---
-title: "Class Project 하이브리드 검색 구현하기"
+title: "PostgreSQL로 하이브리드 검색(FTS + 벡터) 구현하기 (Class Project)"
 date: 2026-08-07T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

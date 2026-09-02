@@ -1,5 +1,5 @@
 ---
-title: "Class Project 공지 기능 만들기"
+title: "SSE로 실시간 공지 알림 기능 만들기 (Class Project)"
 date: 2026-07-24T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]
