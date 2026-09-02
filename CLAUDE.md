@@ -1,9 +1,4 @@
----
-description: Constraints for tech blog writing, learning-focused communication, and SEO. Source of truth lives in /AGENTS.md.
-alwaysApply: true
----
-
-# 규칙 위치
+# CLAUDE.md
 
 이 저장소의 모든 규칙(커뮤니케이션, 기술 블로그 작성, SEO)은 저장소 루트의 `AGENTS.md`에서 관리한다.
 작업을 시작하기 전 `AGENTS.md`를 반드시 읽고 그 내용을 따른다. 이 파일에는 규칙을 다시 옮겨 적지 않는다 — 두 곳에서 관리하면 내용이 어긋난다.
