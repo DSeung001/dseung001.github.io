@@ -1,5 +1,5 @@
 ---
-title: "Whisper STT 비용 절감하기 — VAD와 Groq API 조합 (Class S)"
+title: "Whisper STT 비용 절감하기 — VAD와 Groq API 조합 (Class Project)"
 date: 2026-08-27T18:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]
