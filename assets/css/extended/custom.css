@@ -715,3 +715,109 @@ body.dark .post-content a:not(.anchor):hover {
     color: inherit;
     box-shadow: 0 -1px 0 currentColor inset;
 }
+
+.related-posts {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.related-posts-title {
+    font-size: 20px;
+    margin-bottom: 14px;
+}
+
+.related-posts-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+@media screen and (max-width: 600px) {
+    .related-posts-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+.related-posts-item a {
+    display: block;
+    padding: 12px 14px;
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: transform 0.1s;
+}
+
+.related-posts-item a:hover {
+    border-color: var(--secondary);
+}
+
+.related-posts-item a:active {
+    transform: scale(0.98);
+}
+
+.related-posts-item-title {
+    display: block;
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 15px;
+}
+
+.related-posts-item-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 4px;
+    color: var(--secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* 관련 글(.related-posts) 다음에 오는 댓글 영역을 구분선으로 분리 */
+.comments-divider {
+    margin: 40px 0 24px;
+    height: 1px;
+    border: 0;
+    background: var(--border);
+}
+
+/* 제목 위 시리즈 배지 (layouts/partials/series_badge.html) */
+.series-badge {
+    margin-bottom: 10px;
+}
+
+.series-badge a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.series-badge a svg {
+    flex-shrink: 0;
+}
+
+.series-badge a:hover {
+    color: var(--primary);
+    border-color: var(--secondary);
+}
+
+/* 본문 헤딩이 본문 텍스트(18px)보다 작아지지 않도록 h4~h6 크기 보정 */
+.post-content h4 {
+    font-size: 20px;
+}
+
+.post-content h5 {
+    font-size: 19px;
+}
+
+.post-content h6 {
+    font-size: 18px;
+}

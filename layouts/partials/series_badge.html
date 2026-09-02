@@ -1,0 +1,22 @@
+{{- $page := . -}}
+{{- with $page.GetTerms "series" -}}
+{{- $term := index . 0 -}}
+{{- $seriesPages := sort $term.Pages "Date" "asc" -}}
+{{- $total := len $seriesPages -}}
+{{- $idx := 0 -}}
+{{- range $i, $p := $seriesPages -}}
+  {{- if eq $p.Permalink $page.Permalink -}}
+    {{- $idx = add $i 1 -}}
+  {{- end -}}
+{{- end -}}
+<div class="series-badge">
+  <a href="{{ $term.Permalink }}">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="4" rx="1"></rect>
+      <rect x="3" y="10" width="18" height="4" rx="1"></rect>
+      <rect x="3" y="16" width="18" height="4" rx="1"></rect>
+    </svg>
+    <span>{{ $term.Title }} 시리즈{{ if gt $idx 0 }} ({{ $idx }}/{{ $total }}번째 글){{ end }}</span>
+  </a>
+</div>
+{{- end -}}

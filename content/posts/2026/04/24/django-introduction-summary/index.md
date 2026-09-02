@@ -10,7 +10,7 @@ author: "DSeung001"
 lastmod: 2026-04-24T00:00:00+09:00
 ---
 
-# 서론
+## 서론
 해당 글은 Laravel, Spring, Gin 등 다양한 프레임워크를 사용해 본 입장에서 Django를 살펴보며 정리한 메모입니다.
 Django 6.0 기준으로 [Introduction](https://docs.djangoproject.com/ko/6.0/intro/)은 다음과 같이 구성되어 있습니다.
 
@@ -23,9 +23,9 @@ Django 훑어보기
 장고에 처음으로 기여하기
 ```
 
-# Django 훑어보기
+## Django 훑어보기
 튜토리얼이 아닌 제목 그대로 Django의 동작 방식에 대해 설명하고 있습니다. <br/>
-## Model
+### Model
 처음은 모델과 ORM(object-relational mapper)으로 시작하며, Django의 [Model](https://docs.djangoproject.com/ko/6.0/topics/db/models/)을 먼저 보여줍니다.
 
 Reporter와 Article로 모델 클래스의 관계를 다음처럼 표현합니다.
@@ -50,7 +50,7 @@ class Article(models.Model):
     def __str__(self):
         return self.headline
 ```
-## CLI & Python API
+### CLI & Python API
 그다음 풀스택 프레임워크에서 중요한 CLI로 [migrations](https://docs.djangoproject.com/ko/6.0/topics/migrations/)를 보여줍니다.
 ```bash
 python manage.py makemigrations # 생성 가능한 모델을 찾아 테이블이 존재하지 않는 경우 마이그레이션 생성
@@ -126,7 +126,7 @@ DoesNotExist: Reporter matching query does not exist.
 # 리포터 삭제
 >>> r.delete()
 ```
-## Admin interface
+### Admin interface
 신기한 점은 Django에서 제공하는 admin 관련 기능은 단순 스케폴딩이 아닌 완성되었다는 점을 어필하는 부분이네요.
 모델만 정의되면 바로 전문적으로 사용할 수 있기 때문에 모델의 등록만을 언급하고 있습니다.
 사이트 관리를 위한 단순 CRUD 같은 부분은 자동으로 해주기 때문에 별도 인터페이스를 일일이 만들 필요가 없다고 언급하네요.
@@ -155,7 +155,7 @@ admin.site.register(models.Article)
 ```
 데이터 CRUD가 위처럼 연결만 하면 구현되니, 바로 URL 설계로 넘어가는 흐름이 좋더군요.
 물론 더 복잡한 데이터나 업무 규칙이 있다면 커스텀이 필요하겠지만, 단순 CRUD에서는 확실히 편리합니다.
-## URL
+### URL
 다른 프레임워크와 마찬가지로 `.php`나 `.go` 같은 파일 확장자가 URL에 노출되지 않으며, URL 패턴을 코드로 선언할 수 있습니다.
 이와 관련해서 Django는 [URL Dispatcher](https://docs.djangoproject.com/en/6.0/topics/http/urls/)를 별도 문서로 분리해 설명하고 있네요.<br/>
 `news/urls.py`
@@ -175,7 +175,7 @@ urlpatterns = [
 
 예를 들어 `/articles/2005/05/39323/`로 요청이 들어오면, view는 다음처럼 변수를 받습니다.
 `news.views.article_detail(request, year=2005, month=5, pk=39323)`
-## View
+### View
 뷰의 역할은 response 객체를 반환하거나 예외를 처리하는 것이고, 일반적으로 템플릿을 렌더링해 응답을 만듭니다.
 아래 코드를 보면 `render()` 함수를 통해 context 값을 넘기는 걸 알 수 있습니다.<br/>
 
@@ -190,7 +190,7 @@ def year_archive(request, year):
     context = {"year": year, "article_list": a_list}
     return render(request, "news/year_archive.html", context)
 ```
-## Template 
+### Template 
 [Template](https://docs.djangoproject.com/ko/6.0/topics/templates/)로 사용자에게 보여줄 화면을 만들고
 View에서 전달받은 데이터를 렌더링할 수 있습니다. Template은 상속도 할 수 있습니다. <br/>
 
@@ -237,7 +237,7 @@ Django의 특징은 MVC 패턴의 Controller를 별도 계층으로 분리하기
 - MVC의 View(화면) → Django Template
 - MVC의 Controller → Django View 함수/클래스(CBV) + URL dispatcher
 
-# 빠른 설치 가이드
+## 빠른 설치 가이드
 설치는 pip을 설치 후 os 환경에 맞게 python 가상환경을 만들어 작업을 진행합니다.
 <br/>
 
@@ -268,14 +268,14 @@ Type "help", "copyright", "credits" or "license" for more information.
 6.0.4
 ```
 
-# 장고 앱 작성하기, part 1 ~ 8
+## 장고 앱 작성하기, part 1 ~ 8
 Introduction은 설문조사 앱을 튜토리얼로 만들었습니다.
 특징은 다음 기능을 포함하고 있는거네요.
 - 여론조사를 보고 투표할 수 있는 공개 사이트
 - 설문조사를 추가, 변경 및 삭제 할 수 있는 관리자 사이트
 
-## part 1 
-### Project/App struct
+### part 1 
+#### Project/App struct
 아래 명령어로 djangotutorial 디렉터리에 Django 프로젝트를 만들면서 프로젝트 패키지인 `mysite`가 함께 생성합니다.
 ```bash
 django-admin startproject mysite djangotutorial
@@ -341,7 +341,7 @@ Django에서 자주 사용하는 관리 명령어를 간단히 정리하면 다�
 | `migrate` | DB에 마이그레이션 적용 |
 | `createsuperuser` | 관리자 계정 생성 |
 
-### URLconf, Hello World
+#### URLconf, Hello World
 여기까지 프로젝트와 앱의 뼈대를 생성했습니다. 이제 뷰를 URL에 연결하는 작업을 진행합니다.
 다음 코드를 따라가면서 `polls` 앱에 view와 urls를 등록하고, 메인 프로젝트 URLconf에 include 하면 `http://localhost:8000/polls/`에서 다음 문구를 확인할 수 있습니다.
 ```
@@ -377,8 +377,8 @@ urlpatterns = [
 ]
 ```
 
-## part 2
-### Setting, Model, Migration
+### part 2
+#### Setting, Model, Migration
 `mysite/settings.py.`에서 DB나 Time zone 설정이 가능하다는 점과 Django에서 제공하는 `INSTALLED_APPS`를 보여줍니다.
 `INSTALLED_APPS`는 Django 설치에서 활성화된 모든 애플리케이션을 지정하는 문자열 목록입니다.
 
@@ -477,7 +477,7 @@ COMMIT;
 - `sqlmigrate`는 실제 데이터베이스에서 마이그레이션을 실행하는 것이 아니라 SQL 문을 화면에 출력하는 명령입니다. 
 Django가 어떤 작업을 수행할지 확인하거나, 변경을 위해 SQL 스크립트가 필요한 데이터베이스 관리자가 있는 경우에 유용합니다.
 
-### Python API, Admin Page
+#### Python API, Admin Page
 이제 migrate을 실행하면 DB에 생성이 됩니다.<br/>
 **※ 마이그레이트(Migrate)**: 모델의 변경 사항을 DB 스키마에 동기화
 ```bash
@@ -660,8 +660,8 @@ admin.site.register(Question)
 
 이 자동화 기능은 꽤 편리합니다. 단순 CRUD 작업을 위해 일일이 모델 작성, 서비스 로직 구성, API 연결, 뷰 작성 등 반복하는 부담을 줄여 주기 때문에 특히 단순한 관리 기능에서 유용한 것 같습니다, 복잡한 모델 관계가 생기면 어떻게 될지는 봐야겠군요.
 
-## part 3
-### URL Dispatcher, URLconf
+### part 3
+#### URL Dispatcher, URLconf
 설문조사 앱은 다음 보기 방식을 가집니다.
 - 설문지 "색인" 페이지: 최근 설문지 몇 개를 표시합니다.
 - 설문지 "상세" 페이지: 설문지 텍스트만 표시되고 결과는 없지만 투표 양식이 있습니다.
@@ -672,7 +672,7 @@ admin.site.register(Question)
 - **URLconf**: `Dispatcher`가 참고하는 실제 URL 설정 파일입니다. 즉 `mysite/urls.py`, `polls/urls.py`가 설정 파일이죠.
 <br/>
 
-### View Url Mapping
+#### View Url Mapping
 아래와 같이 `view`와 `URLconf`를 설정해주면
 `polls/views.py`
 ```python
@@ -716,7 +716,7 @@ Django의 View는 다음 역할들을 기대할 수 있습니다.
 - PDF, XML, ZIP 관련 기능 등 원하는 Python 라이브러리는 뭐든 할 수 있음
 - Django 시스템에서는 반환으로 `HttpResponse`나 `Exception`만 주면 됨
 
-### Template, Dynamic Page
+#### Template, Dynamic Page
 지금까지는 정적 페이지에 가까였습니다, 페이지의 내용을 바꾸려면 코드 자체를 건드려야했죠.
 이제 View, Template을 연결하여 동적 페이지로 바꿔봅시다. 우선 Template을 2개 추가합니다.
 <br/><br/>
@@ -801,7 +801,7 @@ def vote(request, question_id):
 
 마지막으로 현재는 앱이 `polls` 하나 뿐이라 상관이 없지만 후에 여럿 앱이 추가될 경우 URLconf에서 정한 `name`이 중복될 수 있습니다.
 
-### Namespace
+#### Namespace
 여러 앱이 생길 때는 `Namespace`를 지정해서 앱의 `URLconf` 이름 충돌을 해결할 수 있습니다. <br/>
 `polls/urls.py`
 ```python
@@ -832,8 +832,8 @@ urlpatterns = [
 ...
 ```
 
-## part 4
-### Form 
+### part 4
+#### Form 
 여기서는 간단한 form 처리와 소스 코드를 줄이는 데 중점을 둡니다. detail 페이지를 수정해 연관된 choice 목록을 불러와 선택할 수 있는 페이지로 바꿉니다.<br/>
 `polls/templates/polls/detail.html`
 ```html
@@ -947,7 +947,7 @@ def results(request, question_id):
 
 여기까지 구현하면 `Question` 목록을 들어가서 `Question`과 관련된 `Choice`에 투표를 할 수 있게 됩니다.
 
-### Generic Views
+#### Generic Views
 `index`, `results` 등은 비슷한 패턴이 자주 발생합니다, 그래서 Django는
 이런 패턴들을 [Generic Views](https://docs.djangoproject.com/en/6.0/topics/class-based-views/generic-display/)로 올려 추상화해 두었습니다. 라라벨을 다룰 때와 비슷하게 추상화를 직접 만든 적이 있는데 그래서 반갑네요.
 
@@ -1061,8 +1061,8 @@ def vote(request, question_id):
 ```
 이렇게 하면 CRUD 흐름에 맞춰 뷰 쪽 코드도 더 줄일 수 있습니다.
 다만 프레임워크 추상화가 과하면 읽기 어려워질 수 있으니, 늘 읽기 쉬운 쪽이 낫다고 봅니다.
-## part 5
-### Automated Testing
+### part 5
+#### Automated Testing
 테스트로 코드의 작동 여부를 확인할 수 있습니다. 이 작업은 part 2에서 `shell`로 확인한 것과 본질은 비슷하지만, 자동화 테스트로 수동 테스트의 수고를 줄일 수 있습니다.
 
 이렇게 테스트를 빨리 다뤄주는 게 마음에 드네요. <br/>

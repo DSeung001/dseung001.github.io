@@ -10,7 +10,7 @@ author: "DSeung001"
 lastmod: 2026-05-10T00:00:00+09:00
 aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 ---
-# 1. 개요
+## 1. 개요
 
 애니메이션이나 드라마를 보실 때 내가 몇 화까지 본지는 기억이 안 나지만 특정 장면만 떠오를 때가 있습니다. 이 문제를 해결하기 위해 사용자가 원하는 장면이 나온 회차를 쉽게 찾을 수 있는 검색 시스템을 만들어 보려 합니다. 
 
@@ -22,7 +22,7 @@ aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 - [5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서는 3·4장 파이프라인을 HTTP 밖으로 분리하고, Celery·Redis·Django(`task queue`)로 잡 구조를 잡습니다.
 - [6. 자연어 검색](#6-자연어-검색)에서는 Qdrant 검색 API·UI를 붙이고, 필요하면 LLM으로 결과를 정리합니다.
 
-# 2. 멀티모달 임베딩
+## 2. 멀티모달 임베딩
 **멀티모달 임베딩 공간(Multimodal Embedding Space)** 은 텍스트, 이미지, 동영상 프레임 등 서로 다른 형태의 데이터(모달리티)를 하나의 통일된 다차원 벡터 공간에 매핑하는 기술입니다. 
 
 멀티모달은 다양한 리소스를 의미하고 임베딩은 그 데이터를 의미가 보존된 저차원 벡터로 변환하는 과정을 말합니다. 벡터로 바꾸는 이유는 수학적으로 계산할 때 사용하기 위함이죠.
@@ -37,7 +37,7 @@ aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 이 공간에서는 서로 다른 모달리티의 데이터가 같은 좌표계에 위치하게 되어 수치로 비교할 수 있게 되죠.
 하나의 공간에 데이터를 투영함으로써 다양한 동작을 수행할 수 있게 됩니다.
 
-## Contrastive Learning
+### Contrastive Learning
 대조 학습은 데이터 간의 유사도와 차이를 비교하며 특징을 학습하는 방식으로, 모델이 라벨 없이도 데이터의 의미를 스스로 파악할 수 있게 해주는 `자기 지도 학습(Self-Supervised Learning)`에서 주로 활용됩니다.
 이런 방식이 아니라면 사람이 일일이 라벨링하며 데이터를 나눠야 했습니다.
 예시로 대표적인 데이터셋인 `ImageNet`은 약 22,000개의 객체를 구분하기 위해 1,400만 장의 이미지와 25,000명 이상의 작업자가 필요했습니다.
@@ -50,7 +50,7 @@ aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 
 이 점을 활용해서, 강아지 사진 한 장이 있다고 가정하면 이 사진을 자르거나, 회전시키거나, 색감을 바꾸는 식으로 여러 개의 변형된 사진을 만들어도 여전히 같은 강아지라는 `Positive Pair`로 인식하여 거리를 가깝게 합니다. 이로써 모델이 표면적인 변화에 흔들리지 않고 본질을 구별할 수 있게 됩니다.
 
-## Static Embedding Space, Shared Embedding Space
+### Static Embedding Space, Shared Embedding Space
 임베딩을 통해 데이터를 벡터로 표현하면, 공간 안에서의 상대적 위치를 통해 각 데이터의 의미를 파악할 수 있습니다.
 거리와 각도를 통해 코사인 값으로 도출해서 벡터 값 사이의 유사도를 측정합니다.
 
@@ -64,7 +64,7 @@ aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 `Shared Embedding Space`이 이러한 한계를 개선한 방법입니다. <br/>
 주로 멀티모달(Multimodal) 모델(ex: `OpenAI의 CLIP`)에서 중요한 개념으로, 서로 다른 형태의 데이터(이미지, 텍스트 등)가 하나의 공통된 공간에 함께 배치되어 이미지로서의 사과와 텍스트로서의 "사과"가 서로 가까운 위치의 벡터로 표현되도록 합니다. 그래서 데이터의 형태가 달라도 의미를 기준으로 검색할 수 있게 되죠.
 
-## CLIP 구조
+### CLIP 구조
 파인튜닝 없이 바로 사용할 수 있고, 학습 시 보지 못한 키워드에 대해서도 추론이 가능한 모델입니다. 또한 이미지 인코더와 텍스트 인코더의 출력이 같은 `Shared Embedding Space` 위에 놓이기 때문에, 두 출력을 연결하기 위한 별도의 변환 레이어 없이도 곧바로 유사도를 비교할 수 있습니다.
 
 `CLIP`은 자연어 지도 학습(Natural Language Supervision)을 통해 시각적 개념을 효율적으로 학습하는 신경망입니다.
@@ -74,8 +74,8 @@ aliases: [ "/posts/2026/05/10/index/", "/posts/2026/05/10/" ]
 
 추후 `Anime Search` 프로젝트를 구성할 때 새로운 에피소드가 나올 때마다 모델을 재학습하는 건 비용적으로 손해이기 때문에 별도 학습 없이 곧바로 임베딩을 추출할 수 있는 `CLIP`이 적합합니다. 따라서 이를 베이스로 프로젝트를 구성하려 합니다.
 
-## Practice
-### 허깅페이스로 로컬에서 돌려보기
+### Practice
+#### 허깅페이스로 로컬에서 돌려보기
 여기서는 Hugging Face 모델 허브에서 `CLIP` 모델을 불러옵니다.
 이 모델의 기능을 “이미지·텍스트 입력을 받아 고정 차원의 Float 배열(`Vector`)로 바꿔 반환하는 블랙박스 함수”로 정의하고, 함수에 걸리는 시간과 모델별 결과를 비교하며, 텍스트와 이미지의 유사도 측정까지 확인해 봅시다.
 
@@ -250,7 +250,7 @@ Image Vector Shape: (768,)
 11. Score: 0.1459 -> Query: 'A gloomy scene with falling rain'
 ```
 
-### Colab 환경에서 OpenAI CLIP 써보기
+#### Colab 환경에서 OpenAI CLIP 써보기
 이전에는 허깅페이스를 사용해 쉽게 모델에 접근했고 로컬에서 작업을 했습니다.
 이번에는 `Colab` 환경에서 `OpenAI CLIP`을 사용해서 `sentence_transformers` 없이 `CLIP`으로 직접 특징 벡터를 추출하고, 이미지와 텍스트가 어떻게 비교되는지 시각화해봅니다.
 `Colab`은 GPU 런타임을 선택하면 `CUDA` 환경에서 모델 추론과 행렬 연산을 더 효율적으로 테스트할 수 있고 편이해서 이번에는 이 환경에서 진행해보려고 합니다.
@@ -490,7 +490,7 @@ Max difference between two methods: 0.00000007
 마지막으로 이를 실행한 시각화 결과는 아래와 같습니다. 유튜브 영상을 다운받고 프레임별로 가장 부합하는 키워드들을 찾아주는 걸 확인할 수 있습니다.
 <img src="./colab_result_grid.webp" alt="colab_result_grid.webp" style="display: block; width: 700px; height: auto; margin: 0 auto;">
 
-# 3. 대용량 전처리 파이프라인
+## 3. 대용량 전처리 파이프라인
 
 `RAG` 시스템으로 만들기 위해서는 우선 동영상에서 뽑은 수많은 프레임을 벡터화해서 저장하는 전처리 작업이 필요합니다.
 하지만 유튜브 영상의 전체 프레임을 뽑을 때 모든 프레임이 유의미한 차이를 지니진 않습니다.
@@ -561,11 +561,11 @@ dataloader = DataLoader(
 아마 CPU나 GPU 자원이 훨씬 넉넉한 환경에서는 워커가 체감 차이를 만들 수도 있었겠지만, 제 환경에서는 그런 제약 때문에 이런 결과가 나온 걸로 보입니다.
 
 
-# 4. 벡터 검색 엔진 구축
+## 4. 벡터 검색 엔진 구축
 
 RAG 시스템 구현을 위해 텍스트 쿼리와 프레임 이미지를 같은 CLIP 임베딩 공간에 올려 두고 사용자가 입력한 쿼리 벡터와 가까운 프레임 벡터를 찾는 의미(시맨틱) 검색을 만들어야 합니다. 이때 고차원 벡터를 빠르게 근사 최근접 이웃(ANN) 탐색해 주는 저장소가 필요하게 되는데 **Qdrant**가 그중 하나입니다.
 
-## Qdrant
+### Qdrant
 Qdrant는 벡터를 컬렉션에 적재하고, 거리(코사인, 유클리드 등) 기준으로 가까운 값을 찾아주는 벡터 DB입니다.
 수백만 개의 고차원 벡터 사이에서 쿼리와 가까운 것을 빠르게 찾기 위해 ANN(근사 최근접 이웃) 방식을 씁니다.
 - **ANN (근사 최근접 이웃)**: 쿼리 벡터와 아주 가까운 벡터를 찾되, 매번 모든 값이랑 비교하지 않고 그래프·트리 같은 구조를 타고 가며 가까운 후보를 빠르게 탐색
@@ -620,7 +620,7 @@ curl -X POST http://localhost:6333/collections/test_collection/points/search \
 이는 벡터를 노드처럼 잇고 레이어를 나눠 둡니다.
 찾는 벡터 값과 멀리 있는 후보는 건너뛰고 가까운 쪽만 따라가며 탐색할 수 있어서 매번 전부와 거리 비교하지 않아도 실용적인 속도가 나오는 편이라 벡터 DB에서 흔하게 선택하는 방식입니다.
 
-## 프로젝트 Collection 구조 정하기
+### 프로젝트 Collection 구조 정하기
 이제 `RAG` 시스템에서 쓰일 `Collection` 설계를 잡아봅시다.
 
 `Collection`에는 다음 2개의 구조가 들어갑니다.
@@ -656,7 +656,7 @@ curl -X POST http://localhost:6333/collections/test_collection/points/search \
 
 포인트(`Points`)의 `id`는 컬렉션 안에서 중복 없이 유일해야 합니다. `job_public_id`와 `frame_index`를 조합해 만든 UUID를 문자열 `id`로 씁니다.
 
-## 벡터 정보 저장하기
+### 벡터 정보 저장하기
 
 이제 동영상에서 프레임을 뽑고 이를 사전 학습된 모델로 데이터를 벡터화했죠.
 이 벡터화한 값을 가지고 유사도 검사를 했었습니다. 저는 이를 이용해서 애니메이션 장면을 파악해서 검색하는 기능을 만들고 싶습니다. 이를 구현하기 위해서 벡터 DB에 저장해서 나중에 RAG 시스템에서 이용할 수 있도록 구성합시다.
@@ -683,7 +683,7 @@ flowchart TB
 테스트는 REST API를 통한 HTTP로 동기적으로 진행되는데, 실제 서비스에서는 비동기로 워커가 돌게끔 구상합니다
 이는 [5장](#5-비동기-시스템-구조-celery-job-worker--redis-queue)에서 구현합니다.
 
-### 프레임 추출
+#### 프레임 추출
 `subprocess`와 `ffmpeg`를 사용해 프레임을 추출하겠습니다.<br/>
 `OpenCV`로도 가능하지만, `ffmpeg`로 JPG까지 넘기는 방식이 단순하고 `BGR`/`RGB` 같은 색 공간도 신경 쓰지 않아도 되며, 추출 과정을 `ffmpeg` 명령으로 외부 프로세스 하나에 맡겨 관리하기 편하다는 여러 이유 때문에 이 방법을 선택했습니다.
 
@@ -732,7 +732,7 @@ def extract_frames_ffmpeg(
     return len(list(output_dir.glob("frame_*.jpg")))
 ```
 
-### 벡터화
+#### 벡터화
 벡터화하는 작업은 이전의 코드와 비슷합니다.<br/>
 ```python
 def extract_features(
@@ -789,7 +789,7 @@ def extract_features(
         return final_matrix, elapsed, frames_per_sec
 ```
 
-### 저장
+#### 저장
 `Qdrant`에서 컬렉션을 생성한 뒤 다음 코드로 벡터 결과를 `Qdrant`에 저장할 수 있습니다.
 
 벡터만 저장하면 되니 `postgresql`처럼 벡터 확장(`pgvector` 등)이 있는 걸 택하는 선택지도 있지만, 이 글에서는 전용 벡터 DB를 쓰기로 했습니다. 대략적인 차이는 아래 표로 정리할 수 있습니다.
@@ -875,7 +875,7 @@ curl -sS 'http://127.0.0.1:6333/collections/anime_clip'
 ```
 프로세스를 실행해서 값을 저장했을 경우 다음처럼 볼 수 있죠.
 
-### 컬렉션 정보 조회
+#### 컬렉션 정보 조회
 
 `Qdrant`의 `GET /collections/{collection_name}`은 컬렉션 전체 상태를 한 번에 보는 관리·점검용 API입니다. 쉽게 확인할 수 있다는 점이 편하죠. 개별 포인트의 벡터 값은 나열되지 않지만, 컬렉션 상태·설정·데이터 수 등을 요약해서 보여 줍니다.
 
@@ -1052,7 +1052,7 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 }
 ```
 
-# 5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)
+## 5. 비동기 시스템 구조 (Celery, Job Worker & Redis Queue)
 
 4장까지로 프레임 추출·벡터화·`Qdrant` 적재 같은 핵심 파이프라인은 갖춰졌습니다. 다만 지금은 HTTP로 직접 돌리거나 로컬에서 한 번에 실행하는 수준이고, 이를 그대로 서비스에 올리기엔 아직 부족한 부분이 많죠.
 실서비스에서 부족한 점은, 관리자가 동영상을 올린 뒤 임베딩이 끝날 때까지 API 요청이 붙잡혀 있으면 타임아웃이 나기 쉽고, 웹 서버와 무거운 추론 작업이 한 프로세스에 섞이면 검색 API까지 같이 느려질 수 있다는 것입니다.
@@ -1082,7 +1082,7 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 
 4장에서 프레임 추출부터 `Qdrant` 저장까지 검증했다면, 5장에서는 배포 가능한 서비스 형태로 옮기는 단계입니다.
 
-## Celery와 Redis 큐
+### Celery와 Redis 큐
 
 임베딩 파이프라인처럼 오래 걸리는 작업은 Django 요청 안에서 돌리지 않고, `Celery` 태스크로 워커에 넘깁니다. 워커가 무엇을 할지 알려 주는 작업 메시지는 `Redis` 큐(브로커)에 쌓이고, 떠 있는 `Celery worker` 프로세스가 하나씩 꺼내 실행합니다.
 
@@ -1099,7 +1099,7 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 | `Disk` | 업로드 원본·프레임 JPG 스테이징 (`jobs/{uuid}/input/` 등) |
 | `Qdrant` | 벡터 저장 (4장과 동일) |
 
-### RabbitMQ 대신 Redis를 쓰는 이유
+#### RabbitMQ 대신 Redis를 쓰는 이유
     
 `Celery`에 이벤트 메시지를 전달하는 브로커는 `RabbitMQ`, `Redis`, `SQS` 등을 고를 수 있습니다. 
 이 프로젝트는 초당 수만 건의 메시지보다 한 건이 수 분~수십 분 걸리는 임베딩 잡이 중심입니다. 즉 큐에 쌓이는 건 작업 지시 한 줄로 가볍지만 이로 인해 발생하는 무거운 연산은 워커가 따로 하죠.
@@ -1113,7 +1113,7 @@ curl -sS -X POST 'http://127.0.0.1:6333/collections/anime_clip/points/scroll' \
 그래서 더 안정성을 높이고 싶다면 `Redis` 구조를 유지하면서 실서비스로 옮길 때는 `PostgreSQL`에 핵심 데이터를 남기고 `Redis`는 브로커 역할에 초점을 두는 게 좋죠.
 5장 로컬 개발에서는 Django 기본 `SQLite`(`db.sqlite3`)로 `EmbeddingJob` 상태만 두고, `PostgreSQL`은 아직 쓰지 않습니다.
 
-### 필요한 프로세스
+#### 필요한 프로세스
 
 맥에서 개발할 때는 아래 다섯 가지를 같이 띄웁니다.<br/>
 (`Qdrant`와 `Redis`는 작업 편이를 위해 Docker로, DB는 Django가 `SQLite` 파일로 사용)
@@ -1136,7 +1136,7 @@ docker run -d --name redis -p 6379:6379 redis:7-alpine
 celery -A anime_search worker -l info --concurrency=1
 ```
 
-### Celery 앱 설정
+#### Celery 앱 설정
 
 `celery -A anime_search worker`가 `embeddings.run_embedding_job` 태스크를 실행하려면, Django `settings.py`의 `CELERY_*`와 프로젝트 루트의 `celery.py`가 먼저 맞춰져 있어야 합니다.
 
@@ -1167,7 +1167,7 @@ app.autodiscover_tasks()
 
 이제 Django가 `run_embedding_job_task.delay(job_public_id)`로 큐에 넣으면, HTTP는 `public_id`를 바로 돌려줍니다. 응답 시점 DB는 `pending`일 수 있고, `transaction.on_commit` 뒤 `enqueue_run_job`이 성공하면 `processing`으로 바뀝니다. 워커가 태스크를 집으면 `running`, 완료 시 `done`(실패 시 `failed`)로 `SQLite`의 `EmbeddingJob` 행을 갱신하고, 관리 화면에서는 그 상태만 폴링하면 됩니다.
 
-## 프로세스 시퀀스
+### 프로세스 시퀀스
 위에서 보여준 구조에 이벤트를 더 상세히 보여줄 경우 다음과 같습니다.
 ```mermaid
 sequenceDiagram
@@ -1199,7 +1199,7 @@ sequenceDiagram
 
 위 시퀀스는 5장 전체 프로세스의 흐름입니다.<br/>이어서 Django 쪽 데이터 모델과 업로드와 메시지를 적재하는 코드를 봅니다.
 
-### Model 구조
+#### Model 구조
 이 프로젝트는 다음 모델 구조로 진행합니다.
 
 - **장르(`Genre`) ↔ 애니메이션(`Anime`) — N:M**  
@@ -1291,7 +1291,7 @@ CREATE INDEX "catalog_anime_genres_genre_id_8b6a7b27"
 
 모델·ER 구조를 본 뒤, HTTP 업로드 API에서 `EmbeddingJob`을 만들고 Celery 큐에 넣는 코드로 이어집니다.
 
-### 업로드 (Django API)
+#### 업로드 (Django API)
 동영상 업로드 흐름은 핵심 코드만 짚어 봅니다. 먼저 `catalog/urls.py`입니다.
 ```python
 ...
@@ -1582,7 +1582,7 @@ def enqueue_run_job(public_id: UUID) -> EnqueueResult:
 
 Django에서 큐에 넣는 흐름까지 봤으니 이제 워커가 `Redis`에서 메시지를 가져와 4장 파이프라인을 실행하는 부분으로 넘어갑니다.
 
-### Celery worker & Redis (임베딩 실행)
+#### Celery worker & Redis (임베딩 실행)
 
 앞 [Celery와 Redis 큐](#celery와-redis-큐) 절의 `Producer–Broker–Consumer` 흐름을 `redis-cli MONITOR`로 실제 `Redis` 명령에 맞춰 확인합니다.
 
@@ -1750,12 +1750,12 @@ def run_embedding_job_task(public_id: str) -> dict[str, str]:
 
 정리하자면, Django가 `EmbeddingJob`을 만들고 `enqueue_run_job`으로 Celery·Redis에 넣은 뒤, 워커가 ffmpeg·CLIP·Qdrant까지 이어서 처리합니다.
 
-# 6. 자연어 검색
+## 6. 자연어 검색
 이 장의 목표는 사용자가 자연어를 입력하면 일치하는 장면을 찾는 전체 프로세스를 완성시키는 겁니다.
 RAG 시스템답게 프로젝트의 클라이언트 레이어를 씌우는 거죠.
 최종적으로 자연어 입력 → (Retrieval) Qdrant 유사도 검색 → LLM·UI로 표시까지 만드는 겁니다.
 
-## RAG
+### RAG
 `RAG(Retrieval-Augmented Generation)`는 LLM이 데이터를 생성해 주는 것에서 더 나아가 먼저 정해진 영역에서 관련 자료를 찾고(Retrieval) 그 결과를 바탕으로 답하거나 보여 주는(Generation) 구조입니다.
 - **검색 (Retrieval)**: 사용자가 질문하면 AI가 사전에 연결된 문서나 데이터베이스에서 질문과 가장 관련 있는 정보를 찾습니다.
 - **증강 (Augmentation)**: 검색된 정보와 사용자의 질문을 결합하여 AI에게 맥락(Context)을 제공합니다.
@@ -1767,7 +1767,7 @@ RAG 시스템답게 프로젝트의 클라이언트 레이어를 씌우는 거�
 
 후에 추가 학습을 통해 더 검색을 정확히 하거나 알맞은 모델을 찾는 과정을 보며 퀄리티를 높일 수 있지만 아직은 RAG 시스템을 구현하는 부분까지를 목표로 합시다.
 
-## LLM 연결
+### LLM 연결
 
 애니메이션 장면을 찾을 때 챗봇이나 여타 다른 LLM 서비스처럼 채팅 형태로 검색하는 작업이 이뤄져야 합니다. 그러기 위해서는 LLM 모델 연결이 간단하고 직관적인 방법이죠.
 `CLIP` 같은 멀티 모달 모델은 LLM 모델보다 비교적 가볍기 때문에 내장하는 방향으로 진행되었습니다.

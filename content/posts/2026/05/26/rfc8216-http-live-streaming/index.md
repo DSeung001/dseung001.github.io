@@ -2,6 +2,7 @@
 title: "RFC 8216 — HTTP Live Streaming"
 date: 2026-05-26T00:00:00+09:00
 categories: [ "RFC", "Video" ]
+series: [ "rfc-study" ]
 tags: [ "RFC", "HLS", "RFC 8216", "HTTP Live Streaming", "m3u8", "스트리밍", "미디어" ]
 draft: false
 description: "RFC 8216 HTTP Live Streaming(HLS)의 플레이리스트, 세그먼트, 적응형 비트레이트 등 핵심을 정리합니다."
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-05-26T00:00:00+09:00
 ---
 
-# HLS and ABR
+## HLS and ABR
 HLS(HTTP Live Streaming)는 HTTP로 `.m3u8, .m3u` 플레이리스트와 짧은 미디어 세그먼트를 주고받으며 영상을 이어 재생하는 방식입니다. 네트워크나 기기 상황에 맞춰 ABR(Adaptive Bitrate, 적응형 비트레이트)로 화질(Variant)을 바꿔 끊김을 줄입니다.
 
 애플에서 개발한 HTTP 기반 스트리밍 방식으로 애플 사이트에서 [가이드라인](https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices)을 참고할 수도 있습니다.
@@ -25,7 +26,7 @@ HLS는 [ABR Streaming](https://www.cloudflare.com/ko-kr/learning/video/what-is-a
 
 이 문서에서는 프로토콜 버전 7을 다룹니다.
 
-# Media playlist and segments
+## Media playlist and segments
 HLS에서 `Media playlist`(미디어 플레이리스트, 보통 `.m3u8`, `.m3u`)는 `media segment` URI와 재생 메타데이터가 담긴 인덱스 파일입니다. 플레이어가 이 파일을 읽고, 나열된 순서대로 세그먼트를 HTTP로 요청해 이어 붙여 영상을 제공하죠.
 - **VOD**: 플레이리스트에 세그먼트가 모두 있고, 끝에는 대부분 `#EXT-X-ENDLIST`로 종료를 표시하는 경우가 많습니다.
 - **Live**: 같은 Media playlist URL을 반복해서 갱신함 (`#EXT-X-MEDIA-SEQUENCE` 등).
@@ -55,7 +56,7 @@ http://media.example.com/third.ts
 
 세그먼트를 암호화할 때는 `#EXT-X-KEY`로 복호화 방법(`METHOD`)과 키 URI를 선언하고, 필요하면 IV를 함께 둡니다. `Master playlist`에서는 `#EXT-X-SESSION-KEY`로 키를 미리 알려 두기도 합니다 (자세한 내용은 아래 [Encryption and keys](#encryption-and-keys) 참고)
 
-# Segment containers: MPEG-2 TS and fragmented MP4
+## Segment containers: MPEG-2 TS and fragmented MP4
 위에서 세그먼트(ts)는 `MPEG-2 TS (Transport Stream)` 방식을 통해 데이터가 온다고 적었지만, 해당 방식은 전통적인 포맷 방식입니다.
 현재는 `MPEG-DASH`와 `HLS`에서 둘 다 지원하는 `fMP4 (Fragmented MPEG-4)`도 지원하고 있죠.
 
@@ -81,7 +82,7 @@ http://media.example.com/third.ts
 | 주요 인프라 | Public Cloud (AWS S3 + CDN) | 자체 CDN (Netflix OCA) | 자체 데이터센터 + 엣지 (GGC) |
 | 핵심 지향점 | 구현 편의성, 인프라 유지보수 용이 | 스토리지 비용 절감, 고화질 안정성 | 초저지연 라이브, 대규모 동시 접속 처리 |
 
-# Master playlist and variants
+## Master playlist and variants
 이전에 언급한 `Media playlist`는 실제 영상과 오디오 데이터 조각을 가리키는 인덱스였습니다.
 하지만 우리가 VOD나 OTT를 보면 다양한 화질과 다양한 국가의 오디오를 제공하는 걸 볼 수 있죠. 이를 가능하게 하는 이유는 각 화질과 오디오를 또 색인해 주는 `index`가 존재하고 이게 `Master playlist`입니다.
 
@@ -104,7 +105,7 @@ http://media.example.com/third.ts
 4. 분리 오디오 Rendition을 쓰면 영상 Media와 오디오 Media를 타임스탬프에 맞춰 같이 재생
 5. 세그먼트를 충분히 버퍼한 뒤 (암호화면 복호화 후) 연속 재생
 
-# Alternative renditions
+## Alternative renditions
 
 앞의 `Variant`가 화질·비트레이트 줄기라면, `Alternative Rendition`은 같은 프로그램에 붙는 다른 오디오와 자막을 나타내는 다른 트랙입니다. Master playlist에서 Rendition은 `#EXT-X-MEDIA`로 선언합니다.
 
@@ -129,7 +130,7 @@ https://example.com/720p.m3u8
 본편 Variant의 Media playlist에 오디오가 이미 mux되어 있으면 Rendition 없이도 재생됩니다. 
 분리 오디오(Packed Audio)나 자막(WebVTT)을 쓰면, Variant의 영상 Media와 Rendition Media playlist 세그먼트를 타임스탬프에 맞춰 같이 재생합니다(위 플레이어 순서에서 단계 4번).
 
-# Encryption and keys
+## Encryption and keys
 
 HLS는 Media Segment 본문을 암호화할 수 있습니다. 복호화에 필요한 정보는 playlist 태그로 전달됩니다.
 클라이언트(플레이어)는 Media playlist의 `#EXT-X-KEY`를 읽고, `URI`로 Key file을 HTTP GET한 뒤 해당 구간의 세그먼트를 복호화해 재생합니다. Master playlist의 `#EXT-X-SESSION-KEY`는 여러 Variant와 Rendition이 같은 키를 쓸 때, Variant를 고르기 전에 키 정보를 미리 알려 두는 용도이며, 실제 복호화는 Media playlist의 `#EXT-X-KEY`를 따릅니다.
@@ -183,7 +184,7 @@ http://media.example.com/fileSequence53-A.ts
 - 첫 `#EXT-X-KEY`: `METHOD=AES-128`, `KEYFORMAT="identity"`, Key file URI, `IV`를 명시합니다. `IV` 끝의 `1E72`는 첫 시퀀스 7794(0x1E72)에 맞춘 예시 값입니다. 이 태그 아래 `fileSequence52-A.ts`, `fileSequence52-B.ts`는 키 `r=52`와 같은 `IV` 속성 값으로 복호화합니다(`IV`를 적었을 때는 세그먼트마다 시퀀스 번호 IV를 쓰지 않음).
 - 두 번째 `#EXT-X-KEY`: `METHOD`는 여전히 `AES-128`이고, 바뀐 것은 Key file URI(`r=53`)입니다. `IV`를 적지 않았으므로 `fileSequence53-A.ts`(시퀀스 7796)는 Media Sequence Number를 IV로 씁니다.
 
-# Server and client responsibilities
+## Server and client responsibilities
 이 섹션에서는 동영상을 HLS 프로토콜에 맞춰 MP4를 인코딩해 보고, 서버는 Media playlist 주소(m3u8)를 클라이언트에 제공하고 클라이언트가 이를 재생하는 흐름을 만들어 봅시다.
 
 로컬에 `sample.mp4`가 있다는 가정 하에 `ffmpeg`로 HLS 프로토콜 형식에 맞춰 인코딩합시다.

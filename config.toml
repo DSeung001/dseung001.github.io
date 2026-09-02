@@ -14,11 +14,13 @@ contentDir = "content"
   posts = "/posts/:year/:month/:day/:contentbasename/"
   tags = "/tags/:slug/"
   categories = "/categories/:slug/"
+  series = "/series/:slug/"
 
 # 택소노미 설정
 [taxonomies]
   category = "categories"
   tag = "tags"
+  series = "series"
 
 # 메뉴 설정
 [menu]
@@ -37,6 +39,11 @@ contentDir = "content"
     name = "Tags"
     url = "/tags/"
     weight = 30
+  [[menu.main]]
+    identifier = "series"
+    name = "Series"
+    url = "/series/"
+    weight = 35
   [[menu.main]]
     identifier = "resume"
     name = "Resume"
@@ -148,6 +155,21 @@ contentDir = "content"
         inline = [['$', '$'], ['\\(', '\\)']]
   [markup.highlight]
     noClasses = false
+
+# 관련 글(Related Posts) 설정
+[related]
+  includeNewer = true
+  threshold = 20
+  toLower = true
+  [[related.indices]]
+    name = "tags"
+    weight = 100
+  [[related.indices]]
+    name = "series"
+    weight = 80
+  [[related.indices]]
+    name = "categories"
+    weight = 40
 
 # 사이트맵 설정
 [sitemap]

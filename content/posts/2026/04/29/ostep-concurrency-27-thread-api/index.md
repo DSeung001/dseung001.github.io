@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Thread API"
 date: 2026-04-29T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Thread", "Thread API", "Synchronization" ]
 draft: false
 description: "OSTEP Concurrency 27강 Thread API 정리"
@@ -12,7 +13,7 @@ lastmod: 2026-04-29T00:00:00+09:00
 교재에서는 `c`의 `POSIX`을 기반으로 진행되고 있고 `Python`을 공부 중이므로 `Python`의 `threading`로 해당 글을 진행합니다.
 `threading` 모듈은 OS의 저수준 스레딩 기능 위에 구축된 객체 지향 API로 `Unix` 계얼에서는 `POSIX Thread(pthreads)` 라이브러리를 기반으로 동작합니다.
 
-# Thread Creation
+## Thread Creation
 파이썬에서는 `threading.Thread` 객체를 만들어 스레드를 생성합니다. 핵심은 "어떤 함수를 어떤 인자로 실행할지"를 스레드 객체에 넘기고, `start()`로 실행을 시작하는 흐름입니다.
 
 ```python
@@ -47,7 +48,7 @@ t2.start()
 
 스레드를 생성하면 같은 프로세스 주소 공간을 공유하지만, 각 스레드는 자신만의 호출 스택을 가지고 독립적으로 실행됩니다.
 
-# Thread Completion
+## Thread Completion
 스레드를 만든 뒤 완료까지 기다리려면 `join()`을 호출해야 합니다. 즉, 메인 스레드(또는 호출한 스레드)는 대상 스레드가 끝날 때까지 대기합니다.
 파이썬 시그니처는 다음과 같습니다.
 
@@ -92,7 +93,7 @@ OSTEP의 `pthread_join(thread, value_ptr)`와 비교하면 중요한 차이가 �
 - 장시간 실행되는 서버/워커 모델은 스레드를 요청마다 생성,즉시 종료하지 않고 오래 유지해 계속 작업을 처리하므로, 매 작업마다 `join()`으로 기다리는 구조를 쓰지 않는 경우가 많습니다(보통 프로그램 종료 시점에만 정리).
 - `join()`은 완료 대기 도구일 뿐, 경쟁 조건을 막아주지는 않습니다, 하지만 병렬 작업에서는 여러 스레드의 계산이 끝난 뒤 다음 단계로 넘어가기 위한 동기화 지점(간단한 barrier)으로 자주 사용됩니다.
 
-# Locks
+## Locks
 스레드 생성과 Join을 제외하고 스레드 라이브러리에서 중요한 함수는 임계 구역에 대한 상호 배제를 제공하는 함수들입니다.
 
 원문(pthreads)의 핵심을 `Python threading`에 대입하면 `pthread_mutex_lock/unlock`은 `Lock.acquire()/release()` 또는 `with lock:`에 대응합니다.
@@ -152,7 +153,7 @@ if lock.acquire(timeout=0.5):
 
 원문처럼 `trylock/timedlock` 스타일을 남용하면 코드 복잡도가 커질 수 있지만 교착 상태 회피나 무한 대기 방지가 필요한 상황에서는 중요합니다.
 
-# Condition Variables
+## Condition Variables
 조건 변수(`threading.Condition`)는 <u>한 스레드가 상태 변화를 기다리고, 다른 스레드가 그 변화를 알리는(signal) 구조</u>를 구현할 때 사용되며 데이터 전달 없이 상태 변화만 알립니다. Python 런타임은 조건 변수 관련 기능을 OS 동기화 기능을 래핑해서 제공합니다. 코드에서는 `Condition` API를 쓰고, 내부에서는 `sleep/wakeup + lock` 조합이 처리됩니다.
 
 원문의 `pthread_cond_wait/ pthread_cond_signal`은 Python에서 다음과 같이 매칭되죠.
@@ -200,16 +201,16 @@ if __name__ == "__main__":
 위처럼 `ready` 수정과 `notify()`를 같은 임계 구역에서 수행해야 `race condition`을 줄일 수 있습니다.
 단순 flag 스핀(`while not ready: pass`)으로 대기하는 방식은 CPU를 계속 차지하므로 `cond.wait()`로 CPU를 낭비하지 않고 대기하는 편이 낫습니다. 또한 타이밍 버그(비결정적인 동작) 등이 생길 수 있습니다.
 
-# Compiling and Running
+## Compiling and Running
 OSTEP 소스 코드에 대한 컴파일 실행법입니다. 
 [https://github.com/remzi-arpacidusseau/ostep-code()]https://github.com/remzi-arpacidusseau/ostep-code) 여기서 코드를 확인할 수 있지만, 이 글은 `Python`을 기준으로 진행했기 때문에 이 부분은 패스하겠습니다. (코드의 내용은 비슷한 방향으로 진행했습니다.)
 
-# Summary
+## Summary
 스레드 생성, 잠금, 상호 배제, 조건 변수, 신호 및 대기 등 동시성 라이브러리의 기본을 소개했습니다.
 더 많이 알고 싶고 더 저수준까지 알고 싶다면 `Linux` 등에서 `man -k pthread`로 인터페이스를 이루는 100개가 넘는 API를 확인할 수 있습니다.
 스레드와 관련해 어려운 부분은 API가 아니라, 동시성 프로그램을 구축하는 과정 속의 복잡한 논리임을 생각하며 이 글을 마칩니다. 
 
-## Thread API 가이드라인
+### Thread API 가이드라인
 
 - 스레드 간 잠금·신호 기능은 최대한 단순해야 합니다. 복잡해지면 스레드 상호작용 버그로 이어집니다.
 - 스레드 간 상호작용은 최소화하세요. 각 상호작용은 신중하게 설계하고, 검증된 방식으로만 구성해야 합니다.
@@ -220,7 +221,7 @@ OSTEP 소스 코드에 대한 컴파일 실행법입니다.
 - Linux의 pthread 매뉴얼은 매우 유용합니다.(`Python`은 [공식 문서](https://docs.python.org/ko/3/library/threading.html)를 참고하세요.)
 
 
-## WSL, man -k pthread
+### WSL, man -k pthread
 Windows의 `WSL`에서 `man -k pthread`로 찾아본 결과, 이 환경에선 페이지 단위로 74개가 잡혔습니다(원문이 말하는 “100개 이상”은 배포판·`man` 인덱스 범위에 따라 달라질 수 있습니다).
 
 - `pthread_attr_*`: 생성 옵션(스택·detach·스케줄·시그널 마스크·affinity) → `pthread_create` 연동
@@ -344,7 +345,7 @@ sysv_signal (3)      - signal handling with System V semantics
 x86_64-linux-gnu-as (1) - the portable GNU assembler.
 ```
 
-# Homework
+## Homework
 
 원문 과제는 C 바이너리에 대해 `helgrind`를 돌려 보는 형태입니다. 이 글에서는 `c`가 아닌 `python`으로 대체하기에 개념만을 학습하기 위해
 - **※helgrind: C, C++, Fortran**에서 POSIX pthreads를 사용하는 멀티스레드 프로그램의 동기화 오류를 탐지합니다. 데이터 경쟁(Data Race), 데드락(Deadlock) 위험, 잘못된 스레드 API 사용 등을 찾아내어 프로그램의 안정성을 높이는 데 필수적입니다.

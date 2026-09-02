@@ -2,7 +2,8 @@
 title: "Class Project 검색 랭킹 A/B 테스트"
 date: 2026-08-11T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "AB 테스트", "하이브리드 검색", "랭킹", "실험" ]
+series: [ "class-s-project" ]
+tags: [ "AB 테스트", "하이브리드 검색", "랭킹", "실험" ]
 draft: false
 description: "Class S 하이브리드 검색 가중치를 A/B 테스트로 검증하는 구조"
 keywords: [ "Class Project", "AB 테스트", "검색 랭킹", "Success@N", "TTFC", "SearchExperiment" ]
@@ -10,12 +11,12 @@ author: "DSeung001"
 lastmod: 2026-08-11T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 이전 [하이브리드 검색](../../07/class-s-hybrid-search/)에서는 FTS, 벡터, 조회수를 `0.45 / 0.45 / 0.10`으로 섞어 순위를 매겼습니다. 그 비중은 일단 동작하게 둔 값이었고, 어떤 조합이 사용자가 원하는지 알 수 없었죠.
 
 실제 서비스에서는 A/B 테스트나 카나리 테스트로 이를 시험해 보기에, 이게 가능한 구조를 적용해 봤습니다.
 
-## A/B 테스트와 카나리 테스트
+### A/B 테스트와 카나리 테스트
 A/B 테스트는 사용자에게 두 가지 이상 버전을 나누어 보여 준 뒤, 클릭률이나 구매율처럼 정한 목표 지표에서 어느 쪽이 더 나은지 비교하는 실험입니다.
 
 ```mermaid
@@ -44,7 +45,7 @@ flowchart LR
 
 다시 돌아와 이번 글은 어느 지표가 더 나은지 파악한다는 시나리오이므로 A/B 테스트를 적용합니다.
 
-## 현재 프로젝트 적용 방향
+### 현재 프로젝트 적용 방향
 성공 기준은 [Dejan Marketing의 SERP 체류 시간 조사](https://dejanmarketing.com/time-on-serps/)를 참고했습니다.<br/>
 호주 Google 사용자 1,500명을 대상으로 한 설문에서, 응답자의 약 78%(5초 이내 53% + 6~10초 25%)가 10초 안에 검색 결과 중 어떤 사이트를 열지 고른다고 답했습니다.
 
@@ -59,7 +60,7 @@ flowchart LR
 
 ![detail](./detail.webp#panel)
 
-# 데이터 수집
+## 데이터 수집
 데이터 수집은 앞에서 적은 대로, 검색 결과가 렌더된 뒤 10초 안에 `play` 또는 `seek`가 오면 성공으로 둡니다. 검색 요청과 이어진 행동 이벤트를 모아 Admin 차트로 보고, 어떤 가중치 조합이 더 나은지 비교합니다.
 
 이 운영을 위해 `content_ai`에 세 테이블을 두었습니다. `SearchExperiment`는 실험 하나, `SearchExperimentConfig`는 variant(가중치 조합), `SearchBehaviorEvent`는 사용자 행동 기록입니다.
@@ -98,7 +99,7 @@ sequenceDiagram
   Admin->>Cfg: 같은 experiment와 variant config로<br/>당시 가중치 확인
 ```
 
-# 데이터 통계
+## 데이터 통계
 관리자가 데이터를 집계해서 볼 수 있도록, Admin 비교 표에는 `success@10s rate`, `uplift vs A`, `p-value`, `verdict`를 표시합니다.
 
 성공률만 보면 표본이 적을 때 우연으로 좋게 나온 쪽을 좋게 볼 수 있고, 이 차이를 믿을 수 있는지 판단하기도 어렵습니다.
@@ -115,7 +116,7 @@ sequenceDiagram
 
 위 이미지처럼 나오게 됩니다!
 
-## p-value
+### p-value
 지금 `p-value`는 [two-proportion z-test](https://en.wikipedia.org/wiki/Two-proportion_Z-test)(두 비율 비교 z검정)로 계산합니다. <br/>
 수식 설명까지는 깊게 들어가지는 않았습니다. 운영에서는 “A와 B의 성공률이 사실 같다”고 가정했을 때, 현재 차이가 발생하는 확률을 수치화한거로 이해하시면 됩니다.
 
@@ -133,7 +134,7 @@ sequenceDiagram
 
 이 데이터는 사용자 행동을 기준으로 하기 때문에, 장난치거나 비정상인 검색이 섞이면 오염될 수 있습니다. 지금은 Admin에서 A와 다른 variant의 성공 비율을 빠르게 비교하기 위한 운영용 지표로 씁니다.
 
-## verdict
+### verdict
 `verdict`는 p-value와 표본 수, uplift 방향을 문구로 요약한 값입니다.
 
 | verdict | 조건 | 의미 |
@@ -148,7 +149,7 @@ sequenceDiagram
 아래는 확실히 차이가 발생한다는 가정하에 p 값이 작게 나온 시나리오로 데이터를 넣었을 때 화면입니다.
 ![result2](./result2.webp)
 
-# 고도화
+## 고도화
 현재 구조도 가중치에 한해서는 여러 번 실험을 할 수 있지만, 좀 더 넓은 단위나 기능별로도 한 번의 실험으로 끝내지 않고, 실험을 반복해서 돌릴 수 있는 구조를 만드는 일이 앞으로 더 중요해 보였습니다.
 
 이에 대해서는 다음 글을 참고하면 좋습니다.

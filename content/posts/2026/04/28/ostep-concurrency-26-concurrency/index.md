@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Concurrency: An Introduction"
 date: 2026-04-28T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "An Introduction", "Thread", "Process" ]
 draft: false
 description: "OSTEP Concurrency 26강 An Introduction 정리"
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-04-28T00:00:00+09:00
 ---
 
-# Process vs Thread
+## Process vs Thread
 **멀티 스레드**는 하나의 Program Counter(PC)만 갖는 단일 스레드와 달리 **각 스레드가 자신만의 Program Counter(PC)와 스택(Stack)** 을 가집니다. 이로 인해 멀티 프로세스와 달리 다음 차이점들이 발생합니다.
 - **※ Program Counter(PC)**: 다음에 실행할 명령어의 주소를 저장하는 레지스터
 
@@ -65,7 +66,7 @@ end
 | 동기화 위험 | 상대적으로 낮음 | 동기화 실패 시 race condition 발생 가능 |
 | 핵심 키워드 | 분리와 격리 | 공유와 동시성 |
 
-# Why Use Threads?
+## Why Use Threads?
 스레드(멀티 스레드)를 쓰면 메모리(주소 공간) 공유 때문에 동기화 같은 새로운 문제가 생기기도 합니다. 
 그럼에도 스레드를 쓰는 이유를 먼저 정리해보면, 최소한 두 가지를 예로 들 수 있습니다.
 
@@ -79,7 +80,7 @@ end
 - **디스크 I/O**: 파일 읽기/쓰기처럼 저장장치 접근이 필요한 작업으로, 장치 지연 때문에 CPU 관점에선 대기가 자주 발생합니다.
 - **페이지 폴트(page fault)**: 스레드가 접근한 가상 메모리 페이지가 현재 RAM에 없어 OS가 페이지를 적재/매핑해야 하는 이벤트입니다(필요 시 디스크에서 읽어오며 그동안 해당 스레드는 대기).
 
-# An Example: Thread Creation
+## An Example: Thread Creation
 두 개의 스레드를 실행하고 싶다고 가정해봅시다.
 주 프로그램은 2개의 스레드를 생성하고, 각 스레드는 서로 다른 인수를 받아 `mythread()`를 실행합니다.
 스레드는 생성/시작된 뒤에는 OS 스케줄러에 따라 실행되거나 준비 상태에 놓입니다.
@@ -150,7 +151,7 @@ sequenceDiagram
     Main-->>Main: print("main: end")
 ```
 
-# Why It Gets Worse: Shared Data
+## Why It Gets Worse: Shared Data
 앞에서는 스케줄러에 따라 실행 순서가 어떻게 달라질 수 있는지에 중점을 뒀다면, 여기서는 스레드가 공유 데이터에 어떻게 접근하고 상호작용하는지를 봅니다.
 공유 변수 `counter`를 추가하고, 각 스레드가 1,000만 번씩 값을 증가시키는 예제를 만들어봅니다.
 
@@ -280,7 +281,7 @@ if __name__ == "__main__":
               LOAD_CONST               3 (None)
               RETURN_VALUE
 ```
-# The Heart Of The Problem: Uncontrolled Scheduling
+## The Heart Of The Problem: Uncontrolled Scheduling
 위에서 바이트코드를 봤지만, 교재의 핵심 설명은 다음과 같습니다.
 교재에서는 이 부분을 `C`의 `objdump` 결과를 보며 설명합니다.
 ```
@@ -326,7 +327,7 @@ Atomic operations(원자적 연산)은 컴퓨터 시스템의 핵심 기법 중 
 이는 특히 DBMS 및 트랜잭션 처리 분야에서 매우 깊이 정립된 개념입니다.
 다음 장에서 더 깊게 다룹니다.
 
-# The Wish For Atomicity
+## The Wish For Atomicity
 이 문제를 해결하기 위해 `mov + add + mov` 3가지를 합친 하나의 명령어가 있고, 이 명령어는 원자적 실행이 보장된다고 가정해봅시다. 그러면 명령어 실행 중간에는 인터럽트되지 않습니다. 만약 인터럽트가 발생하더라도 명령어는 `all or nothing`으로 수행됩니다.
 
 이 맥락에서 원자적으로 수행된다는 것은 "하나의 단위"로 처리된다는 의미입니다. 즉 `all or nothing`으로 이해할 수 있으며, 우리가 원하는 것은 2개 이상의 명령어 시퀀스가 원자적으로 실행되는 것입니다.
@@ -334,7 +335,7 @@ Atomic operations(원자적 연산)은 컴퓨터 시스템의 핵심 기법 중 
 하지만 우리가 원하는 모든 동작이 원자적 명령어 하나로 존재하지는 않습니다. 따라서 하드웨어가 제공하는 유용한 원자적 명령어를 기반으로, `synchronization primitives`라고 부르는 동기화 기본 도구를 구성해야 합니다.
 이러한 하드웨어 지원과 운영체제의 도움을 결합하면, 임계 구역(critical section)에 동기화된 방식으로 접근하는 멀티스레드 코드를 만들 수 있습니다. 그 결과 동시 실행의 어려운 특성에도 불구하고 안정적으로 올바른 결과를 얻을 수 있습니다.
 
-# One More Problem: Waiting For Another
+## One More Problem: Waiting For Another
 동시성에서는 원자성(atomicity) 외에도 `sleeping/waking interaction`(수면/깨움 상호작용), 즉 `blocking` 과 `wakeup` 문제가 중요합니다. 예를 들어 I/O를 기다리며 잠든 스레드(또는 프로세스)를 I/O 완료 시점에 올바르게 깨우지 못하면 **lost wakeup** 같은 문제가 발생할 수 있으므로, 이 메커니즘도 함께 이해해야 합니다.
 
 - **Critical section(임계 구역)**: 공유 자원(보통 변수나 자료구조)에 접근하는 코드 구간
@@ -342,7 +343,7 @@ Atomic operations(원자적 연산)은 컴퓨터 시스템의 핵심 기법 중 
 - **Indeterminate / Non-deterministic program(비결정적 프로그램)**: 경쟁 조건 때문에 실행할 때마다 결과가 달라지는 프로그램
 - **Mutual exclusion(상호 배제) primitive**: 한 번에 하나의 스레드만 임계 구역에 들어가게 보장하여 경쟁 조건을 방지하는 동기화 도구
 
-# Summary: Why in OS Class?
+## Summary: Why in OS Class?
 저는 동시성 코드가 OS 레벨에서 어떻게 엮인지를 알기 위해 해당 교재를 접하게 되었죠.<br/>
 왜 "OS 수업에 동시성을 다루는가?"에 대한 의문에는 답을 생각하지 못했죠, 이 교재에서는 "역사"라고 답합니다.
 
@@ -355,7 +356,7 @@ OS가 첫 번째 동시성 프로그램이었고, 많은 기술이 이 OS를 기
 - **프로세스 목록(Process List)**: 현재 시스템의 프로세스 상태(실행, 준비, 대기 등)를 관리하기 위한 커널 자료구조
 - **파일시스템 구조(File-system Structures)**: 디렉터리, inode, 블록 할당 정보 등 파일 저장/조회에 필요한 메타데이터 집합
 
-# Homework
+## Homework
 
 인터러빙 발생에 따른 비교를 해보면 다음 코드는 0.01초를 대기합니다, 이 시간 덕분에 다른 스레드 인터러빙이 발생하죠
 ```python

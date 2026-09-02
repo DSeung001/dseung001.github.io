@@ -1,0 +1,22 @@
+{{- $page := . -}}
+{{- $related := site.RegularPages.Related $page -}}
+{{- $related = where $related "Section" "posts" -}}
+{{- $related = where $related "Permalink" "ne" $page.Permalink -}}
+{{- $related = $related | first 4 -}}
+{{- with $related }}
+<aside class="related-posts">
+  <h2 class="related-posts-title">관련 글</h2>
+  <ul class="related-posts-list">
+    {{- range . }}
+    <li class="related-posts-item">
+      <a href="{{ .Permalink }}">
+        <span class="related-posts-item-title">{{ .Title }}</span>
+        {{- with .Description }}
+        <span class="related-posts-item-desc">{{ . }}</span>
+        {{- end }}
+      </a>
+    </li>
+    {{- end }}
+  </ul>
+</aside>
+{{- end }}

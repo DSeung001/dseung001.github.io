@@ -2,7 +2,8 @@
 title: "Class Project 인코딩 서버 분리로 비용 절감하기"
 date: 2026-06-23T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "ASG", "AWS", "SQS", "비용절감" ]
+series: [ "class-s-project" ]
+tags: [ "ASG", "AWS", "SQS", "비용절감" ]
 draft: false
 description: "Class S 프로젝트에서 인코딩 서버를 분리해 배포하는 방법으로 비용 줄이기"
 keywords: [ "Class Project", "ASG", "SQS", "AWS", "EC2", "인코딩 서버", "비용절감" ]
@@ -11,7 +12,7 @@ lastmod: 2026-06-23T00:00:00+09:00
 aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 ---
 
-# 개요
+## 개요
 현재까지 다음과 같이 비용이 지출되고 있습니다.
 > 월간 총 지출: $43.69 (6월 22일까지), 일일 3달러가 소비되고 있죠.
 
@@ -21,7 +22,7 @@ aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 
 하지만 이대로 가면 한 달에 90달러, 대략 14만 원이 소비되게 됩니다. 이대로는 서버를 유지하는 데 부담이 발생합니다.
 
-# 흐름도
+## 흐름도
 비용 절감을 위해서는 서버 비용을 줄이는 게 시급합니다. 제 돈이 녹고 있거든요. <br/>
 이번에 적용할 방법은 인코딩 서버의 분리입니다.
 
@@ -41,7 +42,7 @@ aliases: [ "/posts/2026/06/23/class-project-spot-instance-cost-saving/" ]
 위와 같이 인프라 흐름을 구성한다면 많은 컴퓨팅 리소스를 차지하는 인코딩 작업을 별도로 분리해 낼 수 있죠.
 그러면 서버 PC의 사양을 줄일 수 있다는 장점이 있습니다.
 
-# Celery에서 Infra로
+## Celery에서 Infra로
 현재는 메시지 생산과 브로커 연결, 비동기로 인코딩 작업을 수행하는 데 Redis와 Celery를 사용하고 있었습니다. <br/>
 이제는 이 구조가 필요 없습니다. 우리는 SQS에 메시지를 등록하면 CloudWatch가 이를 탐지하고 ASG로 워커를 생성해 이 워커가 인코딩 작업을 수행하는 구조로 바꿨습니다.
 - Amazon SQS(Simple Queue Service): 마이크로서비스와 분산 시스템을 위해 AWS에서 제공하는 완전 관리형 메시지 대기열(Message Queue) 서비스
@@ -121,7 +122,7 @@ Celery와 SQS 구현을 비교하면 다음과 같습니다.
     _ack_message(...)
 ```
 
-# 프론트에서 바로 S3로 저장
+## 프론트에서 바로 S3로 저장
 기존에는 프론트에서 백엔드 서버로 데이터를 저장한 뒤 S3로 업로드하는 방식을 사용했습니다. <br/>
 당시에는 대용량 Request를 허용하기 위해 `DATA_UPLOAD_MAX_MEMORY_SIZE`와 `FILE_UPLOAD_MAX_MEMORY_SIZE`를 `MAX_UPLOAD_BYTES`(1GB)까지 올려두었습니다.
 ```python
@@ -189,7 +190,7 @@ flowchart TB
 업로드 작업을 init/commit으로 분리했습니다. init에서 1회성 presigned URL을 발급받고, 브라우저가 S3에 PUT한 뒤 commit으로 검증과 잡의 상태를 바꿉니다.
 또 ContentType, ContentLength가 서명에 포함되어 발급된 URL에는 다른 타입이나 크기로 업로드할 수 없습니다.
 
-# 고생했던 부분
+## 고생했던 부분
 S3와 SQS 연결 부분은 AI 도구로 쉽게 작성할 수 있어서 문제가 없었지만, CloudWatch의 "누락된 데이터 처리" 설정에서 시간이 걸렸습니다.
 scale-down 알람은 `ApproximateNumberOfMessages` 단일 지표 대신, visible과 in-flight를 각각 보는 수학 표현식 `TotalMessages = m1 + m2`로 메시지가 완전히 종료됐는지 판단합니다.
 기본 세팅인 무시 설정에서는 아래처럼 진행되어 의도한 대로 프로세스가 동작하지 않았습니다.
@@ -208,7 +209,7 @@ scale-down 알람은 `ApproximateNumberOfMessages` 단일 지표 대신, visible
 이 결과를 얻기 위해 CloudWatch 로그 시스템을 추가했습니다. 기존에는 로그가 서버 EC2에 쌓였지만, ASG로 인스턴스가 on/off되니 추적이 어렵더군요.
 그래서 로그 시스템을 적용해 보니 인스턴스 ID별로 로그 스트림이 생성되어 추적이 상당히 쉬워졌고, 해당 문제를 파악할 수 있었습니다.
 
-# 비용
+## 비용
 API 서버는 `t3.small`, 인코딩 ASG는 `m7i-flex.large`로 적용했습니다. 적용 전 일일 약 $3이던 비용이 일 $1.17 정도로 내려갔습니다. 세팅을 바꾸며 테스트하는 동안 일부 비용이 섞였으므로, 안정화되면 $1.2까지도 내려가겠군요.
 
 ![new_cost](new_cost.webp)

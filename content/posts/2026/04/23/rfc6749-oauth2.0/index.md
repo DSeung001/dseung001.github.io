@@ -2,6 +2,7 @@
 title: "RFC 6749 — The OAuth 2.0 Authorization Framework"
 date: 2026-04-23T00:00:00+09:00
 categories: [ "RFC" ]
+series: [ "rfc-study" ]
 tags: [ "RFC", "RFC 6749", "OAuth 2.0", "인증", "Authorization" ]
 draft: false
 description: "RFC 6749 OAuth 2.0 권한 부여 프레임워크의 핵심 흐름과 역할, 토큰을 정리합니다."
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-04-23T00:00:00+09:00
 ---
 
-# OAuth
+## OAuth
 OAuth 2.0은 **인증(Authentication)** 자체보다 **권한 부여(Authorization)** 를 위한 프레임워크입니다.
 즉, 제3자 애플리케이션이 리소스 소유자의 비밀번호를 직접 받지 않고도, 제한된 범위(scope)의 접근 권한을 얻도록 설계되었습니다.
 
@@ -28,13 +29,13 @@ RFC 6749는 OAuth 2.0을 표준화하며 OAuth 1.0(RFC 5849)을 대체했습니�
 
 이 글은 OAuth 2.0 권한 부여 프레임워크에서 **권한 서버, 리소스 API, 클라이언트**가 어떻게 맞물리는지 파악하는 데 목적이 있습니다.
 
-## Roles
+### Roles
 - **Resource Owner**: 보호된 리소스에 대한 접근 권한을 부여할 수 있는 주체입니다. 리소스 소유자가 사람인 경우에는 end-user라고 부릅니다.
 - **Resource Server**: 보호된 리소스를 호스팅하는 서버입니다. 액세스 토큰을 사용한 보호 리소스 요청을 수신하고 응답할 수 있어야 합니다.
 - **Client**: 리소스 소유자를 대신하고 그 권한을 받아 보호 리소스를 요청하는 애플리케이션입니다.
 - **Authorization Server**: 리소스 소유자를 인증하고 권한 부여를 확인한 뒤, 클라이언트에게 액세스 토큰을 발급하는 서버입니다.
 
-## Flow
+### Flow
 ```mermaid
 sequenceDiagram
     actor U as User
@@ -56,13 +57,13 @@ sequenceDiagram
 - 여기서 <u>Client는 제가 만든 새로운 서비스(서드파티 앱)</u>로 이해하는 편이 편합니다.
 - 네이버/카카오/구글 로그인 시스템은 보통 **Authorization Server** 역할입니다.
 
-# Client Registration
+## Client Registration
 `Client Registration`은 클라이언트를 보통 Authorization Server(구글/카카오/네이버)에 자신의 정보를 등록하는 단계를 의미합니다.
 "누가 토큰을 발급받을 수 있는 앱인지"를 권한 서버가 식별할 수 있도록 사전에 맞추는 과정입니다.
 
 이 작업은 최초 설정 후에도 redirect URI/권한 정책 변경 시 갱신합니다.
  
-## Types
+### Types
 클라이언트 타입은 "Authorization Server와 안전하게 인증할 수 있는가(클라이언트 자격 증명 기밀성 유지 가능 여부)"를 기준으로 나뉩니다.
 
 - **confidential**: 클라이언트 자격 증명(`client_secret` 등)을 안전하게 보관할 수 있고, 서버와 안전한 클라이언트 인증이 가능한 타입
@@ -76,7 +77,7 @@ sequenceDiagram
 추가로, 하나의 서비스가 여러 개의 서버 컴포넌트와 브라우저 컴포넌트로 나뉘는 분산 구조일 수도 있습니다.
 이 경우 Authorization Server의 가이드가 없다면 컴포넌트별로 별도 클라이언트 등록을 고려하는 것이 안전합니다.
 
-## Registration Data
+### Registration Data
 `Client Registration`에서 자주 보는 항목을 "공통/조건부"로 나누면 아래와 같습니다.
 
 | 항목 | 공통 여부 | 설명 |
@@ -109,7 +110,7 @@ sequenceDiagram
      &client_id=s6BhdRkqt3&client_secret=7Fjfp0ZBr1KtDRbnfVdmIw
 ```
 
-## Client Authentication
+### Client Authentication
 클라이언트 인증은 기본적으로 **confidential client**에서 사용합니다.
 
 | 방식 | 주 대상 | 어떻게 인증하나 | 특징 |
@@ -123,7 +124,7 @@ sequenceDiagram
 - public client는 시크릿 기반 인증을 전제로 삼기 어렵기 때문에, 보통 `authorization_code + PKCE`로 인가 코드 탈취 위험을 완화합니다.
 - **※PKCE(Proof Key for Code Exchange)**: OAuth 2.0 및 OpenID Connect 프로토콜에서 인가 코드(Authorization Code) 탈취 공격을 방지하기 위해 설계된 보안 기술입니다.
 
-# Protocol Endpoints
+## Protocol Endpoints
 OAuth 2.0 권한 부여 흐름에서는 보통 **Authorization Server 엔드포인트 2개**와 **Client 측 Redirection endpoint 1개**가 핵심입니다.
 
 - **Authorization endpoint**: 사용자(리소스 소유자)를 로그인/동의 화면으로 보내고, 권한 부여 결과(예: authorization code)를 발급하는 엔드포인트
@@ -132,11 +133,11 @@ OAuth 2.0 권한 부여 흐름에서는 보통 **Authorization Server 엔드포�
 
 - **※용어 정리**: 여기서 핵심은 "인증(authentication)" 자체보다 "권한 부여(authorization)"의 과정입니다. 다만 실제 로그인(신원 확인)은 Authorization Server에서 함께 처리됩니다.
 
-# Obtaining Authorization
+## Obtaining Authorization
 "권한을 어떻게 얻을 것인가"를 정의합니다. <br/>
 실무에서는 보통 **Authorization Code Grant** 를 기준으로 읽으면 흐름이 가장 명확합니다.
 
-## Authorization Code Grant
+### Authorization Code Grant
 1. 클라이언트가 사용자를 Authorization Endpoint로 리디렉션합니다.  
 2. 사용자가 로그인/동의를 마치면 Authorization Server가 `code`를 `redirect_uri`로 반환합니다.  
 3. 클라이언트는 `code`를 Token Endpoint에 보내 `access_token`(및 선택적으로 `refresh_token`)으로 교환합니다.
@@ -160,9 +161,9 @@ sequenceDiagram
 
 위 흐름을 진행하면 Access Token 또는 Refresh Token을 통해 권한을 얻을 수 있게 됩니다.
 
-## Access Token
+### Access Token
 Access Token 발급 성공/실패 응답을 정리합니다.
-### Token 발급 요청 예시 (authorization_code)
+#### Token 발급 요청 예시 (authorization_code)
 ```http
 POST /token HTTP/1.1
 Host: server.example.com
@@ -172,7 +173,7 @@ Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
 grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA&redirect_uri=https%3A%2F%2Fclient.example.com%2Fcb
 ```
 
-### 성공 응답 예시
+#### 성공 응답 예시
 ```json
 {
   "access_token": "2YotnFZFEjr1zCsicMWpAA",
@@ -195,7 +196,7 @@ Host: api.example.com
 Authorization: Bearer 2YotnFZFEjr1zCsicMWpAA
 ```
 
-### 실패 응답
+#### 실패 응답
 `error`/`error_description`/`error_uri` 필드 형태로 전달됩니다.
 
 ```json
@@ -213,10 +214,10 @@ Authorization: Bearer 2YotnFZFEjr1zCsicMWpAA
 - `unsupported_grant_type`: 서버가 지원하지 않는 `grant_type`
 - `invalid_scope`: 요청한 scope가 허용 범위를 벗어남
 
-## Refresh Token
+### Refresh Token
 리프레시 토큰으로 새 액세스 토큰을 재발급받는 방법을 정리합니다.
 
-### Refresh 요청 예시
+#### Refresh 요청 예시
 ```http
 POST /token HTTP/1.1
 Host: server.example.com
@@ -230,12 +231,12 @@ grant_type=refresh_token&refresh_token=tGzv3JOkF0XG5Qx2TlKWIA
 - 기존 `access_token`이 만료되었을 때
 - 사용자 재로그인 없이 세션을 이어가고 싶을 때
 
-### 운영 포인트
+#### 운영 포인트
 - 리프레시 토큰은 액세스 토큰보다 민감하므로 서버 측 안전 저장이 중요합니다.
 - Authorization Server 정책에 따라 새 리프레시 토큰을 재발급(회전)할 수 있습니다.
 - 탈취/의심 상황에서는 리프레시 토큰을 폐기하고 재인증을 요구해야 합니다.
 
-# Security Considerations
+## Security Considerations
 실무에서 먼저 점검할 체크리스트를 위험 목록과 그에 대한 대응으로 정리하면 아래와 같습니다.
 
 - **Redirect URI 변조/오용**:  등록된 `redirect_uri`와 요청값을 정확 일치로 검증

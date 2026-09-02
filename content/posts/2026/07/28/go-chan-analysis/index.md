@@ -10,13 +10,13 @@ author: "DSeung001"
 lastmod: 2026-07-31T15:48:00+09:00
 ---
 
-# 개요
+## 개요
 이 글의 목표는 Go 채널을 사용법만 나열하는 것이 아니라, 런타임 내부 구조를 따라가며 왜 그렇게 동작하는지 이해하는 것입니다. 앞부분에서는 `chan.go`의 생성, 송수신, 버퍼 구조를 읽고, 뒷부분에서는 내부 스케줄 정책을 바꾸지 않은 채 관측 훅을 붙여 채널이 GMP 대기 경로와 실제 로직이 어떻게 맞닿는지 실험으로 확인합니다.
 
 런타임 코드 인용 기준은 `go1.26.5`의 `src/runtime/chan.go`입니다. <br/>
 `send`/`recv`의 큰 흐름은 이전 버전과 같되, `hchan`에 `timer` 채널과 `synctest`용 필드가 추가된 점만 구분해서 보면 됩니다.
 
-# Go Chan
+## Go Chan
 
 > Go에서 채널은 고루틴(Goroutine) 간에 데이터를 주고받고 실행을 동기화하기 위한 파이프로, 통신/차단/동기화 등을 할 수 있습니다. 채널의 철학은 "통신을 통한 메모리 공유(Do not communicate by sharing memory; instead, share memory by communicating)"로 정리되죠.
 
@@ -40,7 +40,7 @@ Go는 두 가지 모델을 지원해 보다 편리한 메모리 관리가 가능
 | 작업 파이프라인    | 다소 부자연스러움              | 매우 적합                      |
 
 
-# buffered/unbuffered 채널
+## buffered/unbuffered 채널
 
 `map`과 마찬가지로 `make`로 만들며 반환값은 원시 자료구조를 가리키는 참조처럼 동작합니다. <br/>
 이때 버퍼 크기를 주는 걸로 `unbuffered`와 `buffered`를 구분해서 채널을 생성할 수 있습니다.
@@ -51,7 +51,7 @@ cj := make(chan int, 0)         // unbuffered channel of integers
 cs := make(chan *os.File, 100)  // buffered channel of pointers to Files
 ```
 
-## unbuffered
+### unbuffered
 unbuffered 채널은 값 교환(communication)과 동기화(synchronization)를 한 번에 묶어 주는 역할로 쓰이며, 주로 어느 정도 시간이 소요되는 백그라운드 작업이 끝났을 때 신호로 사용될 수 있습니다.
 - 채널이 비어 있으면 receiver는 받을 데이터가 생길 때까지 block합니다. (buffered도 동일)
 - unbuffered이면 sender는 receiver가 값을 받을 때까지 block합니다.
@@ -68,7 +68,7 @@ doSomethingForAWhile()
 <-c   // Wait for sort to finish; discard sent value.
 ```
 
-## buffered
+### buffered
 버퍼가 생기면 sender는 receiver를 직접 기다리지 않아도 됩니다.
 빈 칸이 있으면 값을 버퍼에 복사하는 시점에 send가 끝나고, 버퍼가 가득 차면 receiver가 값을 꺼낼 때까지 기다립니다.
 이런 점을 이용해 buffered channel을 세마포어처럼 쓸 수 있다고 설명합니다.
@@ -102,7 +102,7 @@ func Serve(queue chan *Request) {
 }
 ```
 
-# Channel 내부 구조
+## Channel 내부 구조
 
 채널의 코드를 다음 구조체로 큰 골조를 파악할 수 있습니다.
 Go 런타임은 채널의 구체적인 상태를 `hchan` 구조체에 저장합니다.
@@ -147,7 +147,7 @@ type sudog struct {
 }
 ```
 
-## 채널 생성 (`makechan`)
+### 채널 생성 (`makechan`)
 
 `make(chan T, n)`은 런타임에서 `makechan`으로 실행됩니다.<br/>
 여기서 `hchan`을 할당하고, buffered면 원형 버퍼(`buf`)까지 붙인 뒤 `elemsize`/`elemtype`/`dataqsiz` 등을 채워주죠.
@@ -190,7 +190,7 @@ func makechan(t *chantype, size int) *hchan {
 `go1.26`부터는 생성 고루틴이 `synctest` 버블 안에 있으면 `bubble`도 같이 기록됩니다. 일반 채널에서 해당 필드는 nil입니다.<br/>
 이후 `send`/`recv`는 이 헤더의 인덱스와 버퍼 칸만 바꿉니다.
 
-## 채널 메모리
+### 채널 메모리
 
 `hchan` 앞부분만 같은 레이아웃으로 읽어 보면, send/recv 전후에 필드가 어떻게 바뀌는지 직접 확인할 수 있습니다.
 
@@ -223,7 +223,7 @@ recv: 99
 - 같은 채널에서 `buf` 주소는 바뀌지 않고, 칸의 값과 인덱스만 바뀝니다.
 - unbuffered(`dataqsiz=0`)는 맞교환 후에도 `qcount`가 0입니다.
 
-## 메시지 송신 (`chansend`)
+### 메시지 송신 (`chansend`)
 
 `c <- v`는 런타임에서 `chansend`로 들어가며, `lock`을 잡은 뒤 3가지 동작 중 하나를 진행합니다.
 
@@ -292,7 +292,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 }
 ```
 
-## 메시지 수신 (`chanrecv`)
+### 메시지 수신 (`chanrecv`)
 
 `<-c`는 `chanrecv`로 들어갑니다. 송신과 마찬가지로 3가지 동작으로 나뉩니다.
 
@@ -364,7 +364,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 }
 ```
 
-# GMP
+## GMP
 
 `GMP`는 Go 런타임이 고루틴(`G`)을 논리 프로세서(`P`)의 실행 큐에 두고, OS 스레드(`M`)가 `P`를 통해 실행하는 스케줄링 메커니즘입니다. 채널은 `sudog`로 대기 중인 `G`를 연결하고 `goready`로 깨우므로 이 스케줄러와 맞닿아 있습니다.
 
@@ -379,7 +379,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 ※ `P`는 OS 프로세스가 아니며 Processor, 즉 Go 런타임 안의 논리 프로세서입니다.<br/>
 ※ `M`은 물리 머신이 아니고 Machine이라는 이름일 뿐, 실제로는 OS 스레드를 가리킵니다.
 
-## LRQ와 GRQ
+### LRQ와 GRQ
 
 고루틴은 바로 CPU에서 실행되지 않고, 내부 큐에 의해 실행 순서가 배정됩니다.
 
@@ -406,7 +406,7 @@ flowchart TD
 
 다음 절의 관측 훅은 채널 ID, 완료 이벤트와 park 시간을 기록합니다. 실행 큐 배치 자체는 기록하지 않으며, `gopark`와 `goready` 이후의 연결은 기존 런타임 코드 경로를 근거로 해석합니다.
 
-# Go 런타임 관측해보기
+## Go 런타임 관측해보기
 
 애플리케이션에서 큐를 만들어 GMP식 대기와 실행을 흉내 낼 수도 있습니다.
 
@@ -433,11 +433,11 @@ flowchart LR
   enqueue --> run["실행 재개"]
 ```
 
-## 의도
+### 의도
 
 스케줄 정책과 채널 의미론은 기존 로직을 유지하며 채널의 생성과 완료된 send/recv, park 시간, deadlock 순간의 대기 관계를 관측하는 것이 목표입니다. 이를 기존 `sudog`, `gopark`, `goready` 코드 경로와 연결해 채널이 GMP와 맞닿는 지점을 해석합니다.
 
-## 로직
+### 로직
 
 환경 변수 `GOCHANTRACE`(`off` / `on` / `sample`)로 채널의 핵심 경로에 기록을 붙였습니다. 새 파일은 `runtime/chantrace.go`이고, 호출은 기존 `chan.go`와 `proc.go`에 최소로 넣었습니다.
 
@@ -548,7 +548,7 @@ fatal("all goroutines are asleep - deadlock!")
 
 send/recv 의미와 work stealing 같은 큐 정책은 바꾸지 않았습니다.
 
-### 추적
+#### 추적
 
 실측 환경은 darwin/arm64, 툴체인 기준 `go1.26.5`입니다. <br/>
 dump에는 런타임 내부 채널도 섞이므로, 아래는 사용자 시나리오의 `id=3` 전후만 골랐습니다.
@@ -590,7 +590,7 @@ chan recv id=3 goid=1 q=0/1 blocked_ns=0
 이미 대기 중인 receiver에게 바로 전달한 send와, 버퍼만 쓰는 즉시 완료 경로는 `blocked_ns=0`이었습니다.
 채널 연산이 얼마나 기다렸는지에 대한 park 구간을 수치로 파악할 수 있게 되었죠.
 
-### 버퍼 사용률
+#### 버퍼 사용률
 
 버퍼 사용률(`util`)은 앞의 `hchan.buf` 원형 큐가 얼마나 찼는지를 dump 때 요약한 값입니다.<br/>
 이벤트마다 `q`만 보면 타임라인은 보이지만 채널별 점유 상태는 한눈에 파악하기 어렵습니다. 그래서 ring에 기록된 이벤트 시점의 `q`를 `cur`/`avg`/`max`로 요약합니다. `avg`는 시간 가중 평균이 아니라 관측된 이벤트 표본의 평균입니다.
@@ -615,7 +615,7 @@ chan id=4 util n/a (unbuffered)
 
 위 `id=3`은 create(`0`) + send(`1`) + send(`2`) + recv(`1`) 표본입니다. 마지막은 `q=1/2`라 `cur=0.50`이고, 중간에 `q=2/2`가 있어 관측 중 가장 큰 값은 `max=1.00`입니다. 이벤트 표본 기준 `avg`는 `(0+1+2+1)/(4×2)=0.50`입니다.
 
-### 미완료 대기와 deadlock (wait graph)
+#### 미완료 대기와 deadlock (wait graph)
 
 wait graph는 deadlock 순간에 goroutine과 대기 중인 채널의 관계를 나타낸 그래프입니다.<br/>
 아직 park 중인 send/recv는 완료되지 않았으므로 앞에서 본 이벤트 ring에 남지 않습니다. 그래서 `checkdead`가 전역 deadlock을 확정하면 `waitreason`과 `sudog.c`를 읽어 미완료 대기를 별도로 출력하도록 했습니다.
@@ -716,7 +716,7 @@ fatal error: all goroutines are asleep - deadlock!
 | goroutine 상태 | send/recv가 완료된 상태 | 실행 큐에서 빠져 채널을 기다리는 상태 |
 | 채널 식별 | 완료된 `id=` 타임라인 | deadlock 순간의 `chan=` / `q=` |
 
-## 지표
+### 지표
 
 `GOCHANTRACE_DUMP=0`, `GOMAXPROCS=1`, `-benchtime=500ms`, `-count=5` 조건에서 측정한 중앙값입니다. 단위는 `ns/op`이며 모든 구성에서 메모리 할당은 없었습니다.
 - 괄호는 시스템 Go 대비 증가율입니다.
@@ -731,7 +731,7 @@ fatal error: all goroutines are asleep - deadlock!
 
 샘플링도 매 이벤트마다 atomic 카운터로 기록 여부를 판단하므로 비용이 남습니다. 전체 추적은 `nanotime()`, ring 위치 증가, 이벤트 쓰기를 모두 수행해 더 느립니다. 특히 `BufferedSendRecv`는 기본 연산이 `32.60ns/op`으로 짧아 고정 추적 비용의 비율이 크게 나타났습니다.
 
-## 가능성
+### 가능성
 
 Go의 `runtime/trace`는 goroutine 스케줄링과 채널 차단을 추적하고, `pprof`는 메모리 할당과 동기화 차단을 프로파일링합니다. 
 하지만 어떤 채널에서 대기하는지, 버퍼가 얼마나 찼는지, 여러 goroutine이 같은 채널을 기다리는지는 직접 보여주지 않죠.

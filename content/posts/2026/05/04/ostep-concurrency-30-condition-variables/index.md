@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Condition Variables"
 date: 2026-05-04T00:00:00+09:00
 categories: [ "OSTEP", "Django" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Condition variable", "Synchronization"]
 draft: false
 description: "OSTEP Concurrency 30강 Condition Variables 정리"
@@ -78,7 +79,7 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-# Definition and Routines
+## Definition and Routines
 조건이 충족될 때까지 기다리기 위해 스레드는 `cv`(condition variable)를 사용할 수 있습니다. `cv`는 스레드가 실행 상태이지만 원하는 상태가 아닐 때, 조건이 충족될 때까지 대기열에 넣는 큐입니다.
 다른 스레드가 상태를 바꿔 (`cv`에 신호를 보내) 대기 중인 스레드 중 하나를 깨우면 다시 진행할 수 있도록 합니다.
 
@@ -222,7 +223,7 @@ def get() -> int:
 실제 코드에서는 위 `put`/`get`을 여러 스레드가 동시에 부르므로 단순히 `assert`만으로 값을 구분하는 걸로는 부족합니다. 
 다음 내용에서 `lock`과 `cv`로 동기화 문제를 어떻게 다루는지 볼 수 있습니다.
 
-# The Producer/Consumer (Bounded Buffer) Problem
+## The Producer/Consumer (Bounded Buffer) Problem
 하나 이상의 생산자 스레드와 하나 이상의 소비자 스레드를 상상해봅시다.
 생산자는 데이터를 만들어 버퍼에 넣고, 소비자는 버퍼에서 항목을 꺼내 소비합니다.
 이런 형태는 여러 시스템에서 쓰입니다. 예를 들어 다중 스레드 웹 서버에서는 생산자가 HTTP 요청을 작업 큐(제한된 버퍼)에 넣고,
@@ -414,7 +415,7 @@ if __name__ == "__main__":
 `fill_ptr`·`use_ptr`를 모듈러로 증가시키는 링 버퍼라, 칸을 순환하며 쓰고 읽습니다.
 `time.sleep`은 로그가 겹쳐 보이도록 넣은 데모용입니다. 실제로는 버퍼 크기를 키우고, 고정 `loop_count` 대신 요청이 들어오는 동안 돌아가는 워커 루프 같은 형태가 됩니다.
 
-# Covering Conditions
+## Covering Conditions
 조건 변수 사용의 또 다른 예제를 살펴보겠습니다.
 이 코드의 특이한 점은, 원하는 크기만큼 빈 공간이 생길 때까지 기다려야 할 수 있다는 것입니다.
 반대로 스레드가 메모리를 해제하면 `bytesLeft`가 늘고, 그때 조건 변수로 신호를 보냅니다.
@@ -451,13 +452,13 @@ def release(ptr: object, size: int) -> None:
 그래서 실무 구현에서는 조건을 역할별로 쪼개 `cv`를 여러 개 두고, 필요한 대기열만 깨우는 방향을 자주 택합니다.
 - **Covering condition(커버링 컨디션)**: 특정 대기자 하나를 정밀하게 고르기 어렵다면 여러 대기자를 넓게 깨우고, 각 스레드가 `while` 재검사로 조건이 맞는지 다시 확인하게 하는 동기화 전략
 
-# Summary
+## Summary
 `lock` 외에도 중요한 `synchronization primitive`인 `condition variables`를 살펴봤습니다.
 프로그램이 원하는 상태가 아닐 때 스레드를 잠들게 하고, `covering conditions` 문제를 다루는 데 도움을 줍니다.
 
-# Homework
+## Homework
 
-## Lock 시간에 따른 오버헤드
+### Lock 시간에 따른 오버헤드
 다음 코드로 `lock`을 데이터를 넣거나 가져올 때만 진행하여 최소 범위로 해야 병렬처리가 가능해집니다.
 아래 코드서 Buffer의 크기를 아무리 키워도 `lock`로 잡히는 영역이 크면 `lock`을 못 얻어 병목 현상이 발생됩니다.
 
@@ -554,7 +555,7 @@ hold= 0.0100s | elapsed=  20.506s | throughput=      97.5 ops/s | p=2000, c=2000
 
 ---
 
-## One cv일 때 주의점
+### One cv일 때 주의점
 위에서 언급했던 상황을 한 번 더 복습하면 다음과 같습니다.<br/>
 하나의 `cv`로 생산자/소비자 패턴을 진행하면 `notify()`(C의 `signal`)를 호출했을 때 어느 스레드가 깨어날지 제어할 수 없습니다. 
 소비자가 데이터를 소비하고 빈 자리가 생겨 생산자를 깨워야 하는데,  다른 소비자를 깨우는 경우가 발생합니다.
@@ -575,7 +576,7 @@ def producer_one_cv():
 
 ---
 
-## while 조건 체크의 이유
+### while 조건 체크의 이유
 또 다른 복습 포인트는 임계 구역의 조건을 `while`문으로 검사해야 한다는 점입니다.<br/>
 스레드가 `notify()` 신호를 받고 깨어났다고 해서 즉시 실행(락 획득)된다는 보장이 없습니다. <br/>
 깨어난 뒤 락을 획득하기 위해 기다리는 짧은 찰나에, 제3의 스레드가 인터리빙하여 큐의 데이터를 먼저 가져갈 수 있기 때문이죠.
@@ -596,7 +597,7 @@ def consumer_if_bug():
 
 ---
 
-## Lock 해제로 인한 경쟁 상태
+### Lock 해제로 인한 경쟁 상태
 
 데이터를 추가할 때 임계 구역에서 `lock`을 조기에 해제하면, 스레드가 인터리빙하며 데이터를 동시에 수정할 수 있고 그로 인해 데이터가 깨지거나 경쟁 상태가 발생할 수 있습니다.
 

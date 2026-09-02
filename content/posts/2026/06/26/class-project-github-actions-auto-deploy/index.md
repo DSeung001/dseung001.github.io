@@ -2,7 +2,8 @@
 title: "Class Project GitHub Actions 자동 배포"
 date: 2026-06-26T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "GitHub Actions", "CI/CD", "배포" ]
+series: [ "class-s-project" ]
+tags: [ "GitHub Actions", "CI/CD", "배포" ]
 draft: false
 description: "Class s 프로젝트에 GitHub Actions를 적용해 자동 배포 파이프라인 적용하기"
 keywords: [ "Class Project", "GitHub Actions", "CI/CD", "자동 배포", "배포" ]
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-06-26T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 [저번 글](../../23/class-s-encoding-server-split-cost-saving/)을 작성하던 중 배포 방식을 검토하다가 개선점이 보이더군요.
 
 현재는 수동 배포로 버전 업데이트마다 SSH(Secure Shell)로 EC2(Elastic Compute Cloud)에 접근하여 이미지를 빌드하고 실행하는 방식을 하고 있었습니다.
@@ -19,7 +20,7 @@ lastmod: 2026-06-26T00:00:00+09:00
 관련해서 찾아보니 AWS 서비스 중에 이미지를 저장하는 ECR(Elastic Container Registry) 기능이 있는 것을 확인했습니다.
 이걸로 이미지를 ECR에 올리고 서버는 이 이미지를 pull하기만 하면 기존에 빌드로 발생하던 1GB~2GB의 저장 공간을 줄일 수 있을 겁니다.
 
-# 해결
+## 해결
 그래서 아래처럼 바꿉니다.
 
 | 구분 | Before (수동 배포) | After (자동 배포) |
@@ -50,10 +51,10 @@ flowchart LR
   - Run Command: SSH 접속 없이도 EC2 인스턴스, 온프레미스 서버 등 관리형 노드에서 원격으로 명령어나 스크립트를 안전하게 대량 실행할 수 있는 서비스
 - GitHub OIDC(OpenID Connect): GitHub Actions가 장기 AWS Access Key 없이 IAM Role을 임시로 맡는 인증 방식
 
-## 세팅
+### 세팅
 변경을 위해 다음 순서로 세팅했습니다.
 
-### ECR(Elastic Container Registry) 생성
+#### ECR(Elastic Container Registry) 생성
 AWS Private Docker 이미지 저장소에 이미지를 등록했습니다. <br/>
 아래 3개의 repository를 만들고 git commit SHA(커밋 해시)로 태깅하여 중복되지 않게 했습니다. lifecycle 정책은 최근 5개만 유지하도록 설정했는데, private 저장소 사용 시 비용이 발생하지만 월 $1 미만 정도로 부담되지 않아 선택했습니다.
 
@@ -61,15 +62,15 @@ AWS Private Docker 이미지 저장소에 이미지를 등록했습니다. <br/>
 - `class-s-frontend`
 - `class-s-nginx`
 
-### IAM(Identity and Access Management) Role 생성
+#### IAM(Identity and Access Management) Role 생성
 AWS API(Application Programming Interface) 권한에 대한 Role은 2개로 나눴습니다.
 - `GitHubActions-ClassS-ECR-SSM-Role`: GitHub Actions(OIDC, OpenID Connect)에 붙습니다. ECR push, EC2 태그 탐색, SSM(Systems Manager) send-command, `IMAGE_TAG` 갱신을 담당합니다. GitHub에서 이미지를 ECR에 올리고, 태그가 지정된 EC2가 배포를 진행할 수 있게 합니다. 장기 Access Key는 GitHub Secrets에 두지 않고, OIDC로 이 Role을 배포 시점에만 임시 assume하도록 했습니다.
 - `EC2-ECR-SSM-InstanceProfile-Role`: EC2 instance profile에 붙습니다. instance profile은 EC2에 IAM Role을 연결하는 래퍼로서, 콘솔에서 IAM Role 연결과 같은 의미입니다. SSM Agent 등록, ECR pull, Parameter Store 읽기를 담당하며, 이미지를 pull할 때 `IMAGE_TAG` Parameter 값을 참고합니다. EC2 인스턴스에도 GitHub Actions Role과 별도로 접근 권한을 부여하는 구조입니다.
 
-### EC2(Elastic Compute Cloud) 태그 추가
+#### EC2(Elastic Compute Cloud) 태그 추가
 deploy job이 `describe-instances`로 배포 대상 EC2 1대를 찾을 수 있도록 `Environment=production`, `Application=class-s` 태그를 부여했습니다.
 
-### SSM(Systems Manager) 설정
+#### SSM(Systems Manager) 설정
 EC2를 SSH 없이 원격 제어하는 핵심입니다.
 
 - Parameter Store: `/class-s/prod/ECR_REGISTRY`에 ECR 서버 주소를 주고 `/class-s/prod/IMAGE_TAG`에 마지막 성공 배포 SHA(커밋 해시)를 둡니다. EC2의 `deploy.sh`가 pull 대상을 여기서 읽고, Actions가 배포 성공 후 `IMAGE_TAG`를 갱신합니다.
@@ -99,13 +100,13 @@ flowchart LR
   C --> D[deploy.sh 실행]
 ```
 
-### GitHub Actions 워크플로우 추가
+#### GitHub Actions 워크플로우 추가
 `release` push를 트리거로 test → build → deploy 3개 job을 실행합니다.
 - test: 단위 테스트를 실행합니다.
 - build: backend / frontend / nginx 3개 이미지를 빌드하고 ECR에 push합니다.
 - deploy: 태그로 EC2를 찾아 SSM(Systems Manager) send-command로 배포 스크립트를 실행하고, 성공 시 `IMAGE_TAG`를 갱신합니다.
 
-### 배포 스크립트 추가
+#### 배포 스크립트 추가
 EC2에서 실행될 배포 스크립트를 추가했습니다.
 Parameter에서 registry와 태그를 읽고, ECR login 후 compose pull, migrate, restart 순서를 고정합니다.
 GitHub Actions가 `DEPLOY_IMAGE_TAG` 환경 변수로 이번 commit SHA(커밋 해시)를 넘기면 Parameter Store의 `IMAGE_TAG`보다 우선합니다.
@@ -148,7 +149,7 @@ $COMPOSE restart celery
 docker image prune -f
 ```
 
-# 마무리
+## 마무리
 세팅 직후 test와 build는 통과했지만 deploy에서 SSM(Systems Manager) `send-command`가 `InvalidInstanceId`로 실패한 적이 있습니다. EC2는 running 상태였지만 instance profile 미연결과 `AmazonSSMManagedInstanceCore` 정책 누락으로 SSM Managed Instance로 등록되지 않은 것이 원인이었죠.
 
 IAM(Identity and Access Management) Role 세팅이 가장 까다로웠지만 AWS Q가 생각보다 잘 도와줘서 진행하기 편했습니다. 무엇보다 AWS에서 제공하는 방식이니 문서의 버전이슈나 보안 문제를 신경 덜 써도 되어 좋았죠.

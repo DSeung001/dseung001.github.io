@@ -10,7 +10,7 @@ author: "DSeung001"
 lastmod: 2026-06-19T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 
 [저번 회고](../../17/class-project-retrospective-2)에서 마지막에 언급했던 부분을 진행하려 합니다.
 
@@ -22,9 +22,9 @@ lastmod: 2026-06-19T00:00:00+09:00
 코덱을 기준으로 재인코딩 대신 기존 스트림을 그대로 쓰고 패키징만 하면 속도가 빨라지는 점은 쉽게 납득이 갔습니다.
 다만 내부적으로 어떻게 다른지, 재인코딩 없이 패키징만 하면 되는 경우는 무엇이 다른지가 궁금했습니다.
 
-# HLS 궁금증
+## HLS 궁금증
 
-## HLS에서 H.264는 인코딩을 안 해도 되는 이유?
+### HLS에서 H.264는 인코딩을 안 해도 되는 이유?
 
 H.264인지 아닌지는 크게 중요하지 않더군요.<br/>
 실제 기준은 타깃 플레이어 지원 범위와 HLS authoring 조건을 원본이 이미 만족하는지가 인코딩 여부를 정합니다.
@@ -69,7 +69,7 @@ HLS를 적용할 때는 아래 조건을 순서대로 확인해야 합니다.
    - bitrate: 초당 영상 데이터량
    - resolution: 해상도
 
-## 비디오 코덱
+### 비디오 코덱
 
 자료를 조사하다 코덱 이야기를 알게 되었는데, 흥미로웠습니다.
 
@@ -81,7 +81,7 @@ H.264는 2003년에 나온 디지털 비디오 압축 표준(AVC)입니다.
 압축 성능은 H.266이 우수하지만, 특허 문제로 도입 장벽이 높아 AV1이 더 대중화되고 있습니다.
 2026년 5월 28일 AV2가 오픈 소스로 배포되었고, 높은 품질을 보여 H.266의 입지는 더 좁아질 것 같습니다.
 
-## keyframe과 HLS 세그먼트가 딱 맞지 않을 때 내부적으로 어떻게 작업하는지
+### keyframe과 HLS 세그먼트가 딱 맞지 않을 때 내부적으로 어떻게 작업하는지
 
 GOP(Group of Pictures)은 keyframe부터 다음 keyframe 직전까지의 프레임 묶음입니다.
 첫 번째 I-frame부터 다음 I-frame 직전까지가 하나의 GOP입니다.
@@ -132,7 +132,7 @@ HLS segment는 가능하면 keyframe, 더 정확히는 IDR frame에서 시작합
 프레임레이트가 고정되어 있다면 GOP length를 segment duration에 맞추는 방식으로도 정렬할 수 있습니다.
 원하는 segment 경계에 IDR/keyframe이 없으면 `-c copy`만으로는 새 keyframe을 만들 수 없으니 이 경우에는 transcoding으로 `-g`, `-force_key_frames` 같은 옵션을 써서 IDR을 생성해야 합니다.
 
-# 코덱 분기 처리
+## 코덱 분기 처리
 
 위 본문 내용을 토대로 `-c copy`만으로 처리 가능한 조건은 아래와 같습니다.
 
@@ -163,7 +163,7 @@ segment container는 HLS에서 플레이어가 요청하는 각 조각 파일(`.
 | segment container | Remux (bitstream copy) | `-c copy` + `-hls_segment_type mpegts` 또는 `fmp4` |
 | bitstream / 메타데이터 | bitstream filter 또는 transcoding | `-bsf:v`, closed caption/timecode 재구성 또는 재인코딩 |
 
-## 타깃 영상 체크
+### 타깃 영상 체크
 
 현재 강좌 업로드 사이트에서 주로 사용하는 양식인 webm 영상을 타깃 영상 체크 코드로 돌려보면 다음과 같은 결과를 확인할 수 있었습니다.
 ```
@@ -188,7 +188,7 @@ segment container는 HLS에서 플레이어가 요청하는 각 조각 파일(`.
 일단은 video와 audio 코덱이 맞지 않습니다.
 지금 녹화 환경은 강의 선생님께서 `jitsi`라는 오픈소스로 서버를 열어 녹화를 진행 중이고, 결과물 컨테이너가 WebM이라 copy를 기대하긴 어렵습니다. 그래도 혹시 비디오 코덱이 AV1면 분리가 가능할수도 있으니 이를 기대해봤지만 아니었네요.
 
-## 현재 설정
+### 현재 설정
 현재 서버에서는 아래와 같이 항상 재인코딩하도록 설정되어 있었습니다.
 ```python
 def encode_hls_vod(
@@ -253,7 +253,7 @@ def encode_hls_vod(
 - keyframe / GOP 항목이 O로 나와 이 부분을 생략할 수 있지 않을까 하는 궁금증이 생길 수 있지만, `copy`가 아닌 `transcode`로 코덱을 바꾸는 과정에서 keyframe을 새로 만들므로 이 부분도 개선 포인트는 아닙니다.
 - `scale / fps`는 Jitsi WebM의 VFR·메타데이터 왜곡 이슈 때문에 출력을 30 fps CFR로 고정한 설정입니다 ([참고](../../16/class-project-bug-celery-redis-time-limit/)). 이 부분도 개선할 포인트는 보이지 않았습니다.
 
-## 분기 처리
+### 분기 처리
 현재 주로 업로드하는 영상은 `copy`로 인한 속도 향상을 기대하기 어렵습니다.
 다만 프로젝트에 `copy` 분기 처리를 두지 않을 이유는 없습니다.
 

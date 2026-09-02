@@ -2,6 +2,7 @@
 
 <article class="post-single">
   <header class="post-header">
+    {{- partial "series_badge.html" . }}
     <h1 class="post-title entry-hint-parent">
       {{ .Title }}
       {{- if .Draft }}
@@ -55,6 +56,8 @@
     {{- partial "share_icons.html" . -}}
     {{- end }}
   </footer>
+
+  {{- partial "related_posts.html" . }}
 
   {{- if (.Param "comments") }}
   {{- partial "comments.html" . }}

@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Semaphores"
 date: 2026-05-05T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Semaphore", "Synchronization" ]
 draft: false
 description: "OSTEP Concurrency 31강 Semaphores 정리"
@@ -19,7 +20,7 @@ lastmod: 2026-05-05T00:00:00+09:00
 
 세마포은 동시성을 관리하는 논리적 제어장치 또는 충돌을 방지하는 메커니즘입니다.
 
-# Semaphores: A Definition
+## Semaphores: A Definition
 세마포어는 두 개의 루틴을 조작할 수 있는 정수 값을 가진 객체입니다.
 초기 값이 동작을 결정하기 때문에 다른 루틴을 호출하여 상호작용이 생기기 전에 초기화가 필요합니다.
 
@@ -65,7 +66,7 @@ bounded = threading.BoundedSemaphore(value=1)
   - 타임아웃을 주려면 `sem.acquire(timeout=초)`를 씁니다. 성공하면 `True`, 타임아웃이면 `False`입니다.
 - **`post()`**: `sem.release()`입니다. 값을 증가시키고, 기다리는 스레드가 있으면 하나를 깨웁니다. (Python 3.9+에서는 `sem.release(n=...)`로 여러 번 release할 수도 있습니다.)
 
-# Binary Semaphores (Locks)
+## Binary Semaphores (Locks)
 이진 세마포어는 `lock`의 잠금 상태와 잠기지 않은 상태도 표현할 수 있습니다.
 매우 간단한 방식으로 구현이 가능하죠.
 
@@ -145,7 +146,7 @@ if __name__ == "__main__":
     th0.join(); th1.join()
 ```
 
-# Semaphores For Ordering
+## Semaphores For Ordering
 세마포어로 두 작업 간 선행 관계(어떤 이벤트가 발생한 이후에만 특정 코드가 진행)를 표현하기 좋은 도구입니다. (OSTEP에서는 이를 세마포어의 ordering(정렬) 용법으로 소개합니다).
 
 한쪽은 이벤트가 오기 전까지 `wait()`/`P()`로 멈춰 있고, 다른 쪽이 이벤트를 만들었다는 사실을 `post()`/`V()`로 한 번 알립니다(파이썬에서는 `Semaphore.release()`). 핵심은 처음부터 일어났다고 가정하면 안 되는 일을 `wait`/`post`의 짝으로 강제하는 것입니다.
@@ -168,7 +169,7 @@ parent: end
 `lock`은 바로 시작할 때 제공하므로 `1`이고 정렬은 자식이라는 선행 작업이 있어야하므로 `0`인거죠.
 ---
 
-# The Producer/Consumer (Bounded Buffer) Problem
+## The Producer/Consumer (Bounded Buffer) Problem
 세마포어로 유한 버퍼 문제에서도 요긴하게 쓸 수 있습니다. 세마포어의 개념 자체가 유한 버퍼 문제와 매우 닮아 있기 때문이죠.
 처음에는 두 개의 세마포어 `empty`, `full`을 도입해 문제에 접근해 봅니다.
 
@@ -292,7 +293,7 @@ def consumer() -> None:
 - 항상 같은 순서로 `acquire`/`release`를 짝 지을 것
 - `lock`의 범위는 임계 구역만으로 제한할 것
 
-# Reader-Writer Locks
+## Reader-Writer Locks
 고전적인 문제로, 서로 다른 데이터 구조 접근이 서로 다른 종류의 락을 요구할 수 있습니다.
 예를 들어 동시에 공유하는 리스트에서는 삽입(쓰기)은 한 번에 하나의 작업만 수행되어야 하지만, 읽기는 많은 스레드가 동시에 해도 괜찮을 때가 있습니다.
 쓰기 작업은 읽기 작업이 전부 종료된 뒤에만 실행될 수 있어야 합니다.
@@ -339,7 +340,7 @@ class RwLock:
 - 읽기는 여러 스레드가 동시에 존재 가능
 - 쓰기는 활성화된 읽기 스레드가 없을 때만 가능
 
-# The Dining Philosophers
+## The Dining Philosophers
 다익스트리아(Dijkstra) 선생님이 남긴 유명한 문제로 철학자들의 저녁식사 문제가 있습니다.
 이는 흥미롭지만, 실제 유용성은 낮습니다. 그래도 명성 때문에 다룬다고 하는군요.
 
@@ -414,7 +415,7 @@ def get_forks(p: int) -> None:
 이 문제가 실제 유용성이 낮다는 부분에 공감이 가는군요.
 현실에서는 보통 포크를 left/right로 따로 다루기보다, 더 큰 단위의 락으로 임계구역을 직렬화해서 `hold-and-wait`/데드락 가능성을 줄이는 쪽이 실용적일 때가 많겠네요.(대신 병렬성은 떨어집니다).
 
-# Thread Throttling
+## Thread Throttling
 너무 많은 스레드가 동시에 작업을 수행해 시스템이 느려질 때, 너무 많다의 기준(최대 동시 실행 개수)을 정해 동시성을 제한할 수 있습니다. 세마포어를 활용해 이런 제한을 두는 접근을 `Throttling`이라고 부릅니다.
 
 좀 더 구체적인 예로, 수백 개의 스레드가 어떤 문제를 병렬로 처리한다고 가정해 봅시다. 그중 특정 코드 구간이 실행될 때 매우 많은 메모리를 할당받는 상황이 있을 수 있습니다.
@@ -423,7 +424,7 @@ def get_forks(p: int) -> None:
 
 이 문제를 해결하려면 메모리 집약적 영역에 동시에 들어갈 수 있는 최대 개수로 세마포어를 초기화한 뒤, 해당 영역의 앞/뒤에 `wait/post`(파이썬에서는 `acquire/release`)를 배치하면 됩니다. 그러면 세마포어가 그 코드 구간에 동시에 존재하는 스레드 수를 자연스럽게 제한해 줍니다.
 
-# How To Implement Semaphores
+## How To Implement Semaphores
 마지막으로 저레벨 `synchronization primitives`를 이용해 세마포어를 간단하게 만들어봅니다.
 이 코드는 Dijkstra의 정의와 달리, 세마포어 값이 음수일 때 대기 중인 스레드 수를 반영하는 불변식을 유지하지 않습니다.
 대신 값은 0보다 낮아지지 않도록 구현합니다. 이렇게 하는 편이 더 단순하고, 리눅스 구현과도 일치합니다(파이썬 내부 구현과도 비슷한 방향입니다).
@@ -457,13 +458,13 @@ class Zemaphore:
 - `spurious wakeup` 때문에 `if`가 아니라 `while`로 조건을 다시 검사해야 합니다.
 - 여러 대기자가 있을 때 `notify(1)`로 하나만 깨울지, `notify_all()`로 다 깨운 뒤 경쟁시키는지 같은 정책과 공정성 문제가 남습니다.
 
-# Summary
+## Summary
 세마포어는 동시 프로그램을 만들 때 유용하게 쓰이는 기능입니다.
 그래서 일부 프로그래머는 단순함과 유용성 때문에 `lock`과 `cv`를 피하고 세마포어만 사용하기도 하죠.
 
 결과적으로 세마포어를 잠금(`lock`)과 조건 변수(`condition variable`)의 일반화로 볼 수 있지만, 세마포어 위에 조건 변수를 구현하는 일이 어렵다는 점을 고려하면 이 일반화는 생각만큼 일반적이지는 않습니다.
 
-# Homework
+## Homework
 
 초기값 0인 세마포어는 신호(이벤트) 전달에 적합합니다. 아래 코드처럼 부모가 자식의 특정 시점(예: 종료)을 기다리게 만들면, 부모 스레드는 자식 스레드가 완료된 뒤 작업을 이어갈 수 있습니다.
 

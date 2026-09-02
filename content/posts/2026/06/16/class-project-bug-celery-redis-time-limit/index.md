@@ -2,7 +2,8 @@
 title: "Class Project Bug: Celery & Redis Time Limit"
 date: 2026-06-16T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "Celery", "Redis", "Bug" ]
+series: [ "class-s-project" ]
+tags: [ "Celery", "Redis", "Bug" ]
 draft: false
 description: "Class Project HLS 인코딩 워커에서 발생한 버그 해결"
 keywords: [ "Class Project", "Celery", "Redis", "time limit", "visibility timeout" ]
@@ -30,7 +31,7 @@ Job 테이블 데이터를 확인해 보니, 다음처럼 `status`는 `failed`�
  75341055-d81f-418b-98ef-8d8dd33ddc19 | completed  | 반복문                  |                                   | 2026-06-11 06:58:51.113466+00 | 2026-06-11 07:25:07.850604+00 | 2026-06-11 07:25:07.850508+00
 ```
 
-# 문제 1: status와 completed_at 조합
+## 문제 1: status와 completed_at 조합
 
 Celery가 실패 시 `run_publish_job`을 재시도하도록 다음처럼 코드가 되어 있으므로, 이와 관련된 버그로 방향을 잡았습니다.
 ```python
@@ -154,7 +155,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 `worker_prefetch_multiplier`는 브로커가 미리 워커에 작업을 적재한 순간부터 `visibility_timeout` 시간이 흐르기 때문에, 위 현상을 설명할 수 있었습니다.
 [docs.celery#worker_prefetch_multiplier](https://docs.celeryq.dev/en/stable/userguide/configuration.html#worker-prefetch-multiplier)
 
-## 해결
+### 해결
 
 다음과 같이 설정을 수정했습니다.
 - `visibility_timeout`: 4시간
@@ -167,7 +168,7 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 - `NoSuchKey` 등은 retry 대상에서 제외하고 예외 처리 메시지를 추가함
 
 
-# 문제 2: 영원히 상태가 처리 중
+## 문제 2: 영원히 상태가 처리 중
 
 업로드가 다음 날이 되어도 "처리 중"으로 고정되어 있었습니다.<br/>
 하지만 서버 상황을 보면 Celery가 CPU를 거의 점유하지 않아, 인코딩 작업이 진행되지 않는 것을 확인할 수 있었습니다.
@@ -216,7 +217,7 @@ job.status = PublishJobStatus.PROCESSINGjob.save(update_fields=["status", "updat
 - 21:13:57:	time_limit 2h 도달	+2시간
 - 21:31:10:	2차 publish_job_started	+2h 17m
 
-## 해결
+### 해결
 
 타임 리미트를 4시간으로 변경했습니다.
 ```python
@@ -226,7 +227,7 @@ CELERY_PUBLISH_MAX_SECONDS = 60 * 60 * 4  # encode 상한 4h
 CELERY_TASK_TIME_LIMIT = CELERY_PUBLISH_MAX_SECONDS
 ```
 
-# 문제 3: 2번 문제 재발생
+## 문제 3: 2번 문제 재발생
 인코딩 시간만 수정하면 해결될 줄 알았지만 서버에서 동일한 이슈가 재현되는 걸 확인했습니다.
 공교롭게도 이전에도 버그가 발생했던 그 영상에서 동일 이슈가 발생했죠.
 
@@ -325,7 +326,7 @@ ffprobe -v error -select_streams v:0 \
 
 여기에 기존 프로젝트에서 CFR/VFR을 따로 명시하지 않았고, 원본 설정을 그대로 반영했기 때문에 왜곡된 메타데이터를 기반으로 인코딩이 진행되며 문제가 발생한 것이었습니다.
 
-## 해결
+### 해결
 현재 프로젝트는 단일 화질 HLS를 다루고 있습니다. 다음 이유로 출력 프레임 레이트를 CFR로 고정했습니다.
 
 - VFR을 그대로 유지하려면 추가 로직이 필요합니다.

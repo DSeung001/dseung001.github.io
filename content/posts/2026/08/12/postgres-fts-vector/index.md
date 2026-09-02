@@ -10,11 +10,11 @@ author: "DSeung001"
 lastmod: 2026-08-13T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 Class S를 만들었던 지난 [하이브리드 검색](../../07/class-s-hybrid-search/) 글에서는 텍스트를 토큰으로 나눠 검색하는 FTS 방식과, 임베딩 모델을 거쳐 수치로 표현해 비교하는 벡터 검색 방식을 사용했습니다.
 전에는 이 두 방식을 로직 흐름으로 짧게 지나갔지만, 이번에는 더 면밀히 봐봅시다.
 
-# FTS
+## FTS
 FTS는 Full Text Search입니다. `LIKE '%키워드%'`보다 키워드와 토큰 검색에 적합하고, 보통 `tsvector`, `tsquery`, `GIN index`를 조합해서 사용합니다.<br/>
 ※ ts: Text Search의 약어
 - `tsvector`: PostgreSQL의 데이터 타입으로, 문서를 검색 가능한 토큰 형태로 표현합니다
@@ -139,7 +139,7 @@ Limit  (cost=0.00..11.62 rows=1 width=8)
 여기서는 행 수가 적어서 Seq Scan이군요.
 
 
-# Vector
+## Vector
 PostgreSQL에서는 `pgvector` 확장(extension)을 설치해 `vector` 타입을 사용할 수 있습니다.
 - PostgreSQL: 기존 DB와 같이 정확히 일치하는 값이나 조건을 찾음
 - pgvector: 의미 검색 기능을 PostgreSQL에 추가한 것
@@ -243,7 +243,7 @@ Limit  (cost=14.52..14.55 rows=10 width=16)
 
 결국 Class S에서는 정확한 토큰 매칭에 강한 FTS와 문맥이 비슷한 내용을 찾는 벡터 검색을 함께 사용합니다. 두 검색 결과에 조회수 점수까지 더해 최종 순위를 정하는 과정은 앞선 [하이브리드 검색](../../07/class-s-hybrid-search/) 글에서 확인할 수 있습니다.
 
-# LIKE vs FTS + GIN vs pgvector + HNSW
+## LIKE vs FTS + GIN vs pgvector + HNSW
 데이터 양에 따라 PostgreSQL 옵티마이저가 선택하는 실행 계획은 달라집니다. 이를 합성 데이터를 넣은 시뮬레이션으로 비교해 봤습니다.
 
 세 방식의 특징을 먼저 정리하면 다음과 같습니다.
@@ -255,7 +255,7 @@ Limit  (cost=14.52..14.55 rows=10 width=16)
 이 테스트에서 pgvector 부분은 의미 검색 품질이 아니라 HNSW 인덱스 탐색 비용을 확인하는 것이 목적이므로, 외부 모델 대신 deterministic pseudo-embedding을 사용했습니다.<br/>
 ※ deterministic pseudo-embedding: 실제 임베딩 모델이 만든 벡터가 아니라, 같은 입력에 대해 항상 같은 벡터를 만드는 가짜 임베딩
 
-## 조건
+### 조건
 
 테이블은 아래 컬럼으로 구성했습니다.
 
@@ -278,7 +278,7 @@ search_vector tsvector
 
 데이터셋은 영어로 구성했습니다. 따라서 한국어로 검색하면 토큰화와 검색 품질에서 다른 결과가 나올 수 있으며, 동일한 실행 시간이 나온다고 단정할 수는 없습니다.
 
-## 결과
+### 결과
 
 결론부터 보면 100건에서는 세 방식 모두 Seq Scan을 선택했지만, 1,000건부터 FTS는 GIN, 벡터 검색은 HNSW 인덱스를 사용하기 시작했습니다.
 
@@ -325,7 +325,7 @@ search_vector tsvector
 | 100,000 | FTS + GIN | 0.1037 | 7542.97 | 20 | 44962 | 0 | Limit > Sort > Bitmap Heap Scan > Bitmap Index Scan |
 | 100,000 | HNSW | 0.03266666666666666 | 298.47 | 20 | 4752 | 0 | Limit > Index Scan |
 
-## 분석
+### 분석
 
 - 100건에서는 인덱스를 거치는 비용보다 테이블 전체를 읽고 정렬하는 비용이 작아 세 방식 모두 Seq Scan을 선택했습니다.
 - 1,000건부터 LIKE는 계속 Seq Scan을 사용했지만 FTS와 벡터 검색은 각각 GIN과 HNSW 인덱스를 사용했습니다.

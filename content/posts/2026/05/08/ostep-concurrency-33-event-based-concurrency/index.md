@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Event-based Concurrency"
 date: 2026-05-08T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Event-based Concurrency", "select", "poll", "Async I/O", "State Machine" ]
 draft: false
 description: "OSTEP Concurrency 33강 Event-based Concurrency 정리"
@@ -24,7 +25,7 @@ lastmod: 2026-05-08T00:00:00+09:00
     - OS가 합리적으로 CPU를 걸쳐 스케줄링해 주기를 희망하게 됨
     - 모든 부하 조건에서 잘 작동하는 범용 스케줄러 구축의 어려움
 
-# The Basic Idea: An Event Loop
+## The Basic Idea: An Event Loop
 이번에 다룰 접근 방식은 위에서 언급한 대로 이벤트 기반 동시성입니다.
 이 개념은 간단히 이해할 수 있습니다. 그저 무언가(event)가 발생하기를 기다리고, 이벤트가 발생하면 그것이 무엇인지 확인한 뒤 필요한 작업을 수행합니다.
 
@@ -42,7 +43,7 @@ while (1) {
 
 하지만 여기서는 이벤트를 어떻게 정확히 감지하는지, 특히 네트워크 및 디스크 I/O와 관련해 이벤트 서버가 메시지가 도착했는지(혹은 I/O가 완료됐는지) 어떻게 알 수 있는지에 대한 의문이 남습니다.
 
-# An Important API: select() (or poll())
+## An Important API: select() (or poll())
 위에서 보여준 기본적인 이벤트 루프를 염두에 두고, 우리는 이벤트를 어떻게 수신할지에 대한 질문을 가지게 됩니다. 대부분의 시스템에서는 `select()`, `poll()` 같은 호출을 기본 API로 사용할 수 있습니다.
 - `select()/poll()` 자체는 OS가 제공하는 I/O 다중화 API이고, 이를 바인딩/래핑한 형태로 파이썬/노드 같은 언어에도 존재합니다.
 
@@ -75,7 +76,7 @@ int select(int nfds,
 `poll()`도 비슷한 용도의 시스템 콜입니다, 상태가 변경되었는 지를 확인하는 방법입니다.
 결국 이런 기본 프리미티브(primitives)를 이용하면, 들어오는 패킷을 확인하고 준비된 소켓에서 읽고 필요하면 응답하는 형태의 이벤트 루프를 구성할 수 있습니다.
 
-# Using select()
+## Using select()
 이를 더 구체적으로 만들기 위해 `select()`를 사용해 어떤 네트워크 디스크립터에 메시지가 도착했는지 확인하는 방법을 살펴보겠습니다.
 ```python
 import selectors
@@ -140,7 +141,7 @@ accepted: ('127.0.0.1', 61965)
 [5] received: Hello selector
 ```
 
-# Why Simpler? No Locks Needed
+## Why Simpler? No Locks Needed
 단일 CPU에서 단일 스레드 이벤트 루프 기반으로 동작하는 이벤트 기반 애플리케이션은 동시 프로그램에서 흔히 발견되는 문제를 크게 줄일 수 있습니다.
 
 구체적으로는 한 번에 하나의 이벤트만 처리하기 때문에 `lock`을 획득하거나 해제할 필요가 없습니다. 
@@ -157,7 +158,7 @@ accepted: ('127.0.0.1', 61965)
 Golang은 `CSP(Communicating Sequential Processes)` 모델을 따르며, 형식은 동기식 코드지만 내부적으로 고루틴을 스케줄링해 처리합니다. 그래서 Go에서는 타 언어들과 달리 `lock`을 신경 쓰지 않고 데이터 통신을 더 자유롭게 할 수 있었습니다.
 이 부분이 Golang에서 동시성 코드를 다룰 때 가장 편했던 점 중 하나였던 것 같습니다.
 
-# A Problem: Blocking System Calls
+## A Problem: Blocking System Calls
 지금까지 이야기한 바에 따르면 이벤트 기반 프로그래밍이 더 나은 방안처럼 들립니다. 하지만 간단한 루프를 만들고 동작을 다 이벤트로 처리하면 `lock`을 신경 쓸 필요가 없어지니 말이죠.
 
 하지만 이벤트가 블로킹될 수 있는 시스템 호출을 요구하면 이야기는 달라집니다. 예를 들어 클라이언트로부터 서버에 디스크에서 파일을 읽고 내용을 반환해 달라는 요청이 들어왔다고 해봅시다.
@@ -174,7 +175,7 @@ Golang은 `CSP(Communicating Sequential Processes)` 모델을 따르며, 형식�
 - Thread/Process Pool: 외부 솔루션의 드라이버가 블로킹 방식만 지원한다면, 별도의 스레드/프로세스 풀에 작업을 던집니다. 이런 작업만 실행하는 풀을 따로 두는 방식이죠.
 - Message Queue를 이용한 비동기 통신: 시스템 간 결합도를 낮추고 대규모 처리를 할 때 사용하는 아키텍처 레벨의 해결책입니다. 외부 솔루션에 직접 요청을 보내는 대신 `RabbitMQ`나 `Kafka` 같은 메시지 브로커에 작업 메시지를 발행(publish)하고 끝냅니다. 외부 솔루션이 처리를 완료하면 다른 큐로 결과를 돌려주거나 웹훅(webhook)으로 알려줍니다.
 
-# A Solution: Asynchronous I/O
+## A Solution: Asynchronous I/O
 블로킹의 한계를 극복하기 위해 OS는 비동기 I/O(asynchronous I/O)라고 불리는, 디스크 시스템에 I/O 요청을 발행하는 새로운 방법을 도입했습니다.
 이런 인터페이스는 I/O 요청을 발행한 뒤 I/O가 완료되기 전에 즉시 호출자에게 제어를 반환할 수 있게 해줍니다. 그리고 I/O 작업이 완료됐는지, 성공/실패했는지를 확인하는 추가 인터페이스도 제공합니다.
 
@@ -208,7 +209,7 @@ int aio_error(const struct aiocb *aiocbp);
 즉 이벤트 기반 접근 방식에서 비동기 I/O는 빠질 수 없습니다.
 스레드 풀을 사용해 블로킹 I/O를 다른 스레드로 넘겨 처리하는 하이브리드 방식도 있으니, 환경에 따라 다양한 선택지가 있다는 점을 참고해 주세요.
 
-# Another Problem: State Management
+## Another Problem: State Management
 이벤트 기반 접근 방식의 또 다른 문제점은 코드를 작성하는 일이 전통적인 스레드 기반 코드보다 일반적으로 더 복잡하다는 점입니다.
 
 그 이유는 다음과 같습니다.<br/>
@@ -259,7 +260,7 @@ while True:
 
 실행 중인 프로세스에는 `kill` 명령으로 신호를 보내면 메인 루프가 끊기고 등록한 핸들러가 실행됩니다.
 
-# What Is Still Difficult With Events
+## What Is Still Difficult With Events
 이벤트 기반에서도 아직 언급할 여러 가지 어려움이 존재합니다.
 
 **멀티코어환경**<br/>
@@ -290,13 +291,13 @@ while True:
 오늘날 대부분의 플랫폼에서 비동기 디스크 I/O가 가능해졌지만, 네트워크 I/O처럼 단순하고 일관된 방식으로 통합되지는 않는 경우가 많습니다.
 이상적으로는 `select()` 같은 인터페이스 하나로 모든 I/O를 함께 관리하고 싶지만, 실제 네트워크는 `select()/poll()` 계열로 처리하고 디스크 I/O는 AIO 호출로 처리하는 식으로 서로 다른 메커니즘을 같이 써야하는 경우가 있어 혼란이 생길 수 있습니다.
 
-# Summary
+## Summary
 이벤트 기반으로 한 다른 스타일의 동시성을 살펴봤습니다.
 이는 스케줄링 제어를 애플리케이션 단에서 해결할 수 있지만, 시간이 흐르면서 생기는 여러 가지 복잡성과 통합의 어려움으로 다른 트레이드오프가 생기게 되었죠.
 
 스레드 방식과 이벤트 방식은 앞으로도 수년간 공존할 가능성이 크므로 알아두면 좋을 것 같습니다.
 
-# Homework
+## Homework
 
 `accept()`나 `recv()` 같은 호출은 기본적으로 블로킹입니다. <br/>
 한 번 들어가면 데이터가 올 때까지 멈춰 있고, 그 시간 동안 서버는 다른 일을 못 합니다.

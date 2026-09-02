@@ -2,7 +2,8 @@
 title: "Class Project 썸네일 직접 만들기 + AI 이미지 생성 기능 추가"
 date: 2026-07-06T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "AI", "썸네일" ]
+series: [ "class-s-project" ]
+tags: [ "AI", "썸네일" ]
 draft: false
 description: "Class s 프로젝트에 AI 썸네일 생성 기능 추가하기"
 keywords: [ "Class Project", "AI", "썸네일", "이미지 생성" ]
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-07-06T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 최근 기업들의 공고를 보면 재밌는 공고가 AI 애니메이션 플랫폼 개발건이었습니다.<br/>
 해당 공고와 더불어서 AI로 생성하는 것과 관련된 공고들이 많이 올라오더군요. 그래서 호기심에 현재 프로젝트에 AI를 녹일 부분이 없을까 고민하던 중 썸네일 기능에 이를 적용하기로 했습니다.
 
@@ -30,7 +31,7 @@ lastmod: 2026-07-06T00:00:00+09:00
 </div>
 
 
-# 데이터 흐름
+## 데이터 흐름
 썸네일을 만들 때 큰 흐름은 다음과 같습니다.
 ```mermaid
 flowchart TB
@@ -72,7 +73,7 @@ flowchart TB
 ```
 프론트 요소인 값의 1번과 4번은 생략하고 5번은 기존의 썸네일 저장 로직처럼 S3에 저장하므로 패스하고 로직으로는 2번과 3번을 중심으로 봅니다.
 
-## 프롬프트에서 JSON 추출
+### 프롬프트에서 JSON 추출
 
 프론트는 "테마 선택(style_id)"과 "직접 쓴 프롬프트(style_note)"를 분리해서 보내면 이를 받은 뒤에 합치고 
 ```python
@@ -156,7 +157,7 @@ return normalize_layout(raw, ...)   # 5단계로
 ```
 처음에 Gemini로 JSON을 받았을 때는 url 값이 비어 있지만, normalize를 거치고 이미지를 저장한 뒤에는 해당 값이 주입됩니다.
 
-## 이미지 생성
+### 이미지 생성
 현재 이미지 생성 로직은 다음 프로세스를 가집니다.
 
 이미지 배경이 존재하는 경우와 존재하지 않는 경우를 둘 다 지원하기 위해 고민해 봤지만, 결과적으로 동영상 크로마키를 참고한 로직을 적용했습니다. 투명 배경이 필요한 오버레이 레이어는 일부러 초록 배경으로 생성한 뒤 그 색을 지워 투명하게 만드는데, 왜 초록색을 쓰는지와 후처리 방식은 아래 이슈에서 다룹니다.
@@ -216,13 +217,13 @@ def generate_thumbnail_image(*, api_key, prompt, model, full_canvas,
     return raw
 ```
 
-## 프로바이더
+### 프로바이더
 이미지 생성에 사용되는 모델은 앞으로 확장될 수 있어 프로바이더 패턴을 사용했습니다. 모델마다 API 키를 다루는 방식과 호출 방식이 제각각이기 때문입니다.
 > Provider 패턴 = Strategy(전략) + Registry(레지스트리)/Factory
 
 이 패턴으로 모델을 관리하면 AI 기능을 호출하는 쪽에서는 지금 대상이 gemini인지 seedream인지 openai인지 신경 쓰지 않아도 됩니다.
 
-### Contract 
+#### Contract 
 Protocol을 상속하면 덕 타이핑으로 들어온 구현체를 상속 관계가 아닌 메서드 구조로 판정하는 구조적 서브타이핑이 적용되어, 정적 타입 체크로 규약 준수를 검증할 수 있습니다. runtime_checkable을 붙이면 런타임에서 isinstance로도 확인할 수 있는데, 이때는 메서드 존재 여부만 보고 시그니처까지는 검사하지 않습니다.
 
 즉 타입 검사는 안정성을 위한 장치일 뿐이고, 실제 목적은 구현체를 갈아 끼워도 호출부가 바뀌지 않게 하는 것입니다.
@@ -236,7 +237,7 @@ class AiProviderClient(Protocol):
     def generate_image(self, *, api_key, prompt, ...) -> bytes: ...
 ```
 
-### Registry
+#### Registry
 id로 구현체를 찾는 저장소입니다. 데코레이터로 클래스를 정의 시점에 자동 등록하고, id로 인스턴스를 꺼냅니다. 새 프로바이더가 늘어도 이 파일은 바뀌지 않습니다.
 ```python
 _REGISTRY = {}
@@ -253,15 +254,15 @@ class GeminiProvider:
     ...
 ```
 
-### Use
+#### Use
 ```python
 provider = get_provider(provider_id)   # "gemini" → GeminiProvider
 layout = provider.generate_layout(api_key=..., design_style=..., ...)
 ```
 provider_id는 등록된 프로바이더를 구별하는 값으로, "gemini"나 "openai" 같은 문자열을 의미합니다.
 
-# 이슈 
-## 이미지 투명 처리
+## 이슈 
+### 이미지 투명 처리
 이미지 생성 시 프롬프트를 주더라도 실제로 바탕이 투명한 이미지를 생성하지 못하는 문제가 발생했습니다. 
 Pro 버전을 사용하거나 seedream 같은 다른 모델을 사용하더라도 해당 문제가 발생하는 걸 확인했죠.
 
@@ -319,7 +320,7 @@ def remove_chroma_background(data, *, tolerance=15, softness=25, feather=1, ...)
 이 부분의 해결책은 탐구 중입니다. tolerance 값과 softness를 높이면 어느 정도 사라지겠지만, 이게 근본적인 해결책으로는 보이지 않기 때문에 고민이 됩니다.
 
 
-## 썸네일 파일 문제
+### 썸네일 파일 문제
 
 현재 AI로 썸네일을 생성할 때 다음 프로세스대로 이미지를 만들고 있습니다.
 1. LLM으로 만든 JSON에서 이미지 레이어 추출
@@ -334,7 +335,7 @@ def remove_chroma_background(data, *, tolerance=15, softness=25, feather=1, ...)
 
 이는 나중에 크론이나 데몬을 돌려서 주기적으로 지울 예정입니다. DB에 해당 AI로 생성한 작업들이 저장되는데, 이걸 기준으로 하루가 지난 값들이나 DB와 데이터가 일치하지 않는 경우 해당 파일들을 지우면 되죠.
 
-# 후기
+## 후기
 만들면서 느낀 가장 큰 부분은, 주된 업로더가 저인 만큼 결국 제가 직접 사용해 보면서 얻는 자체 피드백이 주요 피드백 요소라는 점입니다.
 그렇기에 썸네일 기능 또한 제가 익숙해져야 제대로 된 수정 방향이 정해지므로, 원하는 테마나 기능을 아직 자유롭게 수정하지 못하는 부분이 아쉬웠습니다.
 그렇기에 현재는 프로토타입을 먼저 만들고 계속 업로드하면서 수정하는 쪽으로 가닥을 잡았습니다.

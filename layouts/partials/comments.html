@@ -2,11 +2,8 @@
 {{- /* to add comments read => https://gohugo.io/content-management/comments/ */ -}}
 
 {{- if (and site.Params.comments (ne .Params.disableComments true)) -}}
+    <hr class="comments-divider">
     <div class="comments">
-        <div class="comments-header">
-            <h3>💬 댓글</h3>
-        </div>
-
         <script src="https://giscus.app/client.js"
                 data-repo="DSeung001/dseung001.github.io"
                 data-repo-id="R_kgDOO9ggNQ"

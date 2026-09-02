@@ -2,7 +2,8 @@
 title: "Class Project 3차 회고"
 date: 2026-06-29T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
-tags: [ "Class Project", "Retrospective" ]
+series: [ "class-s-project" ]
+tags: [ "Retrospective" ]
 draft: false
 description: "Class Project 2차 회고 이후 비용 절감, 인코딩 분리, CI/CD 자동 배포까지 진행한 내용을 정리합니다."
 keywords: [ "Class Project", "회고", "Retrospective", "비용절감", "SQS", "GitHub Actions" ]
@@ -10,7 +11,7 @@ author: "DSeung001"
 lastmod: 2026-06-29T00:00:00+09:00
 ---
 
-# 개요
+## 개요
 
 [Class Project 2차 회고](../../17/class-project-retrospective-2)를 적은 지 12일 만에 진행 사항을 정리합니다.
 2차 회고 마지막 Todo는 다음과 같았습니다.
@@ -35,7 +36,7 @@ lastmod: 2026-06-29T00:00:00+09:00
 - 인코딩 서버 분리: Celery + Redis에서 SQS + CloudWatch + ASG로 전환 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
 - 자동 배포: GitHub Actions + ECR + SSM 파이프라인 적용 ([상세 글](../../26/class-project-github-actions-auto-deploy))
 
-## 인코딩 분기 ([상세 글](../../19/ffmpeg-codec-processing-strategy))
+### 인코딩 분기 ([상세 글](../../19/ffmpeg-codec-processing-strategy))
 
 2차 회고에서 남겨 둔 copy stream 분기를 먼저 다뤘습니다. <br/>
 원본이 HLS authoring 조건을 이미 만족하는 경우에 재인코딩을 생략해도 되므로 `-c copy`로 패키징만 하도록 바꿨습니다.
@@ -56,7 +57,7 @@ flowchart TD
 현재 학원 녹화본은 WebM(VP8 + Opus)이 대부분이라 copy 분기로 빠지는 경우는 없었습니다.<br/>
 그래도 H.264/AAC MP4가 들어오면 처리 시간을 크게 줄일 수 있게 되었습니다. 내부 테스트에서 5분 영상 기준 copy 경로는 transcode 대비 약 164배 빠른 것을 확인할 수 있었습니다.
 
-## 인코딩 서버 분리 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
+### 인코딩 서버 분리 ([상세 글](../../23/class-s-encoding-server-split-cost-saving))
 
 비용 절감이 가장 시급했습니다.<br/>
 6월 22일 기준 월간 누적 지출이 $43.69, 일일 약 $3 수준이었고 그대로 두면 월 $90 전후가 예상됐습니다.<br/>
@@ -78,7 +79,7 @@ CloudWatch scale-down이 동작하지 않는 문제가 있었는데, 알람의 "
 
 적용 전 일 $3 수준이었던 비용은 인코딩 서버 분리 이후 약 $1.2 정도로 내려갔습니다, 절반 이하로 줄었습니다.
 
-## 자동 배포 ([상세 글](../../26/class-project-github-actions-auto-deploy))
+### 자동 배포 ([상세 글](../../26/class-project-github-actions-auto-deploy))
 
 인코딩 서버 분리를 진행하던 중 API 서버 스펙을 줄이려면 EC2에서 `docker compose build`를 없애야 한다는 생각이 들었습니다.
 배포 방식을 아래처럼 바꿨습니다.
@@ -95,18 +96,18 @@ GitHub OIDC로 장기 Access Key 없이 IAM Role을 assume하고, EC2는 instanc
 
 즉 GitHub에서 이미지를 빌드하고 ECR에 올리면, SSM Run Command로 EC2에서 `deploy.sh`를 실행해 pull, migrate, restart 순으로 적용합니다.
 
-## 그 외
+### 그 외
 
 이번 기간에 메인 작업과 함께 손댄 항목들입니다. 각각 별도 글로 쓸 만큼 크지 않아 한곳에 모았습니다.
 
-### 수정 사항
+#### 수정 사항
 - 조회수: 2차 회고에서 추가한 기능이었는데, 집계가 커리큘럼 단위로 쌓이고 있어 강좌 단위로 수정했습니다.
 - 로그인 세션 슬라이딩: 세션 만료 방식을 슬라이딩 윈도우로 바꿔 활동 중에는 로그아웃되지 않도록 조정했습니다.
 
-### 계획 폐기
+#### 계획 폐기
 - 도메인 연결: 학원에서 내부적으로 사용하는 서비스라 도메인 연결의 필요성을 느끼지 못했습니다.
 - RDS 전환: 데이터 양이 많지 않아 현재 사양을 유지하기로 했습니다.
 
-# Todo
+## Todo
 - Spot Instance 적용 검토 (중단 시 재시도·멱등 처리 부하 테스트 포함)
 - 인코딩 서버 경량화, 현재 인코딩 서버는 백엔드 이미지를 그대로 사용 중이므로 불필요한 파일들이 같이 포함되어있는데 이 상태랑 GoLang으로 경량화 한걸 비교해봐서 어떻게 다른지 비교하면 재밌을 듯

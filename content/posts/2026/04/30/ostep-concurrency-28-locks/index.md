@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Locks"
 date: 2026-04-30T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Lock", "Synchronization", "Mutex" ]
 draft: false
 description: "OSTEP Concurrency 28강 Locks 정리"
@@ -14,7 +15,7 @@ lastmod: 2026-04-30T00:00:00+09:00
 해당 글에서도 `c`가 아닌 `python`으로 코드를 적습니다.(컨샙이나 이해부분을 위해 OSTEP를 보는 것이죠)
 하지만 포인터 개념이 필요한 경우 `c` 코드를 참고합니다.
 
-# Locks: The Basic Idea
+## Locks: The Basic Idea
 `Lock`의 기본 아이디어를 간단한 예제로 살펴보겠습니다. 잔고를 업데이트하는 코드입니다. 다음 명령어를 여러 스레드가 동시에 수행하면 스레드 컨텍스트 스위칭 타이밍에 따라 레이스 컨디션이 발생할 수 있습니다. (한 줄로 보여도 내부적으로는 값 읽기, 계산, 할당이 이뤄지는 복합적인 명령이기 때문입니다.)
 ```bash
 balance = balance + 1;
@@ -37,7 +38,7 @@ unlock(&mutex);
 
 이 덕분에 특정 코드 구간에서는 단 하나의 스레드만 활성화되도록 보장할 수 있고, 스케줄링의 비결정성을 어느 정도 통제 가능한 형태로 다룰 수 있습니다.
 
-# Pthread Locks
+## Pthread Locks
 
 `pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;`에 대응되는 파이썬 선언은 다음과 같습니다.
 
@@ -55,7 +56,7 @@ with mutex:
 ```
 서로 다른 임계 구역(값/데이터 구조)을 위해 각각 다른 `Lock`을 생성할 수 있습니다. 임계 구역에 접근할 때 하나의 큰 `Lock`만 사용하는 것이 아니라, 서로 다른 데이터와 구조를 보호하기 위해 여러 `Lock`을 나누어 사용하는 것이 일반적입니다. 이를 통해 많은 스레드가 동시에 서로 다른 `Lock`을 사용할 수 있습니다.
 
-# Building A Lock
+## Building A Lock
 `Lock`에 대한 컨셉은 어느 정도 이해하셨을 겁니다.
 그러면 `Lock`을 어떻게 만드는지, 어떤 HW 자원과 지원이 필요한지에 대해 이야기해보겠습니다.
 
@@ -63,7 +64,7 @@ with mutex:
 이러한 명령어 자체의 상세 내용은 `Computer Architecture` 주제이므로 여기서는 넘어가고, 우리는 잠금과 상호 배제 메커니즘을 만들기 위해 이를 어떻게 사용하는지에 집중합니다.
 또한 OS가 어떻게 관여해 전체 그림을 완성하고, 더 정교한 라이브러리를 구축할 수 있게 하는지도 살펴봅니다.
 
-# Evaluating Locks
+## Evaluating Locks
 `Lock`을 설계할 때는 기능이 올바르게 동작하는지 평가해야 합니다.
 - 잠금의 기본 목표인 상호 배제를 제공해, 여러 스레드가 동시에 임계 구역에 들어가지 못하게 하는지
 - 잠금이 해제되었을 때 대기 중인 스레드가 획득 기회를 얻는지(특정 스레드가 기아 상태에 빠지지 않는지)
@@ -73,7 +74,7 @@ with mutex:
 
 위 지표로 다양한 시나리오를 평가하면 `Lock`의 특성을 더 명확히 이해할 수 있습니다.
 
-# Controlling Interrupts
+## Controlling Interrupts
 상호 배제를 제공하기 위한 초기 접근 중 하나는 임계 구역 진입 전 인터럽트를 비활성화하는 것입니다.
 이 방식은 주로 단일 프로세서 시스템에서 의미가 있습니다.
 
@@ -112,7 +113,7 @@ finally:
 
 즉 파이썬의 시그널 마스킹은 특정 시그널 받지 못하게 하는 기능입니다.
 
-# A Failed Attempt: Just Using Loads/Stores
+## A Failed Attempt: Just Using Loads/Stores
 인터럽트 기반 접근을 넘어가려면 CPU 하드웨어와 그 위에서 제공하는 원자적 명령어를 활용해 잠금 시스템을 구축해야 합니다.
 
 단일 플래그 변수로 간단한 `Lock`을 구현해보면, 단순한 load/store만으로는 충분하지 않다는 점을 확인할 수 있습니다.
@@ -134,7 +135,7 @@ Thread 1: flag = 1         // Thread 1도 Lock 획득했다고 판단
 
 기본 요구사항인 상호 배제를 구현하지 못했을 뿐만 아니라, `flag` 값을 반복문으로 계속 확인하는 `spin-waiting`이 발생해 CPU 리소스를 낭비하게 됩니다.
 
-# Building Working Spin Locks with Test-And-Set
+## Building Working Spin Locks with Test-And-Set
 인터럽트를 비활성화하는 방법과 단순 플래그 방식이 모두 한계를 보이자, 시스템 설계자들은 `Lock` 구현을 위해 하드웨어 지원을 도입했습니다. `test-and-set` 같은 원자적 명령은 1960년대 초기 다중 프로세서 시스템에서 중요해졌고, 오늘날에도 보편적으로 사용됩니다.
 
 가장 간단한 하드웨어 지원은 `test-and-set`(또는 `atomic exchange`)입니다. 핵심은 <u>읽기(test)와 쓰기(set)를 하나의 원자적 연산으로 수행</u>한다는 점입니다.
@@ -214,7 +215,7 @@ void unlock() {
 `flag` 검사(Test)와 변경(Set)을 원자적으로 수행하므로, 검사-갱신 사이의 경쟁 조건을 막을 수 있습니다.
 여기서는 `lock`이 해제될 때까지 스핀하므로, 회전 중인 스레드는 CPU 자원을 양보하지 않습니다.
 
-# Evaluating Spin Locks
+## Evaluating Spin Locks
 스핀 대기는 `Lock` 평가 기준 중 공정성 측면에서 불리할 수 있습니다.
 스핀 중인 스레드는 CPU를 계속 사용하므로 스케줄링 상황에 따라 오래 기다릴 수 있고, 경우에 따라 기아(starvation)가 발생할 가능성도 있습니다.
 
@@ -235,7 +236,7 @@ int CompareAndSwap(int *ptr, int expected, int new) {
 }
 ```
 
-# Compare-And-Swap
+## Compare-And-Swap
 `Compare-And-Swap`의 아이디어는 `ptr`로 지정된 주소의 값이 `expected`와 같은지 비교하고, 같다면 `ptr`이 가리키는 메모리 값을 `new`로 바꾸는 것입니다.
 그렇지 않다면 값은 그대로 유지됩니다. 두 경우 모두 해당 메모리 위치의 원래 값을 반환하므로, 호출한 코드가 성공/실패 여부를 판단할 수 있습니다.
 
@@ -249,7 +250,7 @@ void lock(lock_t *lock) {
 ```
 위 코드의 나머지 동작은 `test-and-set` 기반 스핀락과 유사합니다.
 
-# Load-Linked and Store-Conditional
+## Load-Linked and Store-Conditional
 **Load-Linked**
 일반적인 로드(load)처럼 메모리 값을 읽어 레지스터에 저장합니다. 동시에 해당 주소(또는 예약 단위)에 대한 예약(reservation)을 설정합니다.
 
@@ -298,7 +299,7 @@ void lock(lock_t *lock) {
 만약 하나라도 조건을 만족하지 못하면 계속 스핀합니다.
 즉 `LL` 값이 1이거나, `SC`가 0을 반환하면 다시 대기(spin) 상태로 반복합니다.
 
-# Fetch-And-Add
+## Fetch-And-Add
 마지막 `hardware primitive`로 `Fetch-And-Add`가 있습니다. 특정 주소의 이전 값을 반환하면서 값을 원자적으로 증가시킵니다.
 
 다음은 의사코드입니다.
@@ -348,12 +349,12 @@ void unlock(lock_t *lock) {
 
 이 방식은 번호표 순서대로 진입하므로 공정성과 진행 보장 측면에서 유리합니다.
 
-# Too Much Spinning: What Now
+## Too Much Spinning: What Now
 지금까지의 코드를 보면 N개의 스레드가 `Lock`을 두고 경쟁 상태에 빠집니다. N-1개의 스레드가 `Lock`을 기다리며 회전하고 있죠.
 
 우리의 문제는 `CPU`에서 불필요하게 `spin`으로 소모되는 시간이 발생하지 않는 `Lock`을 개발하는 것입니다. 이는 하드웨어 지원만으로는 해결할 수 없고, OS의 지원이 필요합니다.
 
-# A Simple Approach: Just Yield, Baby
+## A Simple Approach: Just Yield, Baby
 하드웨어 도움으로 많이 진전되었지만 아직 `Lock`의 획득에 대한 공정성에 문제가 있고, 위에서 언급한 `spin` 문제도 여전히 존재하죠.
 
 이를 다루는 첫 접근으로, `spin`하려 할 때 CPU를 다른 스레드에게 양보하는 방식을 떠올릴 수 있습니다. "Just yield, baby!"를 실천하는 거죠.
@@ -380,7 +381,7 @@ void unlock() {
 
 이 방식의 가장 치명적인 단점은 기아(`starvation`)를 해결하지 못한다는 점입니다. 한 스레드는 무한 양보 루프에 갇힐 수 있고, 다른 스레드는 임계 구역에 반복적으로 들어갔다 나오는 상황이 계속될 수 있습니다. 그래서 기아 문제를 해결하기 위한 다른 접근이 필요합니다.
 
-# Using Queues: Sleeping Instead Of Spinning
+## Using Queues: Sleeping Instead Of Spinning
 이전 방식의 문제는 우연에 너무 많이 맡긴다는 데 있습니다. 스케줄러가 잘못된 선택을 하면 실행 중인 스레드는 `Lock`을 기다리며 `spin`하거나 CPU를 `yield`로 양보하게 되고, 어느 쪽이든 낭비가 커지며 기아를 완전히 막기는 어렵습니다.
 
 이를 개선하면 어떤 스레드가 `lock`을 획득할지 명시적으로 제어할 수 있습니다. 큐와 약간의 OS 지원만 있으면 되죠.
@@ -469,7 +470,7 @@ void unlock(lock_t *m) {
 
 ---
 
-# Different OS, Different Support
+## Different OS, Different Support
 지금까지는 OS가 제공하는 한 가지 유형만을 봤죠. 다른 OS들도 비슷한 자원을 주지만 세부는 다릅니다. 예를 들어 Linux는 `futex`를 두는데, 앞선 `park`/`unpark` 같은 그림과 겹치지만 주소별로 커널 큐와 맞물리는 쪽으로 더 기능이 많습니다.
 즉, `futex`는 물리적 메모리와 더 밀접하게 연관되어 쓰이죠.
 ```c
@@ -520,7 +521,7 @@ void mutex_unlock(int *mutex) {
 위 코드는 `glibc`의 NPTL `lowlevellock.h` 쪽 패턴입니다.
 - **lowlevellock**: NPTL(Native POSIX Thread Library)에서 스레드 동기화를 위해 사용하는 핵심 하위 레벨 락 메커니즘
 
-# Two-Phase Locks
+## Two-Phase Locks
 리눅스에서는 1960년대 초에 쓰이던 `Dahm Locks`의 맛을 볼 수 있습니다.
 이는 다음과 같은 동작을 하며, 이런 `Two-Phase Locks`는 하이브리드 접근의 다른 예로, 두 가지 아이디어를 결합해 더 나은 결과를 낼 수 있습니다.
 
@@ -530,7 +531,7 @@ void mutex_unlock(int *mutex) {
 
 모든 상황에서 범용적으로 돌아가는 `Lock`을 만드는 일은 만만치 않은 과제이죠.
 
-# Summary   
+## Summary   
 여기까지 오늘날 `lock`이 어떻게 구축되는지 확인했습니다.
 더 강력한 명령어 형태의 하드웨어 지원과 `park/unpark` 같은 `primitives`나 `Linux`의 `futex` 같은 OS 지원이 결합된 형태죠.
 물론 세부 사항이나 정확한 코드는 매우 다양하고 고도화되었겠지만, 상호 배제를 위해 `lock`이 어떤 개념으로 만들어지고 하드웨어와 OS에 어떻게 결합되었는지를 엿볼 수 있었네요.

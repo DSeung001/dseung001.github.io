@@ -2,6 +2,7 @@
 title: "Operating Systems: Three Easy Pieces - Lock-based Concurrent Data Structures"
 date: 2026-05-02T00:00:00+09:00
 categories: [ "OSTEP" ]
+series: [ "ostep-concurrency" ]
 tags: [ "OSTEP", "Operating Systems", "Concurrency", "Lock", "Data structures", "Synchronization" ]
 draft: false
 description: "OSTEP Concurrency 29강 Lock-based Concurrent Data Structures 정리"
@@ -15,7 +16,7 @@ lastmod: 2026-05-02T00:00:00+09:00
 
 이번 챕터는 자료 구조라서 학습을 위해 파이썬(표준 라이브러리 `threading`)으로 같은 패턴을 옮겨 적습니다.
 
-# Concurrent Counters
+## Concurrent Counters
 가장 단순한 데이터 구조 중 하나가 카운터입니다. 특정 값을 카운트하는 자료 구조로, 간단하게는 아래처럼 표현할 수 있습니다.
 ```python
 class Counter:
@@ -137,7 +138,7 @@ class ApproximateCounter:
 이러한 아이디어에서 중요한 건 결국 성능 테스트입니다.<br/>
 내가 생각해 낸 아이디어는 빠르거나 느리거나 한 결과를 도출하기 때문이죠.
 
-# Concurrent Linked Lists
+## Concurrent Linked Lists
 더 복잡한 구조인 연결 리스트를 짧게 살펴봅니다. 기본 성질은 생략하고, 삽입과 조회만 다룹니다.
 
 일반(단일 스레드) 연결 리스트와의 차이는 자료 구조의 모양이 아니라, 누가 동시에 `head`와 `next`를 바꾸느냐에 있습니다.
@@ -257,7 +258,7 @@ class HandOverHandList:
 
 다만 hand-over-hand는 노드마다 `lock`/`unlock`이 들어가 **오버헤드**가 큽니다. 그래서 일정 개수의 노드마다 락을 두는 식의 하이브리드를 찾아볼 가치는 있습니다.
 
-# Concurrent Queues
+## Concurrent Queues
 동시성 데이터 구조를 만드는 데는 표준적인 접근이 항상 있고, 가장 쉬운 방법은 큰 `lock` 하나를 두는 것입니다. 여기서 더 나아가면 확장성을 위해 `lock`을 쪼개거나 다른 방법을 찾는 등의 방향으로 나아갑니다.
 
 먼저 단일 `lock`으로 큐를 구현하면 다음과 같습니다.
@@ -351,7 +352,7 @@ class ConcurrentQueue:
             return value
 ```
 
-# Concurrent Hash Table
+## Concurrent Hash Table
 크기를 조정하지 않는 간단한 해시 테이블은 위에서 만든 `ConcurrentList`를 이용해 만들 수 있습니다.
 전체 테이블에 단일 `lock`을 거는 것보다 버킷마다 `lock`을 나누면 경합이 줄어드는 패턴입니다.
 
@@ -375,11 +376,11 @@ class ConcurrentHashTable:
         return self.lists[bucket_index].lookup(key)
 ```
 
-# Summary
+## Summary
 카운터, 리스트, 큐, 해시 테이블까지 데이터 구조에 동시성을 적용하면 어떻게 달라지는지 살펴봤습니다. 
 살펴본 바와 같이 제어 흐름에서 `lock`을 얻고 놓는 방식을 어떻게 설계하느냐에 따라 확장성이 크게 달라집니다.
 
-# Homework
+## Homework
 
 벤치마크로 성능을 체크할 때, PC 환경과 측정하는 함수의 오버헤드를 고민해야 합니다.
 ```python

@@ -2,6 +2,7 @@
 title: "RFC 9114 — HTTP/3"
 date: 2026-04-20T00:00:00+09:00
 categories: [ "RFC" ]
+series: [ "rfc-study" ]
 tags: [ "RFC", "HTTP/3", "RFC 9114", "네트워크", "QUIC", "TLS 1.3" ]
 draft: false
 description: "HTTP/3의 QUIC 전송, 스트림·멀티플렉싱, 헤더 압축(QPACK) 등 RFC 9114 기준 핵심만 정리합니다."
@@ -9,11 +10,11 @@ keywords: [ "HTTP/3", "RFC 9114", "QUIC", "QPACK", "TLS 1.3" ]
 author: "DSeung001"
 lastmod: 2026-04-20T00:00:00+09:00
 ---
-# 서론
+## 서론
 HTTP/3는 구글에서 QUIC로 개발하였고 22년 6월에 RFC 9114로 표준화되며 HTTP/3로 변경되었습니다, 참고로  HTTP/3의 기반이 되는 QUIC는 새로운 전송 프로토콜로 RFC 9000으로 표준화되었죠. 
 - **※QUIC(Quick UDP Internet Connections)**: UDP 기반의 차세대 전송 프로토콜로, TCP를 쓰지 않아 **TCP 수준의 HOL(head-of-line) 블로킹**을 줄일 수 있음
 
-## HTTP/3의 필요성
+### HTTP/3의 필요성
 QUIC를 사용함으로써 HTTP/2의 가장 큰 단점 몇 가지를 해결할 수 있습니다.
 - **패킷 손실의 영향 감소**: TCP는 순서대로 바이트를 넘기려고 해서, 중간에 패킷이 하나만 유실돼도 그 뒤 데이터 전체가 앱에 전달되기 전까지 막힙니다. HTTP/2는 여러 스트림의 프레임이 한 TCP 연결에 실려 보내지기 때문에 이런 막힘이 **연결 위의 모든 스트림**에 동시에 걸립니다. (TCP 수준의 HOL), QUIC는 스트림마다 손실·재전송을 처리하므로, **한 스트림에서 손실이 나도 다른 스트림이 전부 멈추지는 않습니다**.
 
@@ -27,7 +28,7 @@ QUIC를 사용함으로써 HTTP/2의 가장 큰 단점 몇 가지를 해결할 �
 - **연결 보장**: Wi-Fi에서 셀룰러로 바뀌는 것처럼 **네트워크 경로가 바뀌어도** 연결을 이어 가려는 방향의 기능이 있습니다.
     - 일반 웹에서는 체감이 작을 수 있지만, **영상 스트리밍**처럼 연결이 자주 바뀌는 환경에서는 HTTP/3가 붙어 있으면 끊김이 덜 발생합니다.
 
-# HTTP/3와 QUIC
+## HTTP/3와 QUIC
 QUIC 전송 프로토콜은 HTTP/2 프레임 계층에서 제공하는 것과 유사하게 스트림 다중화 및 스트림별 흐름 제어를 통합합니다, 스트림 수준에서 신뢰성을 제공하고 전체 연결에 걸쳐 혼합 제어를 제공함으로써 QUIC는 TCP 매핑에 비해 HTTP 성능을 향상시킬 수 있죠.<br/>
 
 QUIC는 전송 계층에서 TLS 1.3을 통합하여 TCP에서 TLS를 실행하는 것과 유사한 기밀성과 무결성을 제공하는 동시에 TCP FAST OPEN의 개선된 연결을 제공합니다.
@@ -49,7 +50,7 @@ QUIC로 **UDP 소켓**으로 패킷을 주고받고, 그 위에서 재전송·�
 
 이에 대해서는 [RFC 9000](https://datatracker.ietf.org/doc/html/rfc9000)에서 더 자세히 볼 수 있죠.
 
-## QPACK
+### QPACK
 압축으로 인해 발생하는 헤드 오브 라인 블로킹(head-of-line blocking) 정도를 인코더가 어느 정도 제어할 수 있도록 하는 HPACK의 변형입니다. 
 - HOL: 멀티스트림, 비순서 전달 환경에서 HPACK 스타일의 동적 테이블 동기화는 한 스트림의 디코딩을 다른 스트림의 전달 순서에 연관되어 막힐 수 있다는 의미
 
@@ -80,10 +81,10 @@ HPACK은 TCP의 **한 순서 있는 바이트 스트림**에 맞춰 압축 상�
 
 - **※트레일러 섹션**: HTTP 메시지는 보통 헤더 → 본문(body) 순으로 생각하지만, 청크 전송(Transfer-Encoding: chunked) 등을 쓰는 경우 본문 뒤에 또 헤더 형태의 필드를 붙일 수 있습니다. 그 본문 다음에 오는 필드 묶음이 **트레일러(trailer)** 이고, RFC 문구에서는 트레일러 섹션이라고 부릅니다.
 
-## 연결·스트림·요청 매핑
+### 연결·스트림·요청 매핑
 HTTP/3는 QPACK 단락의 그림을 보면 알 수 있듯이 하나의 QUIC 연결 안에서 여러 스트림을 동시에 사용합니다. 요청/응답은 보통 클라이언트가 연 양방향 스트림 하나에 매핑되며, QPACK과 제어 정보는 별도 단방향 스트림으로 분리됩니다.
 
-### 스트림 타입
+#### 스트림 타입
 | 스트림 타입 | 방향 | 용도 |
 | --- | --- | --- |
 | Request stream | 양방향 | 요청 HEADERS/DATA와 응답 HEADERS/DATA 전달 |
@@ -94,7 +95,7 @@ HTTP/3는 QPACK 단락의 그림을 보면 알 수 있듯이 하나의 QUIC 연�
 
 즉 중요한 점은 HTTP/3가 HTTP/2처럼 멀티플렉싱을 하면서도, TCP 한 연결의 순서 제약을 그대로 따르지 않는 QUIC 전송 위에서 동작한다는 것입니다. 그 결과 TCP 수준 HOL은 완화되고, 연결 자원은 공유하되 스트림은 보다 독립적으로 진행될 수 있습니다.
 
-### Pseudo-header fields
+#### Pseudo-header fields
 헤더 블록에 담기지만 일반 헤더와 구분되며, 메시지의 구조 자체를 정의하는 데 목적을 둡니다.
 
 HTTP/3 요청은 RFC 9110의 HTTP 의미론을 따르며, 헤더 블록에는 `pseudo-header fields`를 올바르게 포함해야 합니다.
@@ -121,7 +122,7 @@ HTTP/3 요청은 RFC 9110의 HTTP 의미론을 따르며, 헤더 블록에는 `p
 
 즉 둘 다 헤더 블록에 QPACK으로 인코딩되어 담기지만, 의사헤더는 메시지의 형태를 정의하고 일반 헤더는 메타데이터를 전달합니다.
 
-## Alt-Svc
+### Alt-Svc
 HTTP 오리진은 Alt-Svc HTTP 응답 헤더 필드 또는 "h3" ALPN 토큰을 사용하는 HTTP/2 ALTSVC 프레임([ALTSVC](https://datatracker.ietf.org/doc/html/rfc7838))을 통해 HTTP/3 엔드포인트의 가용성을 알릴 수 있습니다.
 
 즉 처음에는 TCP + TLS + HTTP/2로 연결되었는데 응답에서 아래처럼 줄 경우
@@ -130,7 +131,7 @@ Alt-Svc: h3=":443"; ma=86400
 ```
 HTTP/3(QUIC, 보통 UDP 443)를 쓸 수 있는 것이고, 브라우저는 이 정보를 캐시한 뒤 다음 연결부터 바로 HTTP/3를 시도합니다. 경우에 따라 병렬로 시도하기도 하며, 즉 연결 방법에 대한 표시입니다.
 
-## HTTP/3
+### HTTP/3
 아래는 HTTP/3 샘플입니다.
 
 | NO | Time | Source | Destination | Protocol | Length | Info |
@@ -149,7 +150,7 @@ QPACK 압축 상태 동기화 -> HEADERS 전달 -> DATA 전달
 - **HEADERS**가 먼저 오고 DATA(양방향 스트림으로 보내지는 프레임)가 뒤따르는 패턴이 일반적입니다.
 - 하지만 **QUIC**는 멀티스트림이라 제어/헤더/데이터가 섞여 보일 수 있습니다.
 
-# 프레이밍(HTTP/3 프레임)
+## 프레이밍(HTTP/3 프레임)
 HTTP/3도 HTTP/2처럼 프레임 단위로 메시지를 구성하지만, 다른 점은 프레임이 QUIC 스트림 위에 실립니다.
 
 | 프레임 | 역할 | 메모 |
@@ -184,17 +185,17 @@ HTTP/3 Frame Format {
 - **Length**: `Frame Payload` 길이(바이트 단위)를 나타내는 가변 길이 정수입니다.
 - **Frame Payload**: 실제 데이터 영역이며, 어떤 의미를 갖는지는 `Type` 값에 따라 결정됩니다.
 
-## SETTINGS
+### SETTINGS
 SETTINGS 프레임은 항상 HTTP/3 연결에 적용되며, 단일 스트림에는 적용이 되지 않습니다.
 HTTP/3에서는 각 엔드포인트가 여는 control stream에서, SETTINGS가 반드시 첫 프레임이어야 합니다.
 나중에 전송하는 것도 안 되고, 제어 스트림이 아닌 스트림에서 전송하는 것도 안 됩니다.
 
-## 에러 처리
+### 에러 처리
 HTTP/3 에러는 크게 스트림 단위와 연결 단위로 나눠서 보는 것이 편합니다.
 - **스트림 에러(stream error)**: 특정 요청/응답 스트림만 실패하고, 다른 스트림은 계속 진행될 수 있습니다.
 - **연결 에러(connection error)**: 연결 전체가 종료되어 모든 스트림에 영향을 줍니다.
 
-## GOAWAY
+### GOAWAY
 GOAWAY는 "연결을 갑자기 끊겠다"라기보다는 "특정 기준보다 새로운 요청은 이제 받지 않겠다"에 가깝습니다.
 그래서 HTTP/3에서는 스트림 ID 기준을 처리합니다.
 
@@ -203,18 +204,18 @@ GOAWAY는 "연결을 갑자기 끊겠다"라기보다는 "특정 기준보다 �
 
 이유는 UDP 기반의 QUIC는 패킷 도착 순서가 뒤섞일 수 있으므로, 네트워크 관점에서 늦게 도착했다고 해서 더 나중에 생성된 요청이라고 보장할 수 없기 때문입니다. 따라서 도착 시각이 아니라 스트림 ID 기준으로 처리 범위를 판단합니다.
 
-# 결론
+## 결론
 HTTP/2의 기술을 TCP에서 UDP 기반의 QUIC 프로토콜로 옮기면서 보안성과 성능 측면에서 개선되었습니다.
 현재는 브라우저와 주요 CDN/클라우드에서 폭넓게 지원되지만, 실제 서비스 도입 속도는 네트워크 정책(UDP 443), 인프라 구성, 운영 관측 체계 등 환경 차이에 따라 다르게 나타나고 있습니다.
 
 HTTP/1 ~ HTTP/3 까지의 비교는 다음 이미지 한장으로 정리가 될 것 같군요.
 
-## 버전별 통신 흐름
+### 버전별 통신 흐름
 ![comparison of HTTP versions](./Comparison-of-HTTP-versions.webp)
-## 버전별 계층도
+### 버전별 계층도
 ![comparison of HTTP versions](./Comparsion-of-HTTP-diagram.webp)
 
-## 관련 RFC 문서
+### 관련 RFC 문서
 - [RFC 9114 — HTTP/3](https://datatracker.ietf.org/doc/html/rfc9114): HTTP 의미를 QUIC 전송에 매핑하는 핵심 규격입니다.
 - [RFC 9110 — HTTP Semantics](https://datatracker.ietf.org/doc/html/rfc9110): 메서드, 상태코드, 헤더 의미 등 HTTP 의미론의 기준 문서입니다.
 - [RFC 9000 — QUIC: A UDP-Based Multiplexed and Secure Transport](https://datatracker.ietf.org/doc/html/rfc9000): QUIC 연결/스트림/흐름 제어/에러 처리의 전송 계층 규격입니다.
