@@ -1,11 +1,11 @@
 ---
-title: "Class S 시연"
+title: "Class Project 시연"
 date: 2026-08-16T00:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]
 tags: [ "시연" ]
 draft: false
-description: "Class S 시연"
+description: "Class Project 시연"
 keywords: [ "Class Project", "시연" ]
 author: "DSeung001"
 lastmod: 2026-08-19T00:00:00+09:00
