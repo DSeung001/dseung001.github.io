@@ -191,7 +191,12 @@ contentDir = "content"
 [sitemap]
   changefreq = "weekly"
   priority = 0.5
-  filename = "sitemap.xml" 
-  
+  filename = "sitemap.xml"
+
+# --minify 시 XML을 한 줄로 붙이면 GSC가 "사이트맵을 읽을 수 없음"을 낸다
+# (PaperMod 이슈: https://github.com/gohugoio/hugo/issues/7766)
+[minify]
+  disableXML = true
+
 [outputs]
   home = [ "HTML", "RSS", "Sitemap", "Robots", "JSON" ]
