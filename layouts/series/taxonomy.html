@@ -1,0 +1,43 @@
+{{- define "main" }}
+
+<header class="series-index-hero">
+  <h1>시리즈</h1>
+  <p>시리즈로 글의 흐름으로 볼 수 있습니다.</p>
+</header>
+
+<section class="series-card-grid" aria-label="시리즈 목록">
+  {{- range .Data.Terms.ByCount }}
+  {{- $termPage := .Page -}}
+  {{- $pages := sort .Pages "Date" "asc" -}}
+  {{- $total := len $pages -}}
+  {{- $first := false -}}
+  {{- $last := false -}}
+  {{- if gt $total 0 -}}
+  {{- $first = index $pages 0 -}}
+  {{- $last = index (last 1 $pages) 0 -}}
+  {{- end -}}
+  <a class="series-card" href="{{ $termPage.Permalink }}">
+    <span class="series-card__count">{{ $total }}편</span>
+    <h2>{{ $termPage.Title }}</h2>
+    {{- with $termPage.Description }}
+    <p>{{ . | markdownify }}</p>
+    {{- end }}
+    <dl class="series-card__meta">
+      {{- with $first }}
+      <div>
+        <dt>시작</dt>
+        <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
+      </div>
+      {{- end }}
+      {{- with $last }}
+      <div>
+        <dt>최근</dt>
+        <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
+      </div>
+      {{- end }}
+    </dl>
+  </a>
+  {{- end }}
+</section>
+
+{{- end }}

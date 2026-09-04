@@ -1,0 +1,128 @@
+{{- define "main" }}
+
+{{- $pages := sort .RegularPages "Date" "asc" -}}
+{{- $total := len $pages -}}
+{{- $first := false -}}
+{{- $last := false -}}
+{{- if gt $total 0 -}}
+{{- $first = index $pages 0 -}}
+{{- $last = index (last 1 $pages) 0 -}}
+{{- end -}}
+
+<header class="series-hero">
+  <div class="series-hero__title-row">
+    <h1>{{ .Title }}</h1>
+    {{- if gt $total 1 }}
+    <button class="series-sort-toggle" type="button" data-series-sort-toggle aria-label="내림차순으로 정렬" title="내림차순으로 정렬">
+      <svg class="series-sort-toggle__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M7 3v18" />
+        <path d="M3 17l4 4 4-4" />
+        <path d="M17 21V3" />
+        <path d="M13 7l4-4 4 4" />
+      </svg>
+    </button>
+    {{- end }}
+  </div>
+  {{- if .Description }}
+  <p class="series-hero__description">{{ .Description | markdownify }}</p>
+  {{- end }}
+
+  <dl class="series-hero__stats" aria-label="시리즈 요약">
+    <div>
+      <dt>글 수</dt>
+      <dd>{{ $total }}</dd>
+    </div>
+    {{- with $first }}
+    <div>
+      <dt>시작</dt>
+      <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
+    </div>
+    {{- end }}
+    {{- with $last }}
+    <div>
+      <dt>최근</dt>
+      <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
+    </div>
+    {{- end }}
+  </dl>
+
+  {{- if and (eq .Kind `term`) (.Param "ShowRssButtonInSectionTermList") }}
+  {{- with .OutputFormats.Get "rss" }}
+  <a class="series-hero__rss" href="{{ .RelPermalink }}" title="RSS" aria-label="RSS">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 11a9 9 0 0 1 9 9" />
+      <path d="M4 4a16 16 0 0 1 16 16" />
+      <circle cx="5" cy="19" r="1" />
+    </svg>
+    <span>RSS</span>
+  </a>
+  {{- end }}
+  {{- end }}
+</header>
+
+{{- if .Content }}
+<div class="post-content series-intro">
+  {{- if not (.Param "disableAnchoredHeadings") }}
+  {{- partial "anchored_headings.html" .Content -}}
+  {{- else }}{{ .Content }}{{ end }}
+</div>
+{{- end }}
+
+<section class="series-timeline" data-series-timeline aria-label="{{ .Title }} 글 목록">
+  {{- if eq $total 0 }}
+  <p class="series-timeline__empty">아직 이 시리즈에 포함된 글이 없습니다.</p>
+  {{- end }}
+  {{- range $index, $page := $pages }}
+  {{- $number := printf "%02d" (add $index 1) -}}
+  <article class="series-timeline__item">
+    <div class="series-timeline__body">
+      <header class="series-timeline__header">
+        <time datetime="{{ $page.Date.Format "2006-01-02" }}">{{ $page.Date | time.Format "2006.01.02" }}</time>
+        {{- if $page.Draft }}
+        <span class="series-timeline__draft">Draft</span>
+        {{- end }}
+      </header>
+      <h2 class="series-timeline__title">
+        <span class="series-timeline__number" aria-hidden="true">{{ $number }}</span>
+        <a href="{{ $page.Permalink }}">{{ $page.Title }}</a>
+      </h2>
+      {{- if (ne ($page.Param "hideSummary") true) }}
+      <p>{{ $page.Summary | plainify | htmlUnescape }}{{ if $page.Truncated }}...{{ end }}</p>
+      {{- end }}
+    </div>
+  </article>
+  {{- end }}
+</section>
+
+{{- if gt $total 1 }}
+<script>
+  (function () {
+    var timeline = document.querySelector("[data-series-timeline]");
+    var toggle = document.querySelector("[data-series-sort-toggle]");
+    if (!timeline || !toggle) return;
+
+    function updateButton(isDesc) {
+      var label = isDesc ? "오름차순으로 정렬" : "내림차순으로 정렬";
+      toggle.classList.toggle("is-desc", isDesc);
+      toggle.setAttribute("aria-label", label);
+      toggle.setAttribute("title", label);
+    }
+
+    toggle.addEventListener("click", function () {
+      var isDesc = toggle.classList.toggle("is-desc");
+      Array.prototype.slice.call(timeline.querySelectorAll(".series-timeline__item"))
+        .reverse()
+        .forEach(function (item) {
+          timeline.appendChild(item);
+        });
+      updateButton(isDesc);
+    });
+
+    updateButton(false);
+  })();
+</script>
+{{- end }}
+
+{{- end }}

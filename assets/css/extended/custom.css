@@ -221,6 +221,406 @@ html.cursor-follower-off #cursor-ink-trail {
     }
 }
 
+/* 시리즈 페이지: 연재 흐름을 보여주는 상단 요약과 타임라인 */
+.series-index-hero {
+    margin: 24px auto var(--content-gap);
+}
+
+.series-index-hero h1 {
+    font-size: 40px;
+    line-height: 1.25;
+}
+
+.series-index-hero p {
+    max-width: 640px;
+    margin-top: 10px;
+    color: var(--secondary);
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.series-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+    margin-bottom: 34px;
+}
+
+.series-card {
+    position: relative;
+    display: block;
+    min-width: 0;
+    padding: var(--gap);
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: transform 0.1s;
+}
+
+.series-card:active {
+    transform: scale(0.96);
+}
+
+.series-card__count {
+    display: inline-flex;
+    margin-bottom: 12px;
+    padding: 2px 8px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.series-card h2 {
+    font-size: 24px;
+    line-height: 1.35;
+}
+
+.series-card p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 8px;
+    color: var(--secondary);
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.series-card__meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.series-card__meta div {
+    min-width: 0;
+}
+
+.series-card__meta dt {
+    color: var(--secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.series-card__meta dd {
+    margin: 3px 0 0;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.series-hero {
+    position: relative;
+    margin: 24px auto 28px;
+}
+
+.series-hero__eyebrow {
+    margin-bottom: 6px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.series-hero__title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 72px;
+}
+
+.series-hero h1 {
+    min-width: 0;
+    font-size: 40px;
+    line-height: 1.25;
+}
+
+.series-sort-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: var(--secondary);
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.series-sort-toggle:hover,
+.series-sort-toggle:focus-visible {
+    color: var(--primary);
+    border-color: var(--secondary);
+}
+
+.series-sort-toggle:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+}
+
+.series-sort-toggle__icon {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.15s ease;
+}
+
+.series-sort-toggle.is-desc .series-sort-toggle__icon {
+    transform: rotate(180deg);
+}
+
+.series-hero__description {
+    max-width: 680px;
+    margin-top: 12px;
+    color: var(--secondary);
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.series-hero__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.series-hero__stats div {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.series-hero__stats dt {
+    color: var(--secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.series-hero__stats dd {
+    margin: 0;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.series-hero__rss {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.series-hero__rss svg {
+    width: 14px;
+    height: 14px;
+}
+
+.series-hero__rss:hover {
+    color: var(--primary);
+    border-color: var(--secondary);
+}
+
+.series-intro {
+    margin-bottom: 28px;
+}
+
+.series-timeline {
+    position: relative;
+    display: grid;
+    gap: 18px;
+    margin: 0 0 34px;
+}
+
+.series-timeline::before {
+    content: none;
+}
+
+.series-timeline__item {
+    position: relative;
+    display: block;
+}
+
+.series-timeline__body {
+    position: relative;
+    min-width: 0;
+    padding: 22px 24px;
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: transform 0.1s;
+}
+
+.series-timeline__body:active {
+    transform: scale(0.98);
+}
+
+.series-timeline__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.series-timeline__draft {
+    padding: 1px 7px;
+    color: #9a3412;
+    background: #ffedd5;
+    border-radius: 999px;
+}
+
+.series-timeline__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.35;
+}
+
+.series-timeline__number {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 30px;
+    padding: 0 10px;
+    color: var(--secondary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.series-timeline__title a {
+    min-width: 0;
+}
+
+.series-timeline__title a:hover {
+    box-shadow: 0 1px;
+}
+
+.series-timeline__body p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 10px;
+    color: var(--secondary);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.series-timeline__empty {
+    padding: 20px 22px;
+    color: var(--secondary);
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+body.dark .series-timeline__draft {
+    color: #fed7aa;
+    background: rgba(154, 52, 18, 0.45);
+}
+
+@media screen and (max-width: 768px) {
+    .series-index-hero {
+        margin-top: 18px;
+    }
+
+    .series-index-hero h1 {
+        font-size: 32px;
+    }
+
+    .series-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .series-card {
+        min-height: 0;
+        padding: var(--gap);
+    }
+
+    .series-hero {
+        margin-top: 18px;
+    }
+
+    .series-hero__title-row {
+        padding-right: 64px;
+        gap: 8px;
+    }
+
+    .series-hero h1 {
+        font-size: 32px;
+    }
+
+    .series-sort-toggle {
+        width: 32px;
+        height: 32px;
+    }
+
+    .series-sort-toggle__icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .series-hero__rss {
+        top: 0;
+        right: 0;
+    }
+
+    .series-timeline__body {
+        padding: 18px;
+    }
+
+    .series-timeline__title {
+        gap: 9px;
+        align-items: center;
+        font-size: 19px;
+    }
+
+    .series-timeline__number {
+        min-width: 34px;
+        height: 26px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .series-timeline__body p {
+        font-size: 14px;
+    }
+}
+
 /* Mermaid 다이어그램: 인라인 래퍼 + 확대 버튼 (JS: extend_footer.html) */
 .mermaid-wrap {
     position: relative;
