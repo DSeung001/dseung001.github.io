@@ -1,0 +1,26 @@
+{{- $.Scratch.Add "index" slice -}}
+{{- range site.RegularPages -}}
+    {{- if and (not .Params.searchHidden) (ne .Layout `archives`) (ne .Layout `search`) }}
+    {{- $keywords := "" -}}
+    {{- with .Params.keywords }}{{ $keywords = delimit . " " }}{{ end -}}
+    {{- $tags := "" -}}
+    {{- with .Params.tags }}{{ $tags = delimit . " " }}{{ end -}}
+    {{- $categories := "" -}}
+    {{- with .Params.categories }}{{ $categories = delimit . " " }}{{ end -}}
+    {{- $published := "" -}}
+    {{- if not .Date.IsZero -}}
+    {{- $published = .Date.Format (default "January 2, 2006" site.Params.DateFormat) -}}
+    {{- end -}}
+    {{- $.Scratch.Add "index" (dict
+        "title" .Title
+        "permalink" .Permalink
+        "summary" (.Summary | plainify)
+        "description" (.Description | plainify)
+        "keywords" $keywords
+        "tags" $tags
+        "categories" $categories
+        "published" $published
+    ) -}}
+    {{- end }}
+{{- end -}}
+{{- $.Scratch.Get "index" | jsonify -}}

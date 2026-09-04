@@ -30,6 +30,11 @@ contentDir = "content"
     url = "/posts/"
     weight = 10
   [[menu.main]]
+    identifier = "search"
+    name = "Search"
+    url = "/search/"
+    weight = 15
+  [[menu.main]]
     identifier = "categories"
     name = "Categories"
     url = "/categories/"
@@ -90,6 +95,17 @@ contentDir = "content"
 
   [params.label]
     text = "DevSeung Blog"
+
+  # 검색 페이지 Fuse.js 옵션 (키워드는 소문자로 JS에 전달됨)
+  [params.fuseOpts]
+    isCaseSensitive = false
+    shouldSort = true
+    location = 0
+    distance = 100
+    threshold = 0.3
+    minMatchCharLength = 2
+    ignoreLocation = true
+    keys = ["title", "keywords", "tags", "summary", "description", "categories"]
 
   # SEO 최적화 설정
   [params.seo]
@@ -178,4 +194,4 @@ contentDir = "content"
   filename = "sitemap.xml" 
   
 [outputs]
-  home = [ "HTML", "RSS", "Sitemap", "Robots" ]
+  home = [ "HTML", "RSS", "Sitemap", "Robots", "JSON" ]

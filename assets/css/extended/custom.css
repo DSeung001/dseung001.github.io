@@ -821,3 +821,49 @@ body.dark .post-content a:not(.anchor):hover {
 .post-content h6 {
     font-size: 18px;
 }
+
+/* Search: 글 목록 헤더/카드와 같은 여백, 테두리, 타이포 */
+#searchbox input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--primary);
+    background: var(--entry);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    outline: none;
+}
+
+#searchbox input::placeholder {
+    color: var(--secondary);
+    font-weight: 400;
+}
+
+#searchbox input:focus {
+    border-color: var(--secondary);
+}
+
+#searchResults {
+    list-style: none;
+    margin: var(--gap) 0 0;
+    padding: 0;
+    width: 100%;
+}
+
+#searchResults li {
+    padding: var(--gap);
+    margin: 0 0 var(--gap);
+    font-weight: inherit;
+}
+
+#searchResults li:active {
+    transform: scale(0.96);
+}
+
+#searchResults .focus {
+    transform: none;
+    border: 1px solid var(--secondary);
+}
