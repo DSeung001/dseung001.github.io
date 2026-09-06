@@ -8,7 +8,7 @@ draft: false
 description: "Postgres too many clients가 발생한 이유와 이를 해결한 과정"
 keywords: [ "gunicorn", "gevent", "greenlet", "SSE", "sitemap", "too many clients", "CONN_MAX_AGE", "PostgreSQL" ]
 author: "DSeung001"
-lastmod: 2026-09-04T16:46:00+09:00
+lastmod: 2026-09-06T16:40:00+09:00
 ---
 
 ## 문제
@@ -104,7 +104,7 @@ DB 슬롯이 사람 수가 아니라 열려 있는 TCP 커넥션 수이기 때�
 API는 `--worker-class gevent --workers 2`이고, `--worker-connections`를 안 두면 워커당 동시 상한이 1000입니다. Django `CONN_MAX_AGE`는 기본 60이라 요청이 끝난 뒤에도 소켓을 최대 60초 붙잡습니다. `sync` 워커 몇 개일 때와는 규모가 달라지게 되는 요소가 있었습니다.
 
 2. [알림 SSE](/posts/2026/07/24/class-s-sse-notification/)입니다. <br>
-로그인한 탭의 스트림은 `StreamingHttpResponse`로 Redis를 구독하고, `IsAuthenticated`가 유저를 DB에서 읽은 뒤 스트림이 끝날 때까지 요청이 살아 있습니다. Django는 요청이 끝나야 커넥션을 정리하므로, 탭 하나가 계속 커넥션이 유지되는 건 그대로 뒀습니다. (지난번에 SSE 타임도 늘렸기에 실제로 이걸로 문제가 발생하려면 누군가 악의적인 목적으로 접근하는 방법밖에 없어 보입니다.)
+알림 기능은 로그인한 탭의 스트림은 `StreamingHttpResponse`로 Redis를 구독하고, `IsAuthenticated`가 유저를 DB에서 읽은 뒤 스트림이 끝날 때까지 요청이 살아 있습니다. Django는 요청이 끝나야 커넥션을 정리하므로, 탭이 살아 있을 경우 계속 커넥션이 유지되는 건 그대로 뒀습니다. 이번 새벽 로그에는 `user_id`가 없어서, 2번은 간접적인 영향으로 이번 에러의 원인은 아닌 걸로 추측됩니다.
 
 3. 같은 Postgres를 여러 프로세스가 사용합니다.<br/>
 `max_connections`는 Postgres 프로세스 하나의 한도인데, 현재 구조는 하나의 서버에서 gunicorn API, 뉴스레터 cron(매일 09:00), SSE가 붙습니다.
@@ -113,10 +113,10 @@ API는 `--worker-class gevent --workers 2`이고, `--worker-connections`를 안 
 새벽 4시에 터진 직접 경로는 사람이 강좌 24개를 연 게 아닙니다.
 `dynamic = "force-dynamic"`일 때 Next는 `/sitemap.xml`을 만들기 위해 백엔드에 요청을 합니다. 이 부분에서 부담이 발생할 수 있습니다.
 
-현재 로그를 보면 4번이 원인으로 가장 크게 요청이 발생했습니다. <br/>
+현재 로그를 보면 4번이 트리거로 가장 크게 요청이 발생했습니다. <br/>
 4번과 같은 sitemap 요청이 다른 요청들과 겹쳤을 때 터진 걸로 추측이 됩니다. Next에서는 sitemap.xml을 만들기 위해서 사용 중이지만 실제 서비스 로직 API를 부르므로 백엔드에 큰 부담을 주게 되었습니다. 특히 영상에 관련된 태그도 사이트맵에 넣다 보니 태그를 얻기 위해 상세 페이지에 대한 API를 요청해서 발생했습니다.
 
-즉 4번에서 사이트맵을 생성하다가 태그를 찾기 위해 상세 페이지 API를 호출했고, 이로 인해 커넥션 수가 초과하게 되었습니다.
+즉 4번에서 사이트맵을 생성하다가 태그를 찾기 위해 상세 페이지 API를 과도하게 호출한 것이 트리거이고, 1번의 gevent 상한과 `CONN_MAX_AGE`가 그 요청을 PG의 `max_connections`보다 크게 만든 게 원인이었죠.
 
 ```text
 2026-09-04T04:38:06.773  GET /api/v1/media/courses/118
@@ -152,7 +152,7 @@ gunicorn config.wsgi:application --bind 0.0.0.0:8000 \
 동시 요청 상한은 `workers × worker-connections`입니다. 워커 2개면 50개입니다.
 수정 전 버전에서는 gunicorn gevent 기본은 워커당 1000이라, 이론상 2000개 greenlet이 `max_connections` 100을 넘을 수 있었습니다.
 
-같이 `CONN_MAX_AGE`를 60에서 0으로 내렸습니다. gevent에서는 남겨 둔 소켓이 다른 greenlet로 넘어가기 쉬워서 요청이 끝나면 소켓을 닫게 했습니다. 요청마다 소켓을 열고 닫으므로 연결 오버헤드는 늘어납니다. 지금 트래픽에서는 슬롯을 붙잡지 않는 쪽이 우선이었죠.
+같이 `CONN_MAX_AGE`를 60에서 0으로 내렸습니다. gevent에서는 남겨 둔 소켓이 다른 greenlet으로 넘어가기 쉬워서 요청이 끝나면 소켓을 닫게 했습니다. 요청마다 소켓을 열고 닫으므로 연결 오버헤드는 늘어납니다. 지금 트래픽에서는 슬롯을 붙잡지 않는 쪽이 우선이었죠.
 
 같은 핫픽스에서 알림 스트림은 인증이 DB를 쓴 뒤 `connections.close_all()`로 소켓을 놓고 Redis 루프에 들어가게 했습니다. 유휴 탭이 Postgres 슬롯을 붙잡지 않게 하기 위함입니다.
 
@@ -174,3 +174,30 @@ gunicorn config.wsgi:application --bind 0.0.0.0:8000 \
 |---|---|---|
 | 카탈로그 | `GET /catalog`, 최대 3페이지 | 동일 |
 | 태그 | 강좌 상세 최대 24개 병렬 | `GET /tags` 1회 |
+
+### VOD 서비스의 사이트맵
+
+사이트맵 경로를 고친 김에, 다른 VOD와 강의 플랫폼은 URL 목록을 어떻게 나눠 주는지도 궁금해졌습니다.
+
+사이트맵 프로토콜은 파일 하나당 URL을 최대 5만 개, 비압축 기준 50MB까지 담을 수 있습니다. 한도는 [sitemaps.org 프로토콜](https://www.sitemaps.org/protocol.html#index)에 적혀 있고, [Google Search Central](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)도 같은 숫자를 적어 둔 걸 확인해 볼 수 있죠.
+
+카탈로그가 그보다 커지면 메인 사이트맵에 하위 사이트맵 주소만 모아 관리합니다.
+이번에 본 서비스들은 이 구조를 쓰고 있었습니다.
+
+넷플릭스 메인 사이트맵은 `https://www.netflix.com/sitemap/index`로, 인덱스는 작품마다 `/sitemap/title/{id}` 하위 파일을 가리키고, 그 안에는 같은 작품의 국가와 언어 URL이 `hreflang`으로 묶여 있습니다.<br/>
+- ※ hreflang: 다국어 또는 다지역 웹사이트에서 Google에 페이지의 어떤 언어 및 국가 버전을 어느 사용자에게 보여줄지 알려 주는 기술적 SEO 기법
+
+라프텔은 메인 사이트맵 아래에 테마, 아이템, 태그를 두고, 회차는 월별 XML로 나눠 관리하고 있었습니다.
+
+유튜브도 사이트맵이 있지만 인덱스가 가리키는 건 Kids, Jobs, Creators 같은 제품과 정책 페이지이고, `/watch` URL 전체는 공개 사이트맵에 없습니다.
+
+인프런은 강좌, 유저, 리뷰, 태그, 질문을 종류별로 쪼개고, 파일이 커지면 `sitemap-reviewDetail-0.xml`처럼 번호를 붙입니다.
+
+| 서비스 | 인덱스 | 하위 분할 |
+|---|---|---|
+| 넷플릭스 | `/sitemap/index` | 작품 ID별, 지역 `hreflang` |
+| 라프텔 | `/sitemap.xml` | 테마, 태그랑 월별로 구분 |
+| 유튜브 | `/sitemaps/sitemap.xml` | 제품과 정책 페이지만, 시청 URL은 없음 |
+| 인프런 | CDN `sitemap.xml` | 강좌, 유저, 리뷰, 태그 등 타입별 |
+
+카탈로그가 커지면 사이트맵을 인덱스로 나누는 쪽이 프로토콜 한도에 맞고, 아직 이 프로젝트는 콘텐츠가 많지 않으므로 현재 형태도 타당해 보이네요.
