@@ -1,5 +1,5 @@
 ---
-title: "다른 VOD 사이트 분석하고 얕은 DRM 붙여보기 — MPEG-DASH와 Clear Key (Class Project)"
+title: "다른 VOD 사이트 분석하고 얕은 DRM 붙여보기: MPEG-DASH와 Clear Key (Class Project)"
 date: 2026-09-08T10:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]
@@ -15,7 +15,7 @@ lastmod: 2026-09-08T11:38:00+09:00
 지금 Class 프로젝트에 회원 유료 구독제와 PG를 붙이면 이게 클래스101이고 인프런이라고 개인적으로 생각합니다. 제가 좋아하는 코딩애플 유튜버님이 자체 운영하는 유료 강좌 사이트도 마찬가지 결이죠.
 
 ## DRM
-위에서 언급한 사이트들은 결국 돈을 받고 콘텐츠 접근을 허용하죠, 그 영상을 파일로 빼가지 못하게 막는 체계를 DRM이라고 합니다. DRM은 `Digital Rights Management`이라하며 사이트에서 허가된 재생만 열어 주는 콘텐츠 보호입니다. 
+위에서 언급한 사이트들은 결국 돈을 받고 콘텐츠 접근을 허용하죠. 그 영상을 파일로 빼가지 못하게 막는 체계를 DRM이라고 합니다. DRM은 `Digital Rights Management`이라고 하며 사이트에서 허가된 재생만 열어 주는 콘텐츠 보호입니다. 
 
 그런데 지금 제 사이트는 이런 시스템이 사실상 필요 없는 유튜브와 같은 공개 사이트죠. 그래서 네트워크로 다운로드되는 HLS 세그먼트만 모아다가 합치면 원본으로 다운로드가 가능합니다. 제 목적은 시스템의 경험을 해보는 것이므로 이걸 막아 보는 유사 DRM을 적용해 봅시다.
 유사라고 한 이유는 DRM을 안전하게 하려면 상용 서비스를 이용하는 게 일반적인 OTT 사이트들의 선택이기 때문이고, 이를 직접 구현하려면 결국에는 키 관리 시스템 서버를 별도로 둬야 합니다.
@@ -30,18 +30,18 @@ DRM 서비스들은 이 암호화 키를 더 안전하게 보관해서 영상이
 - EME(Encrypted Media Extensions): 웹에서 CDM에 라이선스를 요청하는 API 규격
 
 ## 타 사이트 방식
-크게 몇가지 사이트들에 대해서만 참고해봅시다.
+크게 몇 가지 사이트들에 대해서만 참고해봅시다.
 
 ### 인프런
-인프런은 비 로그인 사용자에 경우 아예 강의 사이트 접근을 막고 영상 내부에서는 다음처럼 막고 있죠.
-![inflean media](./image/inflearn_media.webp)
+인프런은 비로그인 사용자의 경우 아예 강의 사이트 접근을 막고 영상 내부에서는 다음처럼 막고 있죠.
+![인프런 media-internals 화면](./image/inflearn_media.webp)
 > https://vod.inflearn.com/videos/98118da3-1457-4a9b-aa0e-24e2f7ce23de/audio/cmaf/ko.mp4
 
-위와 같이 오디오를 cmaf로 가져오는걸로 봐 인프런은 다음 과정으로 스트리밍이 진행되고 있네요
+위와 같이 오디오를 CMAF로 가져오는 걸로 보고 인프런은 다음 과정으로 스트리밍이 진행되고 있네요
 > 브라우저 → 인프런 인증/재생 권한 → 서명된 CDN URL → CMAF 미디어 → DRM 복호화 → 재생
 - CMAF(Common Media Application Format): 하나의 미디어 파일을 인코딩하여 HLS와 MPEG-DASH 두 가지 스트리밍 프로토콜에 모두 사용할 수 있게 해주는 통합 미디어 컨테이너 표준
 
-그리고 영상 정보를 체크해보면 DRM 키 시스템으로 widevine를 사용중인걸 볼 수 있네요.
+그리고 영상 정보를 체크해 보면 DRM 키 시스템으로 Widevine을 사용 중인 걸 볼 수 있네요.
 ```json
 kSetCdm	
 {
@@ -108,8 +108,8 @@ audio_001.m4s
 자체 방식으로 아래처럼 전달하고 있어서 무료 영상이더라도 이 체계를 리버스 엔지니어링을 거쳐야 하기에, 어찌 보면 제가 만든 얕은 방식의 DRM보다 더 수고가 많이 들 수도 있어 보이군요.
 > 영상 주소: googlevideo.com/videoplayback ... sabr=1
 
-SABR은 `Server Adaptive Bitrate`로 세그먼트 전송 방식입니다.
-DASH처럼 `manifest.mpd`와 `.m4s` URL이 나열되지 않고, 요청 바디가 protobuf 바이트로 이 `protobuf` 필드에 필드 번호, 와이어 타입, 값 순으로 붙습니다.
+SABR은 `Server Adaptive Bitrate`인 세그먼트 전송 방식입니다.
+DASH처럼 `manifest.mpd`와 `.m4s` URL이 나열되지 않고, 요청 바디가 protobuf 바이트입니다. 이 protobuf 필드에는 필드 번호, 와이어 타입, 값이 순으로 붙습니다.
 공식 스키마는 아니지만 쓰임새에 따라 나누면 아래와 같습니다.
 
 ```mermaid
@@ -134,16 +134,16 @@ flowchart TB
 - SABR(Server Adaptive Bitrate): 클라이언트가 재생 상태를 보내고 서버가 다음 화질과 세그먼트를 고르는 전송 방식
 - ABR(Adaptive Bit Rate): 클라이언트가 대역폭과 버퍼를 보고 화질을 고르는 재생 방식
 
-### 라프텔 
-라프텔은 `PallyCon`이라는 종합 DRM 서비스를 사용해서 Mac/Chrome 기준으로 Widevine으로 동일하게 사용중인걸 알 수 있었죠.
+### 라프텔
+라프텔은 `PallyCon`이라는 종합 DRM 서비스를 사용해서 Mac/Chrome 기준으로 Widevine을 동일하게 사용 중인 걸 알 수 있었죠.
 ![laftel media](./image/laftel_media.webp)
 
-찾아보니 팰리컨(PallyCon)은 사 국내외 동영상 스트리밍(OTT), 온라인 교육, 인강, 미디어 분야에서 표준으로 쓰이는 국내 회사 서비스더군요. DRM 표준이 국내에 있다는 점이 신기했습니다.
+찾아보니 팰리컨(PallyCon)은 국내외 동영상 스트리밍(OTT), 온라인 교육, 인강, 미디어 분야에서 표준으로 쓰이는 국내 회사 서비스더군요. DRM 표준이 국내에 있다는 점이 신기했습니다.
 
-환경이 Mac/Chrome 이었다는 점으로 Widevine으로 통일되게 결과가 나왔길래 부가 설명을하면 Widevine은 3개의 레이어에서 보안처리를 합니다
+환경이 Mac/Chrome이었다는 점으로 Widevine으로 통일되게 결과가 나왔길래 부가 설명을 하면 Widevine은 3개의 레이어에서 보안 처리를 합니다.
 - L1 (Level 1): 하드웨어 수준에서 암호화를 안전하게 처리하며, 풀 HD 및 4K 울트라 HD 같은 최고 화질 재생에 필수적입니다.
 - L2 (Level 2): 하드웨어 내에서 일부 암호화를 처리하지만 드물게 사용됩니다.
-- L3 (Level 3): 소프트웨어 방식으로 복호화를 처리하며, 화질이 표준 화질(SD, 보통 480p)로 제한됩니다
+- L3 (Level 3): 소프트웨어 방식으로 복호화를 처리하며, 화질이 표준 화질(SD, 보통 480p)로 제한됩니다.
 
 ## 프로젝트에 적용하기
 

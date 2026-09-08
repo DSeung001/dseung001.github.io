@@ -1,5 +1,5 @@
 ---
-title: "RFC 8216 — HTTP Live Streaming"
+title: "RFC 8216: HTTP Live Streaming"
 date: 2026-05-26T00:00:00+09:00
 categories: [ "RFC", "Video" ]
 series: [ "rfc-study" ]

@@ -1,5 +1,5 @@
 ---
-title: "RFC 6749 — The OAuth 2.0 Authorization Framework"
+title: "RFC 6749: The OAuth 2.0 Authorization Framework"
 date: 2026-04-23T00:00:00+09:00
 categories: [ "RFC" ]
 series: [ "rfc-study" ]

@@ -1,5 +1,5 @@
 ---
-title: "RFC 6454 — The Web Origin Concept"
+title: "RFC 6454: The Web Origin Concept"
 date: 2026-04-22T00:00:00+09:00
 categories: [ "RFC" ]
 series: [ "rfc-study" ]

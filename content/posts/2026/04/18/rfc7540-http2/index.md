@@ -1,5 +1,5 @@
 ---
-title: "RFC 7540 — HTTP/2"
+title: "RFC 7540: HTTP/2"
 date: 2026-04-18T00:00:00+09:00
 categories: [ "RFC" ]
 series: [ "rfc-study" ]

@@ -1,5 +1,5 @@
 ---
-title: "Postgres too many clients — gevent 상한과 사이트맵 팬아웃 (Class Project)"
+title: "Postgres too many clients: gevent 상한과 사이트맵 팬아웃 (Class Project)"
 date: 2026-09-04T14:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]

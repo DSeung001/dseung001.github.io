@@ -1,5 +1,5 @@
 ---
-title: "RFC 9114 — HTTP/3"
+title: "RFC 9114: HTTP/3"
 date: 2026-04-20T00:00:00+09:00
 categories: [ "RFC" ]
 series: [ "rfc-study" ]
