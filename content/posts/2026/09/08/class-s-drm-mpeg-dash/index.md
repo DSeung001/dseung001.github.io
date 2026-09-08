@@ -1,5 +1,5 @@
 ---
-title: "영상에 DRM 붙이기 — MPEG-DASH와 Clear Key (Class Project)"
+title: "다른 VOD 사이트 분석하고 얕은 DRM 붙여보기 — MPEG-DASH와 Clear Key (Class Project)"
 date: 2026-09-08T10:00:00+09:00
 categories: [ "Project", "Class Project" ]
 series: [ "class-s-project" ]
@@ -34,7 +34,7 @@ DRM 서비스들은 이 암호화 키를 더 안전하게 보관해서 영상이
 
 ### 인프런
 인프런은 비 로그인 사용자에 경우 아예 강의 사이트 접근을 막고 영상 내부에서는 다음처럼 막고 있죠.
-![inflean](./image/inflearn.webp)
+![inflean media](./image/inflearn_media.webp)
 > https://vod.inflearn.com/videos/98118da3-1457-4a9b-aa0e-24e2f7ce23de/audio/cmaf/ko.mp4
 
 위와 같이 오디오를 cmaf로 가져오는걸로 봐 인프런은 다음 과정으로 스트리밍이 진행되고 있네요
@@ -66,7 +66,7 @@ Network를 보면 딱 봐도 일반적인 DASH 매니페스트처럼 찍히지 �
 이 오픈소스는 EME challenge가 그대로 Network에 나가지 않고, `build_request_data`로 MSL 메시지가 된 뒤 `chunked_request`로 나갑니다.
 - MSL(Message Security Layer): 넷플릭스가 HTTP 위에 올린 메시지 보안 프로토콜. 기기와 사용자 인증, 매니페스트와 DRM 라이선스 같은 민감 메시지를 암호화해 전송한다.
 
-[넷플릭스 플러그인 원본 코드](https://github.com/CastagnaIT/plugin.video.netflix/blob/master/resources/lib/services/nfsession/msl/msl_handler.py?utm_source=chatgpt.com)
+[CastagnaIT/plugin.video.netflix](https://github.com/CastagnaIT/plugin.video.netflix/blob/master/resources/lib/services/nfsession/msl/msl_handler.py?utm_source=chatgpt.com)
 ```python
 # 해당 플러그인은 Kodi용으로 넷플릭스 영상을 바꾸던 코드였고, 지금은 개발이 중지됨
 # plugin.video.netflix MSLHandler.get_license 발췌 후 요약한 로직
@@ -89,8 +89,61 @@ def get_license(self, license_data):
 그래서 Network에는 일반 Widevine 라이선스 POST처럼 안 보이고, MSL 메시지에서 처리됩니다. `chrome://media-internals`에 키가 안 보이는 원인으로 생각됩니다.
 
 ### 유튜브
-### 라프텔 
+유튜브도 유료 콘텐츠에 한해서는 DRM 체크를 진행합니다.
+구글 계열답게 여기도 [Widevine](https://developers.google.com/widevine/drm/overview)을 사용하고 있다고 하며 넷플릭스처럼 자체 최적화를 매우 진행했죠.
+여기에 Protobuf도 적용되었고요. <br/>
+- Protobuf: 구글이 개발한 언어 중립적, 플랫폼 중립적 구조화 바이트 데이터 직렬화 메커니즘
 
+스트리밍 방식은 일반적인 DASH 방식이 아니라
+```
+manifest.mpd
+video_1080_init.mp4
+video_1080_001.m4s
+video_1080_002.m4s
+
+audio_init.mp4
+audio_001.m4s
+```
+
+자체 방식으로 아래처럼 전달하고 있어서 무료 영상이더라도 이 체계를 리버스 엔지니어링을 거쳐야 하기에, 어찌 보면 제가 만든 얕은 방식의 DRM보다 더 수고가 많이 들 수도 있어 보이군요.
+> 영상 주소: googlevideo.com/videoplayback ... sabr=1
+
+SABR은 `Server Adaptive Bitrate`로 세그먼트 전송 방식입니다.
+DASH처럼 `manifest.mpd`와 `.m4s` URL이 나열되지 않고, 요청 바디가 protobuf 바이트로 이 `protobuf` 필드에 필드 번호, 와이어 타입, 값 순으로 붙습니다.
+공식 스키마는 아니지만 쓰임새에 따라 나누면 아래와 같습니다.
+
+```mermaid
+flowchart TB
+  post["POST /videoplayback?sabr=1"] --> body["binary body"]
+  body --> msg["protobuf 메시지"]
+
+  subgraph fields["메시지 필드"]
+    playback["playback state"]
+    buffer["buffer state"]
+    formats["formats"]
+    token["token/context"]
+    abr["ABR parameters"]
+  end
+
+  msg --> playback
+  msg --> buffer
+  msg --> formats
+  msg --> token
+  msg --> abr
+```
+- SABR(Server Adaptive Bitrate): 클라이언트가 재생 상태를 보내고 서버가 다음 화질과 세그먼트를 고르는 전송 방식
+- ABR(Adaptive Bit Rate): 클라이언트가 대역폭과 버퍼를 보고 화질을 고르는 재생 방식
+
+### 라프텔 
+라프텔은 `PallyCon`이라는 종합 DRM 서비스를 사용해서 Mac/Chrome 기준으로 Widevine으로 동일하게 사용중인걸 알 수 있었죠.
+![laftel media](./image/laftel_media.webp)
+
+찾아보니 팰리컨(PallyCon)은 사 국내외 동영상 스트리밍(OTT), 온라인 교육, 인강, 미디어 분야에서 표준으로 쓰이는 국내 회사 서비스더군요. DRM 표준이 국내에 있다는 점이 신기했습니다.
+
+환경이 Mac/Chrome 이었다는 점으로 Widevine으로 통일되게 결과가 나왔길래 부가 설명을하면 Widevine은 3개의 레이어에서 보안처리를 합니다
+- L1 (Level 1): 하드웨어 수준에서 암호화를 안전하게 처리하며, 풀 HD 및 4K 울트라 HD 같은 최고 화질 재생에 필수적입니다.
+- L2 (Level 2): 하드웨어 내에서 일부 암호화를 처리하지만 드물게 사용됩니다.
+- L3 (Level 3): 소프트웨어 방식으로 복호화를 처리하며, 화질이 표준 화질(SD, 보통 480p)로 제한됩니다
 
 ## 프로젝트에 적용하기
 
