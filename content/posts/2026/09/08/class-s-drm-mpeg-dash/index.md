@@ -255,3 +255,6 @@ sequenceDiagram
 현재 적용된 DRM은 공개(`PUBLISHED`) 강좌는 라이선스 API도 비로그인으로 받을 수 있습니다.
 그래서 Network에 Clear Key JSON이 보이면 키를 알 수 있고, 상용 Widevine 수준의 보호에는 못 미치지만, 이전처럼 영상을 HLS 자료들을 다운로드한 뒤 합치면 되던 방식에서 복호화 키를 가지고 복호화해야 하는 방식으로 진입 장벽을 추가했습니다.
 이런 식으로 어느 정도의 DRM과 유사한 흐름을 만들어 봤네요.
+
+추가로 개발할 때 shaka 플레이어가 굉장히 말썽이었습니다.
+이유는 `ffmpeg`은 일반적인 스트리밍(HLS/DASH) 패키징과 기본적인 암호화(CENC)를 지원하지만 CENC(Common Encryption)의 세부 규격에는 한계가 있어서 였고 `shaka-packager`을 도입해 해결했네요.
