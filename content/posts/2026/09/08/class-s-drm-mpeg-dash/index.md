@@ -8,7 +8,7 @@ draft: true
 description: "넷플릭스와 라프텔의 상용 DRM을 참고하되 상용 DRM 서비스를 쓰지 않고, Class S에 DRM을 적용하는 과정. Shaka Player 이슈까지."
 keywords: [ "DRM", "Clear Key", "MPEG-DASH", "Shaka Player", "EME", "CENC", "DASH" ]
 author: "DSeung001"
-lastmod: 2026-09-08T11:38:00+09:00
+lastmod: 2026-09-08T13:05:00+09:00
 ---
 
 ## 개요
@@ -135,7 +135,12 @@ flowchart TB
 - ABR(Adaptive Bit Rate): 클라이언트가 대역폭과 버퍼를 보고 화질을 고르는 재생 방식
 
 ### 라프텔
-라프텔은 `PallyCon`이라는 종합 DRM 서비스를 사용해서 Mac/Chrome 기준으로 Widevine을 동일하게 사용 중인 걸 알 수 있었죠.
+라프텔은 `PallyCon`이라는 종합 DRM 서비스를 사용해서 Mac/Chrome 기준으로 Widevine을 동일하게 사용 중인 걸 알 수 있었습니다.
+access-control-allow-header로 서비스를 볼 수 있는데, 여기에 표시되고 있었네요.
+```text
+access-control-allow-headers: 
+origin, x-requested-with, content-type, pallycon-inka-customdata, pallycon-customdata, pallycon-customdata-v2, drm-type, custom-header, soapaction, authorization, accept, Pragma, Cache-Control
+```
 ![laftel media](./image/laftel_media.webp)
 
 찾아보니 팰리컨(PallyCon)은 국내외 동영상 스트리밍(OTT), 온라인 교육, 인강, 미디어 분야에서 표준으로 쓰이는 국내 회사 서비스더군요. DRM 표준이 국내에 있다는 점이 신기했습니다.
@@ -145,12 +150,9 @@ flowchart TB
 - L2 (Level 2): 하드웨어 내에서 일부 암호화를 처리하지만 드물게 사용됩니다.
 - L3 (Level 3): 소프트웨어 방식으로 복호화를 처리하며, 화질이 표준 화질(SD, 보통 480p)로 제한됩니다.
 
-## 프로젝트에 적용하기
+## DRM 
+DRM을 간단히 보면 아 인증하는 이걸로 인증하는 시스템인가보다로 생각하면 편하지만 내부적으로 
 
-### 적용 범위
-
-### 데이터 흐름
-
-### Bug, Bug, Bug
-
-
+## 적용
+### 수정
+### 버그

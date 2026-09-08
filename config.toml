@@ -5,6 +5,8 @@ title = "DevSeung Blog | AI·백엔드·검색 시스템 개발 기록"
 theme = "PaperMod"
 enableGitInfo = true
 summaryLength = 35
+# 내장 Sitemap 은 루트 /sitemap.xml 만 쓰므로 끄고, SiteMapFile 포맷으로 대체한다.
+disableKinds = ["sitemap"]
 
 # 콘텐츠 디렉토리 설정
 contentDir = "content"
@@ -188,10 +190,25 @@ contentDir = "content"
     weight = 40
 
 # 사이트맵 설정
+# 루트 /sitemap.xml 은 GitHub Pages CDN 캐시가 오래 남아 GSC가 옛 파일을 읽는다.
+# disableKinds 로 내장을 끄고, SiteMapFile 로 /sitemap/sitemap.xml 만 생성한다.
+
 [sitemap]
   changefreq = "weekly"
   priority = 0.5
-  filename = "sitemap.xml"
+
+[outputFormats.SiteMapFile]
+  mediaType = "application/xml"
+  baseName = "sitemap"
+  isHTML = false
+  isPlainText = false
+  noUgly = false
+  notAlternative = true
+  path = "sitemap"
+  permalinkable = false
+  rel = "sitemap"
+  root = false
+  ugly = true
 
 # --minify 시 XML을 한 줄로 붙이면 GSC가 "사이트맵을 읽을 수 없음"을 낸다
 # (PaperMod 이슈: https://github.com/gohugoio/hugo/issues/7766)
@@ -199,4 +216,4 @@ contentDir = "content"
   disableXML = true
 
 [outputs]
-  home = [ "HTML", "RSS", "Sitemap", "Robots", "JSON" ]
+  home = [ "HTML", "RSS", "SiteMapFile", "Robots", "JSON" ]

@@ -1,4 +1,4 @@
-{{- /* sitemap.xml: 선언은 반드시 첫 줄, minify로 한 줄이 되면 GSC가 읽지 못한다 */ -}}
+{{- /* sitemap/sitemap.xml: 선언은 반드시 첫 줄, minify로 한 줄이 되면 GSC가 읽지 못한다 */ -}}
 {{ "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   {{- range site.Pages -}}
