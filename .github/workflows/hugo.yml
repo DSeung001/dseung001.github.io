@@ -47,7 +47,11 @@ jobs:
           hugo \
             --gc \
             --minify \
+            --cleanDestinationDir \
             --baseURL "${{ steps.pages.outputs.base_url }}/"
+
+      - name: Validate sitemaps
+        run: python3 .github/scripts/validate_sitemaps.py public "${{ steps.pages.outputs.base_url }}/"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

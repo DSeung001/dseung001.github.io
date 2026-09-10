@@ -1,0 +1,27 @@
+{{- /* 두 사이트맵 주소에 동일한 내용을 출력하며 XML 선언 앞의 공백을 제거한다. */ -}}
+{{ "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  {{- range site.Pages -}}
+  {{- if and (not .Draft) (ne .Params.robotsNoIndex true) (not .Sitemap.Disable) -}}
+  <url>
+    <loc>{{ .Permalink }}</loc>
+    {{- if not .Lastmod.IsZero }}
+    <lastmod>{{ .Lastmod.Format "2006-01-02" }}</lastmod>
+    {{- end }}
+    {{- if .IsHome }}
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    {{- else if eq .Kind "section" }}
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    {{- else if .IsPage }}
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    {{- else }}
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+    {{- end }}
+  </url>
+  {{- end -}}
+  {{- end }}
+</urlset>
