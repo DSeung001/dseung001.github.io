@@ -22,33 +22,60 @@ disableShare: true
     <div class="resume-col">
       <header class="resume-hero">
         <h1 class="resume-hero__title">지승렬 / Product Developer</h1>
-        <p>데이터 수집, 처리, 저장, 운영 경험을 기반으로 동영상 파이프라인 분야로 확장하기 위해 준비 중인 개발자입니다.</p>
-        <p>저는 의료기기 데이터 처리, 이미지 처리 최적화, 대규모 이벤트 운영, 이커머스 데이터 수집 파이프라인을 경험했고, 현재는 개인 프로젝트를 통해 영상 업로드, 비동기 인코딩, HLS 변환, S3/CloudFront 배포 구조를 직접 구현하고 있습니다.</p>
-        <p>기술 도입이 아닌 현재 상황에 맞는 문제 해결에 힘을 쓰고 싶으며, 제한된 비용과 운영 환경 안에서 안정적으로 동작하는 시스템을 만드는 개발자를 지향합니다.</p>
-        <div class="resume-hero__focus">
-          <ul class="resume-focus-list">
-            <li class="resume-focus-item">
-              <span class="resume-focus-item__name">Video Processing</span>
-              <span class="resume-focus-item__detail">강의 영상 서비스에서 FFmpeg HLS 인코딩 파이프라인과 품질 및 용량 튜닝을 직접 구현</span>
-            </li>
-            <li class="resume-focus-item">
-              <span class="resume-focus-item__name">Backend API</span>
-              <span class="resume-focus-item__detail">Django와 Go 기반 API 설계와 PublishJob, 의료기기 연동 등 도메인 API 개발 경험</span>
-            </li>
-            <li class="resume-focus-item">
-              <span class="resume-focus-item__name">Async Job Processing</span>
-              <span class="resume-focus-item__detail">Celery/Redis 비동기 인코딩과 SQS, Redis Queue 기반 처리 경험</span>
-            </li>
-            <li class="resume-focus-item">
-              <span class="resume-focus-item__name">Storage / CDN Delivery</span>
-              <span class="resume-focus-item__detail">S3 업로드와 저장, CloudFront 배포 구조를 설계하고 운영</span>
-            </li>
-            <li class="resume-focus-item">
-              <span class="resume-focus-item__name">Operation Stability</span>
-              <span class="resume-focus-item__detail">일일 DAU 10만 이벤트 운영과 이슈 대응</span>
-            </li>
-          </ul>
-        </div>
+        <h2 class="resume-hero__section-title">역량</h2>
+        <ol class="resume-skill-groups">
+          <li class="resume-skill-group">
+            <h3 class="resume-skill-group__title">API, 비동기 처리 및 시스템 연동</h3>
+            <ul class="resume-list">
+              <li>Go, Python/Django, PHP 기반 백엔드 및 웹 서비스 개발과 운영 경력 6년 이상</li>
+              <li>의료기기의 통신 방식과 데이터 형식을 분석해 신규 장비 연동 구조와 백엔드 API를 설계하고 구현</li>
+              <li>Django 기반 콘텐츠 플랫폼에서 영상 업로드, 발행 상태 관리, HLS 배포를 위한 API와 PublishJob 구조 설계</li>
+              <li>Celery, Redis, SQS, Redis Queue 기반 비동기 처리 구조를 활용해 영상 인코딩과 대규모 이벤트 요청 처리</li>
+              <li>Swagger 기반 API 문서화를 적용해 프론트엔드 팀과의 협업 편의성 개선</li>
+            </ul>
+          </li>
+          <li class="resume-skill-group">
+            <h3 class="resume-skill-group__title">콘텐츠 및 데이터 파이프라인 설계</h3>
+            <ul class="resume-list">
+              <li>영상 업로드부터 비동기 인코딩과 콘텐츠 배포까지 이어지는 처리 파이프라인 설계와 운영</li>
+              <li>Presigned URL을 이용한 S3 직접 업로드와 PublishJob 생성</li>
+              <li>AWS SQS 작업 전달, FFmpeg HLS 인코딩, S3와 CloudFront 배포 구조 구현</li>
+              <li>의료 데이터의 수집, 처리, 저장, 제공 전 과정을 개발하고 데이터 특성에 따라 파일 시스템과 데이터베이스 저장 방식을 구분</li>
+              <li>프록시 네트워크와 요청 최적화를 활용해 수십만~100만 건 규모의 이커머스 상품 데이터 수집</li>
+              <li>의료 데이터 암호화 및 기존 데이터를 신규 테이블 구조로 이전하는 마이그레이션 수행</li>
+            </ul>
+          </li>
+          <li class="resume-skill-group">
+            <h3 class="resume-skill-group__title">서비스 안정성 및 운영 자동화</h3>
+            <ul class="resume-list">
+              <li>AWS EC2, S3, CloudFront, CloudWatch 환경에서 서비스 배포, 모니터링, 장애 대응 경험</li>
+              <li>특정 기간에 트래픽이 집중되는 일일 참여자 10만 명 이상 규모의 이벤트 서비스를 운영하고 실시간 장애에 대응</li>
+              <li>Celery 작업 재시도와 실행 제한 시간으로 발생한 작업 상태 불일치 문제를 분석하고 작업 처리 설정과 상태 관리 로직 개선</li>
+              <li>로깅 시스템과 에러 처리 방식을 개선하고 핵심 데이터 처리 로직의 단위 테스트를 추가</li>
+              <li>GitHub Actions와 ECR을 활용해 Docker 이미지 빌드와 배포 과정을 자동화하고 서버 내부의 수동 빌드 작업을 개선</li>
+            </ul>
+          </li>
+          <li class="resume-skill-group">
+            <h3 class="resume-skill-group__title">성능 최적화 및 점진적 아키텍처 개선</h3>
+            <ul class="resume-list">
+              <li>Go의 동시성 모델을 활용해 의료 이미지 처리 로직을 병렬화하고 처리 시간을 약 11초에서 4초로 단축</li>
+              <li>의료기기 통신 과정에 로컬 캐싱 구조를 도입해 DB 접근량을 기존 대비 22% 절감</li>
+              <li>기존 서비스에 미치는 영향을 최소화하면서 도메인별 책임과 의존성을 분리하는 방향으로 레거시 구조 개선</li>
+              <li>API 서버와 영상 인코딩 워커의 역할을 분리하고 작업 큐 기반으로 확장할 수 있는 처리 구조 설계</li>
+              <li>FFmpeg의 코덱, CRF, 비트레이트, 프레임 레이트 옵션을 분석하고 조정해 영상 품질과 HLS 재생 안정성 개선</li>
+            </ul>
+          </li>
+          <li class="resume-skill-group">
+            <h3 class="resume-skill-group__title">RAG 및 LLM 기반 검색 시스템 설계</h3>
+            <ul class="resume-list">
+              <li>강의 자막과 메타데이터를 청킹하고 임베딩하여 LLM이 활용할 수 있는 검색 인덱싱 파이프라인 구축</li>
+              <li>PostgreSQL FTS와 pgvector를 결합한 키워드, 의미 기반 하이브리드 검색 구현</li>
+              <li>검색 품질이 낮은 경우 LLM Query Rewrite 후 재검색하는 조건부 검색 최적화 로직 구현</li>
+              <li>검색 결과를 기반으로 LLM Context를 구성하고 실 데이터와 교차 검증을 적용해 근거 없는 응답과 Hallucination 방지</li>
+              <li>Golden Dataset 기반 RAG 회귀 테스트와 검색 랭킹 A/B 테스트 구조를 구축해 품질을 지속적으로 검증 가능한 구조 설계</li>
+            </ul>
+          </li>
+        </ol>
       </header>
     </div>
   </div>
@@ -109,7 +136,7 @@ disableShare: true
 → CloudWatch / ASG 워커 → FFmpeg HLS 인코딩 → S3 저장
 → CloudFront 배포 → Client 재생</pre>
               <ul class="resume-list">
-                <li>관련 글: <a href="https://dseung001.github.io/tags/class-project">https://dseung001.github.io/tags/class-project</a></li>
+                <li>관련 글: <a href="https://dseung001.github.io/series/class-s-project">https://dseung001.github.io/series/class-s-project</a></li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
               <div class="resume-tags">

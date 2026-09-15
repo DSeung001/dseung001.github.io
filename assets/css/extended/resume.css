@@ -145,10 +145,19 @@
 }
 
 .resume-hero__title {
-    margin: 0 0 0.25rem;
+    margin: 0 0 0.85rem;
     font-size: inherit;
     font-weight: 700;
     color: var(--primary);
+}
+
+.resume-hero__section-title {
+    margin: 0 0 0.65rem;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
 }
 
 .resume-hero__subtitle {
@@ -169,46 +178,37 @@
     margin-bottom: 0;
 }
 
-.resume-hero__focus {
-    margin-top: 0.85rem;
-    padding-top: 0.85rem;
-    border-top: 1px solid var(--border);
-}
-
-.resume-hero__focus .resume-hero__subtitle {
-    margin-bottom: 0.45rem;
-    font-weight: 600;
-    color: var(--primary);
-}
-
-.resume-focus-list {
+.resume-skill-groups {
     margin: 0;
     padding: 0;
     list-style: none;
+    counter-reset: resume-skill;
 }
 
-.resume-focus-item {
-    display: grid;
-    grid-template-columns: minmax(9rem, 11rem) 1fr;
-    gap: 0.5rem 0.75rem;
-    padding: 0.4rem 0;
-    border-bottom: 1px solid var(--border);
-    line-height: inherit;
-    color: var(--content);
+.resume-skill-group {
+    margin: 0 0 0.85rem;
+    padding: 0;
+    counter-increment: resume-skill;
 }
 
-.resume-focus-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+.resume-skill-group:last-child {
+    margin-bottom: 0;
 }
 
-.resume-focus-item__name {
+.resume-skill-group__title {
+    margin: 0 0 0.35rem;
+    font-size: inherit;
     font-weight: 600;
     color: var(--primary);
+    line-height: inherit;
 }
 
-.resume-focus-item__detail {
-    color: var(--content);
+.resume-skill-group__title::before {
+    content: counter(resume-skill) ". ";
+}
+
+.resume-skill-group .resume-list {
+    margin-top: 0;
 }
 
 .resume-card {
@@ -648,11 +648,6 @@ body.dark .resume-meta a {
         white-space: normal;
     }
 
-    .resume-focus-item {
-        grid-template-columns: 1fr;
-        gap: 0.2rem;
-    }
-
     .resume-stats {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -688,10 +683,6 @@ body.dark .resume-meta a {
         grid-template-columns: var(--resume-cols, 1fr 1fr) !important;
     }
 
-    .resume-focus-item {
-        grid-template-columns: minmax(9rem, 11rem) 1fr !important;
-    }
-
     .resume-project__summary {
         flex-wrap: nowrap !important;
     }
@@ -722,7 +713,8 @@ body.dark .resume-meta a {
     .resume-block,
     .resume-project,
     .resume-card,
-    .resume-stat {
+    .resume-stat,
+    .resume-skill-group {
         break-inside: avoid;
         page-break-inside: avoid;
     }
