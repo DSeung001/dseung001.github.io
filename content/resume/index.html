@@ -120,22 +120,18 @@ disableShare: true
               <span class="resume-project__period">2026.05 - 현재</span>
             </summary>
             <div class="resume-project__body">
-              <p>동영상 도메인으로 역량을 확장하기 위해 구현한 프로젝트입니다.</p>
-              <p>단순히 영상을 업로드하는 기능이 아니라, 업로드된 영상을 비동기로 처리하고 HLS로 변환한 뒤 S3와 CloudFront를 통해 제공하는 구조입니다.</p>
-              <h4 class="resume-card__subtitle">주요 기능</h4>
+              <p>개인 프로젝트 (현재)</p>
+              <p>강의 영상 업로드부터 HLS 변환과 CDN 배포까지 이어지는 동영상 스트리밍 서비스 개발</p>
+              <h4 class="resume-card__subtitle">주된 업무 및 실적</h4>
               <ul class="resume-list">
-                <li>User: 회원가입 및 로그인 / 업로더 권한 승인</li>
-                <li>Media: 커리큘럼 관리 / 강좌 관리 / 강의 타임라인 관리 / 영상 업로드 / HLS 인코딩 결과 배포</li>
-                <li>Job: 영상 시청 플로우 / 영상 Publish 작업 관리</li>
-                <li>QnA: 자유 QnA / 마크다운 입력 지원 (QnA/댓글)</li>
-                <li>AI: 썸네일 생성 페이지에서 이미지 및 썸네일 생성</li>
-              </ul>
-              <h4 class="resume-card__subtitle">데이터 플로우</h4>
-              <pre class="resume-code">Client → Backend API (init) → Presigned URL
-→ Client S3 Direct PUT → commit → PublishJob → SQS
-→ CloudWatch / ASG 워커 → FFmpeg HLS 인코딩 → S3 저장
-→ CloudFront 배포 → Client 재생</pre>
-              <ul class="resume-list">
+                <li>Presigned URL 기반 S3 직접 업로드와 PublishJob, SQS, FFmpeg HLS 인코딩, CloudFront 배포 파이프라인 구현</li>
+                <li>API 서버와 인코딩 워커를 분리하고 SQS, CloudWatch, ASG 기반으로 전환해 일일 인프라 비용을 약 3달러에서 약 1.17달러로 절감</li>
+                <li>Celery와 Redis Visibility Timeout 충돌로 발생한 작업 상태 불일치를 분석하고 처리 설정 개선</li>
+                <li>GitHub Actions와 ECR을 활용해 Docker 이미지 빌드와 배포 과정 자동화</li>
+                <li>PostgreSQL FTS와 pgvector를 결합한 하이브리드 검색과 검색 랭킹 A/B 테스트 구조 구현</li>
+                <li>강의 자막 기반 RAG 질의응답 파이프라인 구축</li>
+                <li>VAD와 Groq Whisper를 조합해 하루 강의 기준 STT 비용을 약 1.48달러에서 무료 플랜 범위로 절감</li>
+                <li>SSE 기반 실시간 공지 알림과 AI 이미지 생성 기반 썸네일 자동화 기능 구현</li>
                 <li>관련 글: <a href="https://dseung001.github.io/series/class-s-project">https://dseung001.github.io/series/class-s-project</a></li>
               </ul>
               <h4 class="resume-card__subtitle">사용 기술</h4>
@@ -147,7 +143,9 @@ disableShare: true
                 <span class="resume-tag">FFmpeg</span>
                 <span class="resume-tag">HLS</span>
                 <span class="resume-tag">AWS S3</span>
+                <span class="resume-tag">AWS SQS</span>
                 <span class="resume-tag">AWS CloudFront</span>
+                <span class="resume-tag">PostgreSQL</span>
                 <span class="resume-tag">Docker</span>
               </div>
             </div>
@@ -254,12 +252,7 @@ disableShare: true
             </summary>
             <div class="resume-project__body">
               <p>주식회사 비트리 개발팀 도제 활동 (2개월)</p>
-              <h4 class="resume-card__subtitle">주된 업무 및 실적</h4>
-              <ul class="resume-list">
-                <li>APM 구조 학습 및 적용</li>
-                <li>WordPress 테마 및 플러그인 수정</li>
-                <li>업무 서포팅</li>
-              </ul>
+              <p>APM과 WordPress를 통한 유지보수와 서포팅</p>
               <h4 class="resume-card__subtitle">사용 기술</h4>
               <div class="resume-tags">
                 <span class="resume-tag">WordPress</span>
