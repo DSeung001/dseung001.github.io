@@ -33,6 +33,7 @@ Backend & Network Engineer로서, HLS·RFC 표준·미디어 스트리밍 프로
   - `categories`에 `"OSTEP"` 포함 → `series: [ "ostep-concurrency" ]`
   - `categories`에 `"Class Project"` 포함 → `series: [ "class-s-project" ]`
   - `categories`에 `"RFC"` 포함 → `series: [ "rfc-study" ]`
+  - `categories`에 `"FiguRoom"` 포함 → `series: [ "figuroom" ]`
 - **tags와 categories/series 중복 금지**: `series`나 `categories`가 이미 그룹을 표현한다면 같은 값을 `tags`에 또 넣지 않는다(예: `series: [ "class-s-project" ]`가 있는 글의 `tags`에 "Class Project"를 넣지 않는다). 태그는 그 글만의 세부 키워드에 집중한다.
 - **제목에 내부 코드네임을 맨 앞에 쓰지 않는다.** "Class S", "Class Project" 같은 내부 프로젝트명은 실제 검색어가 아니다. 실제 기술 키워드/문제 상황을 제목 앞에 두고 프로젝트명은 부제나 괄호로 내린다(예: "Whisper STT 비용 절감 — VAD와 Groq API (Class S)").
 - **이미지 alt 텍스트를 항상 채운다.** 마크다운 `![대체텍스트](경로)` 문법을 쓰고 빈 alt(`![]()`)를 남기지 않는다.

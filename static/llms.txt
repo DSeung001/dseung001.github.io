@@ -34,6 +34,12 @@
 - [발행 로직 리뷰](https://dseung001.github.io/posts/2026/08/27/class-s-publish-logic-review/): 콘텐츠 발행 파이프라인 로직을 점검하고 개선한 기록.
 - [Celery/Redis 타임아웃 버그 해결기](https://dseung001.github.io/posts/2026/06/16/class-project-bug-celery-redis-time-limit/): Celery 작업이 Redis 타임리밋에 걸려 실패하던 문제의 원인 분석과 해결.
 
+## FiguRoom (Series)
+
+피규어 장식장 배치를 화면에서 미리 보는 서비스 FiguRoom의 연재 기록. 전체 목록은 [시리즈 허브](https://dseung001.github.io/series/figuroom/)에서 볼 수 있습니다.
+
+- [피규어 장식장 배치, 랜딩과 설문부터 시작하기](https://dseung001.github.io/posts/2026/09/18/figuroom-landing-survey/): 랜딩 페이지와 수집가 설문조사로 시리즈를 연 첫 기록.
+
 ## Backend And Systems
 
 - [Go 채널과 동시성 분석](https://dseung001.github.io/posts/2026/07/28/go-chan-analysis/): Go channel 동작과 동시성 패턴 분석.
