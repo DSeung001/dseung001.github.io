@@ -1,5 +1,5 @@
 ---
-title: "추천 시스템 분석 — FiguRoom 커뮤니티 전략"
+title: "추천 시스템 분석: FiguRoom 커뮤니티 전략"
 date: 2026-09-22T09:00:00+09:00
 categories: [ "Project", "FiguRoom", "Subculture" ]
 series: [ "figuroom" ]
@@ -15,9 +15,20 @@ lastmod: 2026-09-22T09:00:00+09:00
 
 모두의 창업을 통해 피규룸 서비스를 기획 중이고 준비 중에 가장 먼저 만난 장애물은 홍보와 초기 사용자 층 확보로 생각됩니다.
 
-그래서 [저번 글](../../18/figuroom-landing-survey/)에서처럼 커뮤니티를 만들자고 생각했고, 서브컬처 문화에서 가장 홍보가 효과적인 곳은 X라는 생각이 들어 홍보 계정을 만들고 일일 2개에서 4개의 포스트를 작성하고 있습니다. 
+그래서 [저번 글](../../18/figuroom-landing-survey/)에서처럼 커뮤니티를 만들자고 생각했고, 서브컬처 문화에서 가장 홍보가 효과적인 곳은 X라는 생각이 들어 홍보 계정을 만들고 일일 2개에서 4개의 포스트를 작성하고 있습니다. 하지만 이 방법으로는 트래픽과 실질 목적인 사용자 층을 불러올 수 없었습니다.
+그래서 이 부분은 포스트보다 활동 자체에 시간을 투입할 예정입니다.
 
-그런데 당연한 이야기지만 조회수 20~40에서 머무르고 있다는 게 마음에 들지 않았고 이를 해결할 방법을 고민한 결과 X 알고리즘에 대해서도 궁금증이 들었습니다, 현재 1차 MVP로 생각하는 것도 결국 X와 유사한 시스템이니 미리 공부해 두면 좋을 것 같고요.
+그래도 조회수 20~40에서 머무르고 있다는 게 마음에 들지 않았습니다.
+이를 해결할 방법을 고민하다보니 개발자여서 그런지 결과 X 알고리즘에 대해서도 궁금증이 들었습니다, 현재 1차 MVP로 생각하는 것도 결국 X와 유사한 시스템이니 미리 공부해 두면 좋을 것 같다는 생각이었고 홍보라는게 바로 되는게 아닌 시간이 드는 작업이였기에 X 계정 성장과 분석을 동시에 해보려합니다.
+
+어찌되었든 나중에는 다음과 같은 흐름으로 사용자 유입이 되게끔 유도해야한다는 전제는 가지고 있습니다.
+```mermaid
+flowchart LR
+  FiguRoom[FiguRoom] --> XShare[X 공유]
+  XShare --> CollectorIn[다른 컬렉터 유입]
+  CollectorIn --> FiguRoomCreate[FiguRoom 생성]
+  FiguRoomCreate --> XShare
+```
 
 ## 조사 방향
 
@@ -57,3 +68,32 @@ xAI가 공개한 최근 X 추천 코드입니다.
 > https://dl.acm.org/doi/epdf/10.1145/2959100.2959190
 
 수백만 후보를 가벼운 모델로 수백 개로 줄인 뒤(Candidate Generation), 무거운 모델로 정밀 점수화(Ranking)하는 산업 표준 이단 구조를 YouTube 사례로 정리한 논문입니다. 글에서 잡은 Retrieval → Ranking → Re-ranking 큰 틀을 다른 대형 서비스와 맞춰 보는 데 씁니다.
+
+## 추천 시스템 
+
+YouTube 논문과 GraphJet 논문을 베이스로 가져가려합니다. 이들은 다음 질문에 대해서 답을 기대해볼 수 있죠.
+- 수백만 개 데이터에서 어떻게 최종 몇 개를 고르는가?
+- 사용자 행동 관계를 그래프로 만들어 후보를 어떻게 실시간으로 찾아오는가
+
+더 자세히는 YouTube 논문은 명시적으로 2-stage 구조를 사용하고 
+`Candidate Generation → Ranking`의 구조를 사용합니다, 
+GraphJet은 사용자와 트윗 사이의 실시간 `bipartite interaction graph`와 `random walk`를 추천을 사용해서 이들을 알 수 있죠.
+
+### YouTube
+
+2016년 RecSys 논문 [Deep Neural Networks for YouTube Recommendations](https://dl.acm.org/doi/epdf/10.1145/2959100.2959190)은 딥러닝을 대규모 추천 파이프라인에 넣은 대표적인 사례입니다.
+주된 내용은 수백만 영상을 한 번에 정밀 점수화하지 않고, 단계를 둘로 나눈 이단 구조입니다.
+![YouTube 추천 이단 구조: Candidate Generation과 Ranking 퍼널](./image/youtube-two-stage.png)
+
+이단 구조는 처음 `Candidate Generation`으로 후보를 먼저 줄인 뒤, Ranking으로 남은 후보만 정밀하게 점수를 매기는 방식입니다.
+전체 데이터셋에서 바로 최종 결과물을 뽑는 게 아닌 가벼운 필터링을 앞에 둬서 미리 전처리 작업을 합니다. 그 후 필터링된 결과를 정밀하게 가중치를 매겨 추천하는 게 핵심이죠. 아래 이미지가 처음에 나오는 가벼운 전처리 작업입니다.
+
+이를 통해 수백만 데이터를 수백 개 후보로 추려줍니다. 이때 딥러닝 모델 활성화 함수인 ReLU(Rectified Linear Unit, 정류된 선형 유닛)에 시청 기록과 검색 벡터 정보를 넘겨서 처리합니다.
+![YouTube Candidate Generation 신경망: user vector와 nearest neighbor](./image/youtube-candidate-generation.png)
+
+Ranking은 그 수백 개에 video features와 더 풍부한 신호를 붙여 수십 개로 줄이고 순서를 정합니다.<br/> 글에서 잡은 Retrieval → Ranking 큰 틀을 YouTube 용어로 대입해보면 `Retrieval`에 가까운 쪽이 `Candidate Generation`이 되고 `Ranking`이 됩니다.
+![YouTube Ranking: 수백 개 후보에 video features를 붙여 수십 개로 줄이는 단계](./image/youtube-ranking.png)
+
+### GraphJet
+
+## X의 추천 시스템
