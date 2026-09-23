@@ -8,25 +8,23 @@ draft: true
 description: "FiguRoom 커뮤니티 확장을 위해 X(트위터) 추천 시스템을 분석한 기록"
 keywords: [ "FiguRoom", "X 추천 알고리즘", "Twitter", "SNS", "서브컬처", "커뮤니티" ]
 author: "DSeung001"
-lastmod: 2026-09-22T09:00:00+09:00
+lastmod: 2026-09-23T10:25:00+09:00
 ---
 
 ## 목표
 
-모두의 창업을 통해 피규룸 서비스를 기획 중이고 준비 중에 가장 먼저 만난 장애물은 홍보와 초기 사용자 층 확보로 생각됩니다.
+현재 모두의 창업을 통해 피규룸 서비스를 기획 중이고 어떻게하면 사용자 트래픽을 모을 수 있을까 항상 고민 중입니다.
 
-그래서 [저번 글](../../18/figuroom-landing-survey/)에서처럼 커뮤니티를 만들자고 생각했고, 서브컬처 문화에서 가장 홍보가 효과적인 곳은 X라는 생각이 들어 홍보 계정을 만들고 일일 2개에서 4개의 포스트를 작성하고 있습니다. 하지만 이 방법으로는 트래픽과 실질 목적인 사용자 층을 불러올 수 없었습니다.
-그래서 이 부분은 포스트보다 활동 자체에 시간을 투입할 예정입니다.
+처음 나온 생각은 [저번 글](../../18/figuroom-landing-survey/)에서처럼 X 계정을 만들자고 생각했고, 서브컬처 문화에서 가장 홍보가 효과적인 곳은 X라는 생각이 들어 홍보 계정을 만들고 일일 2개에서 4개의 포스트를 작성하고 있습니다. 하지만 이 방법으로는 트래픽과 실질 목적인 사용자 층을 불러온다고 확정짓기에는 뭔가 부족하다는 느낌이 들었씁니다.
 
-그래도 조회수 20~40에서 머무르고 있다는 게 마음에 들지 않았습니다.
-이를 해결할 방법을 고민하다보니 개발자여서 그런지 결과 X 알고리즘에 대해서도 궁금증이 들었습니다, 현재 1차 MVP로 생각하는 것도 결국 X와 유사한 시스템이니 미리 공부해 두면 좋을 것 같다는 생각이었고 홍보라는게 바로 되는게 아닌 시간이 드는 작업이였기에 X 계정 성장과 분석을 동시에 해보려합니다.
+이를 해결할 방법을 고민하다보니 X 알고리즘에 대해서도 궁금증이 들었습니다, 현재 1차 MVP로 생각하는 것도 결국 X와 유사한 시스템이니 미리 공부해 두면 좋을 것 같다는 생각이었고 홍보라는게 바로 되는게 아닌 시간이 드는 작업이였기에 X 계정 성장과 추천/검색 알고리즘을 분석하면 재밌지 않을까 생각이 들었습니다.
 
 어찌되었든 나중에는 다음과 같은 흐름으로 사용자 유입이 되게끔 유도해야한다는 전제는 가지고 있습니다.
 ```mermaid
 flowchart LR
-  FiguRoom[FiguRoom] --> XShare[X 공유]
-  XShare --> CollectorIn[다른 컬렉터 유입]
-  CollectorIn --> FiguRoomCreate[FiguRoom 생성]
+  FiguRoom[서브컬쳐 계정 생성] --> XShare[X 활동<br/> 중간중간 Figuroom 콘텐츠 제공]
+  XShare --> CollectorIn[예비 타겟층 모집]
+  CollectorIn --> FiguRoomCreate[FiguRoom 홍보]
   FiguRoomCreate --> XShare
 ```
 
@@ -82,6 +80,8 @@ GraphJet은 사용자와 트윗 사이의 실시간 `bipartite interaction graph
 ### YouTube
 
 2016년 RecSys 논문 [Deep Neural Networks for YouTube Recommendations](https://dl.acm.org/doi/epdf/10.1145/2959100.2959190)은 딥러닝을 대규모 추천 파이프라인에 넣은 대표적인 사례입니다.
+>딥러닝 장점: 인간의 신경망을 구성해 인간이 찾아내기 힘든 복잡한 패턴을 발견할 수 있는데 이를 통해 규칙을 통해 결과를 도출 가능
+
 주된 내용은 수백만 영상을 한 번에 정밀 점수화하지 않고, 단계를 둘로 나눠 추천 데이터를 걸러내는 내용입니다.
 ![YouTube 추천 이단 구조: Candidate Generation과 Ranking 퍼널](./image/youtube-two-stage.png)
 
@@ -97,8 +97,49 @@ GraphJet은 사용자와 트윗 사이의 실시간 `bipartite interaction graph
 ![YouTube Ranking: 수백 개 후보에 video features를 붙여 수십 개로 줄이는 단계](./image/youtube-ranking.png)
 그 수백 개에 video features와 더 풍부한 신호를 붙여 수십 개로 줄이고 순서를 정합니다.<br/> 글에서 잡은 Retrieval → Ranking 큰 틀을 YouTube 용어로 대입해보면 `Retrieval`에 가까운 쪽이 `Candidate Generation`이 되고 `Ranking`이 됩니다.
 
-즉 2016년 기준으로 유튜븐 1차로 시청 기록과, 검색어, 사용자 정보를 토대로 1차 필터링을 거친 후 2차로 후보군 영상들의 특징과 언어 체크, 영상 시청 시각같은 메타 데이터로 정밀히 추천 영상을 골랐다는 걸 알 수 있습니다.
+2016년 기준으로 유튜브는 1차로 시청 기록과, 검색어, 사용자 정보를 토대로 1차 필터링을 거친 후 2차로 후보군 비디오 특징과 언어 체크, 영상 시청 시각같은 메타 데이터로 정밀히 추천 영상을 골랐다는 걸 알 수 있습니다.
 
 ### GraphJet
+Twitter 추천 시스템이 팔로우 그래프 기반 사용자 추천에서 실시간 행동 그래프 기반 콘텐츠 추천으로 진화하면서, 이를 처리하는 시스템 아키텍처도 Batch → Real-time으로 변화한 과정을 담고 있습니다.
+
+초기 2010년의 트위터는 유저 추천을 메인으로 삼았고, 아래 아키텍처처럼 WTF(Who to Follow) DB에 미리 적재된 데이터를 기반으로 특징을 가져와 사용자 추천군을 정했습니다.
+![Twitter WTF(Who to Follow) 아키텍처](./image/twitter-wtf-architecture.png)
+
+여기서 WTF에 들어가는 후보군은 SALSA를 여러 번 돌려 만듭니다. 
+> SALSA(Stochastic Approach for Link-Structure Analysis)는 팔로우 관계를 이분 그래프(bipartite graph, 두 종류 정점만 잇는 그래프)로 두고 링크를 따라가며 점수를 매기는 알고리즘
+
+그래프의 각 점인 vertex(정점)는 사용자 같은 노드를 가리키고, SALSA를 반복하면 양쪽 vertex마다 score(그 정점이 추천 후보로 얼마나 강한지를 나타내는 순위 점수)가 쌓입니다. 그 score가 높은 쪽이 추천 후보로 올라가는 식이죠, 이를 통해 다음과 같이 추천군을 정합니다.
+
+Twitter는 신뢰할 만한 사용자들을 Hub로 샘플링하고, 그들이 팔로우하는 추천 후보를 Authority로 해석해서 `SALSA`를 진행했습니다.
+![SALSA로 양쪽 vertex에 score가 쌓이는 추천 후보 생성](./image/twitter-wtf-salsa-recommendation.png)
+
+하지만 데이터가 커질 수록 팔로우 관계가아닌 다른 수 많은 데이터들도 참고하고 싶어집니다.
+- Reply: 트윗에 답글을 남긴 행동
+- Retweet: 트윗을 리트윗해 다시 퍼뜨린 행동
+- Mention: 트윗이나 답글에서 다른 사용자를 @멘션한 행동
+- Click: 타임라인에서 트윗이나 링크를 클릭한 행동
+- Profile View: 특정 사용자 프로필을 조회한 행동
+- Interaction: 좋아요 등 위 항목 외의 기타 상호작용을 묶는 신호
+
+즉 단순한 팔로우 관계를 그래프로 삼는게 아닌 여러 데이터를 사용하고 싶어져서 `RealGraph`를 채용합니다.
+![RealGraph와 Hadoop 기반 추천 파이프라인](./image/twitter-realgraph-recommendation-pipeline.png)
+RealGraph에서 Candidate Generation으로 후보를 뽑고, Model Training으로 Follower Prediction Model을 만든 뒤 둘을 합쳐 Recommendations를 내는 파이프라인이 잡혀 이를 통해 Graph Algorithm에서 Data + ML Pipeline으로 발전합니다.
+- RealGraph: 팔로우 그래프에 Reply, Retweet, Mention 같은 행동 로그를 합쳐 HDFS 위에 쌓아 둔 복합 그래프. 정점은 사용자, 간선은 관계와 상호작용을 담는다
+- Candidate Generation: RealGraph 위에서 SALSA나 Personalized PageRank 같은 그래프 알고리즘으로 추천 후보를 먼저 줄이는 단계. YouTube의 Candidate Generation과 같은 역할이다
+- Follower Prediction Model: RealGraph와 로그로 학습한 분류기. Candidate Generation이 넘긴 후보마다 앞으로 팔로우하거나 상호작용할 확률을 다시 매겨 최종 Recommendations를 만든다
+
+이제 ML과 여러 데이터를 토대로 추천하지만 데이터들의 가공처리를 특정 시간에 배치처리하기 때문에 이슈로 뜬 항목이 다음날 되서야 사용자에게 보여주는 문제가 발생합니다.
+이는 Hadoop batch 처리로 발생했고, 여기서 즉각적으로 적용하자는 니즈가 생깁니다.
+
+그래서 다음과 같이 GraphJet을 적용합니다.
+![GraphJet 배포 아키텍처: Kafka, GraphJet, ZooKeeper, Client](./image/twitter-graphjet-deployment-architecture.png)
+
+GraphJet은 사용자-트윗 상호작용을 메모리 위 이분 그래프로 유지하고 random walk 계열로 실시간 후보를 뽑는 Twitter의 실시간 추천 엔진입니다. 
+Kafka로 행동 이벤트를 받아 그래프를 갱신하고, Client가 추천을 요청하면 GraphJet 클러스터가 바로 응답하며, ZooKeeper가 클러스터와 Client의 조율을 맡는 구조죠. 배치로 하루를 기다리던 RealGraph 파이프라인과 달리, 방금 일어난 상호작용을 곧바로 추천에 반영할 수 있게 됩니다.
+
+여기까지 흐름이 2016년까지의 흐름입니다.
+요즘 기업 공고에 자주 보이던 친구들이 이때부터 샹용 서비스에 깊숙히 파고들어져 있었네요.
+
+일단 이 부분에서 x 계정 성장을 위해서는 일반 유저처럼 많이 사용해야겠다는 결론이 발생하네요, 일반 게시글에서는 10에서 40인 반면에 리트윗은 50에서 60을 노릴 수 있으니 이쪽과 언급, 인터렉션에 신경을 써야겠습니다.
 
 ## X의 추천 시스템
