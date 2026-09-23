@@ -1,4 +1,4 @@
-{{- $.Scratch.Add "index" slice -}}
+{{- $index := slice -}}
 {{- range site.RegularPages -}}
     {{- if and (not .Params.searchHidden) (ne .Layout `archives`) (ne .Layout `search`) }}
     {{- $keywords := "" -}}
@@ -11,7 +11,7 @@
     {{- if not .Date.IsZero -}}
     {{- $published = .Date.Format (default "January 2, 2006" site.Params.DateFormat) -}}
     {{- end -}}
-    {{- $.Scratch.Add "index" (dict
+    {{- $index = $index | append (dict
         "title" .Title
         "permalink" .Permalink
         "summary" (.Summary | plainify)
@@ -23,4 +23,4 @@
     ) -}}
     {{- end }}
 {{- end -}}
-{{- $.Scratch.Get "index" | jsonify -}}
+{{- $index | jsonify -}}

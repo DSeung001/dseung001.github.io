@@ -82,17 +82,22 @@ GraphJet은 사용자와 트윗 사이의 실시간 `bipartite interaction graph
 ### YouTube
 
 2016년 RecSys 논문 [Deep Neural Networks for YouTube Recommendations](https://dl.acm.org/doi/epdf/10.1145/2959100.2959190)은 딥러닝을 대규모 추천 파이프라인에 넣은 대표적인 사례입니다.
-주된 내용은 수백만 영상을 한 번에 정밀 점수화하지 않고, 단계를 둘로 나눈 이단 구조입니다.
+주된 내용은 수백만 영상을 한 번에 정밀 점수화하지 않고, 단계를 둘로 나눠 추천 데이터를 걸러내는 내용입니다.
 ![YouTube 추천 이단 구조: Candidate Generation과 Ranking 퍼널](./image/youtube-two-stage.png)
 
-이단 구조는 처음 `Candidate Generation`으로 후보를 먼저 줄인 뒤, Ranking으로 남은 후보만 정밀하게 점수를 매기는 방식입니다.
-전체 데이터셋에서 바로 최종 결과물을 뽑는 게 아닌 가벼운 필터링을 앞에 둬서 미리 전처리 작업을 합니다. 그 후 필터링된 결과를 정밀하게 가중치를 매겨 추천하는 게 핵심이죠. 아래 이미지가 처음에 나오는 가벼운 전처리 작업입니다.
+이 구조는 처음 `Candidate Generation`으로 후보를 먼저 줄인 뒤, Ranking으로 남은 후보만 정밀하게 점수를 매기는 방식입니다. 그래서 이단 구조 (`Two-stage architecture`)로 불리죠.
+전체 데이터셋에서 바로 최종 결과물을 뽑는 게 아닌 가벼운 필터링을 앞에 둬서 미리 전처리 작업을 합니다. 그 후 필터링된 결과를 정밀하게 가중치를 매겨 추천하는 게 핵심이죠. 
 
-이를 통해 수백만 데이터를 수백 개 후보로 추려줍니다. 이때 딥러닝 모델 활성화 함수인 ReLU(Rectified Linear Unit, 정류된 선형 유닛)에 시청 기록과 검색 벡터 정보를 넘겨서 처리합니다.
+다음 이미지가 처음에 `Candidate Generation`로 1단계 작업입니다.
 ![YouTube Candidate Generation 신경망: user vector와 nearest neighbor](./image/youtube-candidate-generation.png)
+이를 통해 수백만 데이터를 수백 개 후보로 추려줍니다. 이때 딥러닝 모델 활성화 함수인 ReLU(Rectified Linear Unit, 정류된 선형 유닛)에 시청 기록과 검색 벡터 정보를 넘겨서 처리합니다.
+> ReLU: 입력이 0보다 크면 그대로 출력하고, 0 이하면 0을 반환하는 딥러닝 활성화 함수로 사용자의 복잡한 취향을 빠르게 학습하고, 연관 없는 정보를 걸러내는 핵심 엔진을 담당
 
-Ranking은 그 수백 개에 video features와 더 풍부한 신호를 붙여 수십 개로 줄이고 순서를 정합니다.<br/> 글에서 잡은 Retrieval → Ranking 큰 틀을 YouTube 용어로 대입해보면 `Retrieval`에 가까운 쪽이 `Candidate Generation`이 되고 `Ranking`이 됩니다.
+다음 이미지가 1단계에서 걸려진 데이터를 2단계 작업인 `Ranking`입니다.
 ![YouTube Ranking: 수백 개 후보에 video features를 붙여 수십 개로 줄이는 단계](./image/youtube-ranking.png)
+그 수백 개에 video features와 더 풍부한 신호를 붙여 수십 개로 줄이고 순서를 정합니다.<br/> 글에서 잡은 Retrieval → Ranking 큰 틀을 YouTube 용어로 대입해보면 `Retrieval`에 가까운 쪽이 `Candidate Generation`이 되고 `Ranking`이 됩니다.
+
+즉 2016년 기준으로 유튜븐 1차로 시청 기록과, 검색어, 사용자 정보를 토대로 1차 필터링을 거친 후 2차로 후보군 영상들의 특징과 언어 체크, 영상 시청 시각같은 메타 데이터로 정밀히 추천 영상을 골랐다는 걸 알 수 있습니다.
 
 ### GraphJet
 

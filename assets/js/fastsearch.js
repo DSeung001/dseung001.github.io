@@ -19,6 +19,13 @@ window.onload = function () {
             if (xhr.status === 200) {
                 let data = JSON.parse(xhr.responseText);
                 if (data) {
+                    // 같은 글이 인덱스에 여러 번 들어와도 결과에는 한 번만 보이도록 permalink 기준으로 중복 제거
+                    const seen = new Set();
+                    data = data.filter(function (item) {
+                        if (seen.has(item.permalink)) return false;
+                        seen.add(item.permalink);
+                        return true;
+                    });
                     let options = {
                         distance: 100,
                         threshold: 0.4,
