@@ -1,14 +1,14 @@
 ---
-title: "추천 시스템 분석: FiguRoom 커뮤니티 전략"
+title: "추천 시스템 분석: FiguRoom 홍보 전략"
 date: 2026-09-22T09:00:00+09:00
 categories: [ "Project", "FiguRoom", "Subculture" ]
 series: [ "figuroom" ]
 tags: [ "X", "추천 시스템", "SNS 마케팅", "서브컬처", "추천 알고리즘" ]
 draft: false
-description: "FiguRoom 커뮤니티 확장을 위해 X(트위터) 추천 시스템을 분석한 기록"
+description: "FiguRoom 서비스를 위한 X 계정 홍보를 위한 X(트위터) 추천 시스템을 분석한 기록"
 keywords: [ "FiguRoom", "X 추천 알고리즘", "Twitter", "SNS", "서브컬처", "커뮤니티" ]
 author: "DSeung001"
-lastmod: 2026-09-23T10:46:00+09:00
+lastmod: 2026-09-23T11:17:00+09:00
 ---
 
 ## 목표
@@ -134,12 +134,80 @@ RealGraph에서 Candidate Generation으로 후보를 뽑고, Model Training으�
 그래서 다음과 같이 GraphJet을 적용합니다.
 ![GraphJet 배포 아키텍처: Kafka, GraphJet, ZooKeeper, Client](./image/twitter-graphjet-deployment-architecture.png)
 
-GraphJet은 사용자-트윗 상호작용을 메모리 위 이분 그래프로 유지하고 random walk 계열로 실시간 후보를 뽑는 Twitter의 실시간 추천 엔진입니다. 
+> GraphJet: 사용자와 트윗의 상호작용을 메모리 위 이분 그래프로 유지하고 Random Walk 계열로 실시간 후보를 뽑는 Twitter의 실시간 추천 엔진
+
+> Random Walk(Family / Variants)은 무작위로 이동한다는 기본 원칙에서 출발하여, 현실의 다양한 제약 조건이나 데이터 구조를 반영하기 위해 변형된 확률 모델 갈래
+
 Kafka로 행동 이벤트를 받아 그래프를 갱신하고, Client가 추천을 요청하면 GraphJet 클러스터가 바로 응답하며, ZooKeeper가 클러스터와 Client의 조율을 맡는 구조죠. 배치로 하루를 기다리던 RealGraph 파이프라인과 달리, 방금 일어난 상호작용을 곧바로 추천에 반영할 수 있게 됩니다.
 
 여기까지 흐름이 2016년까지의 흐름입니다.
 요즘 기업 공고에 자주 보이던 친구들이 이때부터 상용 서비스에 깊숙이 파고들어 있었네요.
 
-일단 이 부분에서 X 계정 성장을 위해서는 일반 유저처럼 많이 사용해야겠다는 결론이 발생하네요. 일반 게시글에서는 10에서 40인 반면에 리트윗은 50에서 60을 노릴 수 있으니 이쪽과 언급, 인터랙션에 신경을 써야겠습니다.
-
 ## X의 추천 시스템
+23년에 X로 바뀌면서 코드 변경이 있었고 코드의 오픈까지 있었죠.
+2023년 공개 코드에서는 이러한 후보 생성 계층과 실제 순서를 결정하는 Ranking 계층은 분리돼 있었고 주된 오픈소스로 2개가 들어가죠
+- GraphJet: "관심 가질 만한 트윗을 권하는" 추천 엔진, 그래프로 실시간 분석
+- Earlybird: "원하는 트윗을 찾는" 검색 엔진, 실제 텍스트 기반 색인
+
+### 23년 트위터
+
+2016년까지는 "실시간으로 추천 목록을 준다"가 중심으로 보였습니다.<br/>
+그래서 GraphJet으로 배치 지연을 줄이고, RealGraph로 상호작용 신호를 늘리는 쪽이 핵심이었죠.
+
+현재 공개된 공개 다이어그램을 보면 그 위에 Home Mixer라는 오케스트레이션 계층으로 더 세분화되었습니다.
+![Home Mixer 파이프라인: Data부터 Timeline까지](./image/system-diagram.png)
+
+왼쪽부터 보면 파이프라인이 다음과 같이 이어집니다.
+
+| 단계 | 역할 |
+|------|------|
+| Data | Social graph, Tweet engagement, User data |
+| Features | GraphJet, SimClusters, TwHIN, RealGraph, TweepCred, T&S 등으로 신호화 |
+| Candidate Source | Search Index, CR Mixer, UTEG, FRS가 각자 다른 신호 조합으로 후보 수집 |
+| Heavy Ranker | 모인 후보에 정밀 점수 부여 |
+| Heuristics & Filtering | Social Proof, Author diversity, Visibility(T&S), Content balance, Feedback fatigue |
+| Mixing → Timeline | Ads, Who to follow와 함께 최종 타임라인 조립 |
+
+2016년과 비교하면 후보 생성과 랭킹이라는 큰 틀은 비슷하지만 중점으로 보는 문제가 바뀌어 있습니다.
+1. **Trust & Safety(T&S, 신뢰와 안전 신호)**: Features 단계에도 들어가고, Candidate Source에도 붙고, Heuristics의 Visibility에도 나오며 추천 맨 끝에서 처리가 아닌 후보를 고르는 과정 전체에 안전 제약을 박아 둔 형태입니다.
+2. **타임라인 품질**: Heavy Ranker 뒤에 Author diversity, Content balance, Feedback fatigue 같은 휴리스틱이 붙어 있습니다. 같은 작성자가 피드를 독점하지 않게 하고, 콘텐츠 구성이 치우치지 않게 하며, 이미 관심 없다고 본 유형을 반복해서 보여 주지 않으려는 장치로 비슷한 콘텐츠로의 피로를 줄이려는 의도가 보이네요.
+3. **Mixing**: 추천 트윗만 줄 세우는 게 아니라 Ads와 Who to follow를 같은 Timeline 조립 단계에서 섞습니다. 피드가 단일 추천 게시물이 아니라 BM도 내제됩니다, 당근의 AD 인벤토리도 이런식으로 추측되며 저도 이런 방향으로 개발해야겠네요.
+
+### 26년 X
+
+최근 X에서는 점수 산출 방식을 [Scoring and Ranking](https://github.com/xai-org/x-algorithm/blob/main/README.md#scoring-and-ranking)에 꽤 솔직하게 풀어 두고 있더군요. 물론 상용과 다른 실험 공개본이지만, 트위터의 소스에서는 "무엇을 걸러낼까"에 가까웠다면 이쪽은 "최종 추천 점수를 어떤 행동 예측의 가중합으로 만들까"가 전면에 나옵니다.
+
+Phoenix가 게시물마다 행동별 확률 `P(action)`을 예측하고, `RankingScorer`가 가중치를 곱해 합칩니다. 그러니 점수가 많을 것 같은 게시물을 작성한다면 초기 계정도 노출될 가능성이 높아지게 되는거죠.
+> Phoenix: xAI가 공개한 X For You 피드의 추천 모델로 시청자의 최근 행동 이력을 보고, 게시물마다 좋아요,리플,체류 같은 행동을 할 확률을 예측
+
+```
+Final Score = Σ (weight_i × P(action_i))
+```
+
+점수에 긍정적인 행동은 양수 가중치, 부정적인 행동은 음수 가중치입니다. README에 적힌 행동 양식입니다.
+
+| 행동 | 예시 |
+|----|------|
+| Engagement(참여) | favorite(좋아요), reply(답글), repost(리포스트), quote(인용), share(공유) |
+| Clicks(클릭) | post(게시물), profile(프로필), link(링크), photo/video 열기 |
+| Attention(주목) | dwell(체류), dwell time(체류 시간), video quality view(영상 품질 시청) |
+| Author(작성자) | follow author(작성자 팔로우) |
+| Negative(부정) | not interested(관심 없음), mute(뮤트), block(차단), report(신고) |
+
+가중치를 볼 때 생길 수 있는 오해로 weight는 실제 좋아요 개수나 신고 건수에 단순히 곱하는 게 아니라 "이 시청자가 그 행동을 할 예측 확률"에 곱하는 값입니다. 
+그래서 report 가중치가 like보다 수백 배 크다고 해서 "신고 1건이 좋아요 수백 개를 상쇄한다"로 읽으면 안 됩니다. 
+Phoenix가 중요하게 들어가는 걸로 보입니다.
+
+점수를 만든 뒤에는 세 가지 조정이 추가로 녹아집니다.
+1. **Author Diversity**: 같은 작성자의 글이 피드에 여러 개 올라갈 때, 두 번째부터 점수에 1 미만 배수를 곱해 연달아 위에 쌓이지 않게 함 (시간 대 기준이 아닌 사용자에게 노출되는 피드 리스트에서 같은 작성자를 노출하지 않기 위한 로직)
+2. **Out-of-Network Discount**: 팔로우하지 않은 계정의 게시물(그리고 일부 reply/repost)에 1 미만 배수
+3. **New-Author Boost**: 노출이 적은 작성자를 목표 위치로 끌어 올림
+
+23년 다이어그램의 Author diversity, Feedback fatigue가 휴리스틱으로 보이던거는 유지하고 지금은 그 위에 "행동 확률 × 가중치"라는 점수 식이 공개되었습니다. 계정 운영 관점에서는 좋아요만 노리기보다 reply, dwell, follow까지 넓게 만드는 쪽이 점수식과 잘 맞고, report/mute 같은 콘텐츠는 조심해야겠네요.
+
+
+## 후기
+
+전체적인 흐름을 토대로 추천엔진의 그림을 이해해볼 수 있었습니다.
+처음에 목표였던 X 계정의 성장은 일단 많이 활동해야겠다는 결론이고 현재 기준으로 피규어 정보를 비교해서 올리는 일반 게시글에서는 10에서 40인 반면에 서브컬쳐 전역에 걸친 리트윗은 50에서 60을 노릴 수 있으니 이쪽에 신경을 쓰고 부가적으로 댓글이나 멘션과 같은 상호 작용을 더 신경써야겠습니다.
+추가적으로 오후 7시 ~ 밤 11시를 집중해서 X 활동해서 30분~1시간 이내에 가장 많은 관심을 받을 수 있도록 해야겠습니다.
