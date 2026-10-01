@@ -2,7 +2,7 @@
 title: "추천 시스템 분석: FiguRoom 홍보 전략"
 date: 2026-09-22T09:00:00+09:00
 categories: [ "Project", "FiguRoom", "Subculture" ]
-series: [ "figuroom" ]
+series: [ "bavelmo" ]
 tags: [ "X", "추천 시스템", "SNS 마케팅", "서브컬처", "추천 알고리즘" ]
 draft: false
 description: "FiguRoom X 계정 홍보를 위해 X(트위터) 추천 시스템을 분석한 기록"

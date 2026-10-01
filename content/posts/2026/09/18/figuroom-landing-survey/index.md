@@ -2,7 +2,7 @@
 title: "FiguRoom 프로젝트 기획하기"
 date: 2026-09-18T09:00:00+09:00
 categories: [ "Project", "FiguRoom", "Subculture" ]
-series: [ "figuroom" ]
+series: [ "bavelmo" ]
 tags: [ "피규어", "장식장", "설문조사", "랜딩 페이지" ]
 draft: false
 description: "피규어 관련 서비스를 런칭하기 위한 기획 단계 및 시장 조사 1일차"
