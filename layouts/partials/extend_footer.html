@@ -604,6 +604,10 @@
     clone.removeAttribute('loading');
     clone.removeAttribute('width');
     clone.removeAttribute('height');
+    clone.style.removeProperty('width');
+    clone.style.removeProperty('max-width');
+    clone.style.removeProperty('height');
+    clone.style.removeProperty('margin');
     content.appendChild(clone);
   }
 

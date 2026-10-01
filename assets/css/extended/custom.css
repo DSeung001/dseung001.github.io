@@ -796,6 +796,22 @@ body.dark .series-timeline__draft {
     height: auto;
 }
 
+/* 본문에서만 너비를 줄인 이미지. 확대 대화상자는 인라인 width를 제거한다. */
+.content-image-wrap.is-sized {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 1rem auto;
+}
+
+.content-image-wrap.is-sized img {
+    margin: 0;
+}
+
+.content-image-wrap.is-sized .content-image-expand {
+    top: 6px;
+}
+
 .content-image-expand {
     display: none;
     position: absolute;

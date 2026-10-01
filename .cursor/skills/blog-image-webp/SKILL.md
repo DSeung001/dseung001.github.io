@@ -30,10 +30,17 @@ python3 .cursor/skills/blog-image-webp/scripts/to_webp.py SRC DST --kind screens
 
 ## 표시 크기
 
-사용자가 크기를 지정하라고 하면 마크다운 이미지 대신 이 태그를 쓴다. `width` 숫자만 바꾸면 된다.
+사용자가 크기를 지정하라고 하면 마크다운 이미지 대신 아래를 쓴다. 본문 크기는 `width` 숫자만 바꾼다. `content-image-wrap`과 확대 버튼이 있어야 클릭해서 원본에 가깝게 볼 수 있다. 버튼 SVG는 `layouts/_default/_markup/render-image.html`과 같다.
 
 ```html
-<img src="./image/파일.webp" alt="대체텍스트" style="display: block; width: 220px; max-width: 100%; height: auto; margin: 1rem auto;">
+<span class="content-image-wrap is-sized">
+  <button type="button" class="content-image-expand" aria-label="이미지 확대" title="확대">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+  </button>
+  <img src="./image/파일.webp" alt="대체텍스트" style="width: 220px; max-width: 100%; height: auto;">
+</span>
 ```
 
-크기를 말하지 않았으면 마크다운 이미지를 쓰고, 가로를 임의로 줄이지 않는다.
+크기를 말하지 않았으면 마크다운 이미지를 쓰고, 가로를 임의로 줄이지 않는다. 마크다운 이미지는 렌더 훅이 확대 버튼을 붙인다.
