@@ -757,6 +757,36 @@ body.dark .series-timeline__draft {
     vertical-align: middle;
 }
 
+/* 본문에서 이미지를 가로 반반으로 둔다. 각 이미지는 렌더 훅의 확대 버튼을 유지한다.
+   마크다운 이미지는 p로 한 번 더 감싸지므로 flex는 그 p에 둔다. */
+.content-image-row > p {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 0.6rem 0;
+}
+
+.content-image-row .content-image-wrap {
+    flex: 1 1 0;
+    width: 50%;
+    min-width: 0;
+    max-width: calc(50% - 4px);
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+
+.content-image-row .content-image-wrap img {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    object-fit: cover;
+    object-position: center;
+}
+
+.content-image-row .content-image-expand {
+    top: 6px;
+}
+
 .content-image-wrap img {
     display: block;
     max-width: 100%;
