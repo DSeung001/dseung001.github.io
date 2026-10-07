@@ -6,9 +6,9 @@ series: [ "bavelmo" ]
 tags: [ "프라이머", "데모데이" ]
 draft: false
 description: "프라이머 28기 데모데이에서 생각한 점"
-keywords: [ "프라이머", "데모데이", "Primer", "Bavelmo" ]
+keywords: [ "프라이머", "데모데이", "Primer", "Bavelmo", "컨퍼런스" ]
 author: "DSeung001"
-lastmod: 2026-10-07T23:19:00+09:00
+lastmod: 2026-10-07T23:43:00+09:00
 ---
 
 ## 프라이머 데모데이
