@@ -787,6 +787,19 @@ body.dark .series-timeline__draft {
     top: 6px;
 }
 
+/* 투표 캡처처럼 세로가 긴 이미지는 정사각형으로 자르지 않고 비율을 유지한다. */
+.content-image-row.is-natural .content-image-wrap {
+    aspect-ratio: auto;
+    height: auto;
+    overflow: visible;
+}
+
+.content-image-row.is-natural .content-image-wrap img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
 .content-image-wrap img {
     display: block;
     max-width: 100%;
