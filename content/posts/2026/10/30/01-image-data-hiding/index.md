@@ -159,7 +159,7 @@ BER = \frac{\text{틀린 비트 수}}{\text{전체 비트 수}}
 | Capacity | 28 / 199,496 bytes | 삽입 용량 | 사용 0.0140%, 픽셀당 3비트(R, G, B LSB) |
 
 ## 참고 자료
-- 이미지 표현은 [PNG 4.2 Images](https://www.w3.org/TR/png-3/#4Concepts.Sourceimage), 샘플 깊이는 [4.4.5 Sample depth scaling](https://www.w3.org/TR/png-3/#x4-4-5-sample-depth-scaling), 무손실 압축은 [10. Compression](https://www.w3.org/TR/png-3/#x10-compression)에서 확인한다.
-- 워터마킹 성질의 정의는 [Nyeem 등의 4장](https://asp-eurasipjournals.springeropen.com/articles/10.1186/1687-6180-2014-135#Sec10)에 있다.
-- PSNR(Peak Signal-to-Noise Ratio, 최대 신호 대비 잡음 비율)의 한계와 SSIM(Structural Similarity Index, 구조 유사도)은 [Wang 등의 논문](https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf)에서 본다.
-- PSNR, SSIM, MSE(Mean Squared Error, 평균 제곱 오차)의 계산식은 [scikit-image Metrics](https://scikit-image.org/docs/stable/api/skimage.metrics.html)에 있다.
+- 이미지 표현은 [PNG 4.2 Images](https://www.w3.org/TR/png-3/#4Concepts.Sourceimage), 샘플 깊이는 [4.4.5 Sample depth scaling](https://www.w3.org/TR/png-3/#x4-4-5-sample-depth-scaling), 무손실 압축은 [10. Compression](https://www.w3.org/TR/png-3/#x10-compression)에서 확인
+- 워터마킹 성질의 정의는 [Nyeem 등의 4장](https://asp-eurasipjournals.springeropen.com/articles/10.1186/1687-6180-2014-135#Sec10)
+- PSNR(Peak Signal-to-Noise Ratio, 최대 신호 대비 잡음 비율)의 한계와 SSIM(Structural Similarity Index, 구조 유사도)은 [Wang 등의 논문](https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf)
+- PSNR, SSIM, MSE(Mean Squared Error, 평균 제곱 오차)의 계산식은 [scikit-image Metrics](https://scikit-image.org/docs/stable/api/skimage.metrics.html)
