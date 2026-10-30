@@ -17,25 +17,18 @@
   {{- $last = index (last 1 $pages) 0 -}}
   {{- end -}}
   <a class="series-card" href="{{ $termPage.Permalink }}">
-    <span class="series-card__count">{{ $total }}편</span>
+    <div class="series-card__header">
+      <span class="series-card__count">{{ $total }}편</span>
+      {{- if $first }}
+      {{- $start := $first.Date | time.Format "2006.01.02" -}}
+      {{- $end := $last.Date | time.Format "2006.01.02" }}
+      <span class="series-card__period">{{ $start }}{{ if ne $start $end }} ~ {{ $end }}{{ end }}</span>
+      {{- end }}
+    </div>
     <h2>{{ $termPage.Title }}</h2>
     {{- with $termPage.Description }}
     <p>{{ . | markdownify }}</p>
     {{- end }}
-    <dl class="series-card__meta">
-      {{- with $first }}
-      <div>
-        <dt>시작</dt>
-        <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
-      </div>
-      {{- end }}
-      {{- with $last }}
-      <div>
-        <dt>최근</dt>
-        <dd>{{ .Date | time.Format "2006.01.02" }}</dd>
-      </div>
-      {{- end }}
-    </dl>
   </a>
   {{- end }}
 </section>
