@@ -1,5 +1,5 @@
 ---
-title: "5편. 워터마크만으로 이미지의 위변조를 증명할 수 있을까?"
+title: "4편. 워터마크만으로 이미지의 위변조를 증명할 수 있을까?"
 date: 2026-10-31T11:04:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]

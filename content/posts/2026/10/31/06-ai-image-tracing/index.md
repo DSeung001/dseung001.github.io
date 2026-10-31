@@ -1,5 +1,5 @@
 ---
-title: "7편. AI가 만든 이미지도 추적할 수 있을까?"
+title: "6편. AI가 만든 이미지도 추적할 수 있을까?"
 date: 2026-10-31T11:06:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]

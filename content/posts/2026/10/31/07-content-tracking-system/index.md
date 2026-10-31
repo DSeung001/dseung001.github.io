@@ -1,5 +1,5 @@
 ---
-title: "8편. 워터마크와 C2PA를 결합한 콘텐츠 추적 시스템 만들기"
+title: "7편. 워터마크와 C2PA를 결합한 콘텐츠 추적 시스템 만들기"
 date: 2026-10-31T11:07:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]

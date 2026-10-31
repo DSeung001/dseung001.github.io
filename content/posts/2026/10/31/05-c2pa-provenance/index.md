@@ -1,5 +1,5 @@
 ---
-title: "6편. 콘텐츠의 출처를 증명하는 C2PA는 무엇일까?"
+title: "5편. 콘텐츠의 출처를 증명하는 C2PA는 무엇일까?"
 date: 2026-10-31T11:05:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]

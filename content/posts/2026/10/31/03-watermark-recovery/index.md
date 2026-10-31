@@ -1,5 +1,5 @@
 ---
-title: "4편. 훼손된 워터마크를 복구할 수 있을까?"
+title: "3편. 훼손된 워터마크를 복구할 수 있을까?"
 date: 2026-10-31T11:03:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
