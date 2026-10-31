@@ -1,6 +1,6 @@
 ---
 title: "4편. 훼손된 워터마크를 복구할 수 있을까?"
-date: 2026-10-30T11:03:00+09:00
+date: 2026-10-31T11:03:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "ECC", "Reed-Solomon", "Redundancy" ]
@@ -8,7 +8,7 @@ draft: true
 description: "같은 식별자를 여러 위치에 반복해서 넣고, Reed-Solomon 오류정정 부호로 깨진 비트를 복원합니다. 훼손된 워터마크에서 원래 식별자를 다시 읽을 수 있는 조건을 정리합니다."
 keywords: [ "워터마크", "ECC", "Reed-Solomon", "Redundancy", "오류정정" ]
 author: "DSeung001"
-lastmod: 2026-10-30T11:51:00+09:00
+lastmod: 2026-10-31T11:51:00+09:00
 ---
 
 같은 식별자를 반복해서 넣고, 오류정정 부호로 깨진 부분을 복원합니다. ECC(Error-Correcting Code)는 손상된 비트를 원래 값으로 되돌리는 부호이고, Reed-Solomon은 그 가운데 심볼 단위로 오류를 정정하는 방식입니다. 중복(Redundancy)은 같은 정보를 여러 위치에 겹쳐 넣어 일부 손상이 전체를 지우지 못하게 하는 여분입니다.

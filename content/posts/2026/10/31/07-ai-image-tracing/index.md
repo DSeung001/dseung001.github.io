@@ -1,6 +1,6 @@
 ---
 title: "7편. AI가 만든 이미지도 추적할 수 있을까?"
-date: 2026-10-30T11:06:00+09:00
+date: 2026-10-31T11:06:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "AI Watermarking", "SynthID", "Provenance" ]
@@ -8,7 +8,7 @@ draft: true
 description: "AI가 만든 이미지에 LSB 워터마크와 C2PA 출처 정보를 넣습니다. 수정과 재배포 이후에도 SynthID를 포함해 생성 사실을 추적할 수 있는지 같은 조건에서 비교합니다."
 keywords: [ "AI Watermarking", "SynthID", "Provenance", "C2PA", "워터마크" ]
 author: "DSeung001"
-lastmod: 2026-10-30T11:51:00+09:00
+lastmod: 2026-10-31T11:51:00+09:00
 ---
 
 AI가 만든 이미지에 워터마크와 출처 정보를 넣고, 수정과 재배포 이후에도 따라갈 수 있는지 비교합니다. SynthID는 Google이 생성형 미디어에 넣는 워터마크로 알려져 있으며, 삽입 방식의 세부 동작은 공개 명세만으로 단정하지 않고 실험에서 확인합니다.

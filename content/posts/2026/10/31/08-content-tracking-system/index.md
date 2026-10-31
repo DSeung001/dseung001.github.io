@@ -1,6 +1,6 @@
 ---
 title: "8편. 워터마크와 C2PA를 결합한 콘텐츠 추적 시스템 만들기"
-date: 2026-10-30T11:07:00+09:00
+date: 2026-10-31T11:07:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "PostgreSQL", "Forensics API" ]
@@ -8,7 +8,7 @@ draft: true
 description: "워터마크 검출, 전자서명 검증, 콘텐츠 이력을 한곳에서 처리하는 API를 만듭니다. 발급 기록과 검증 결과는 PostgreSQL에 남기고, 외부 이미지로 그 기록을 조회합니다."
 keywords: [ "워터마크", "C2PA", "PostgreSQL", "Forensics API" ]
 author: "DSeung001"
-lastmod: 2026-10-30T12:30:00+09:00
+lastmod: 2026-10-31T12:30:00+09:00
 ---
 
 워터마크 검출, 서명 검증, 콘텐츠 이력을 한 API로 묶습니다. 발급 기록과 검증 결과는 PostgreSQL에 남기고, 포렌식 API(Forensics API)는 외부에서 들어온 이미지로 그 기록을 조회하는 인터페이스입니다.

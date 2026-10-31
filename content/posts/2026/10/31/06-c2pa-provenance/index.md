@@ -1,6 +1,6 @@
 ---
 title: "6편. 콘텐츠의 출처를 증명하는 C2PA는 무엇일까?"
-date: 2026-10-30T11:05:00+09:00
+date: 2026-10-31T11:05:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "C2PA", "Content Credentials", "Provenance" ]
@@ -8,7 +8,7 @@ draft: true
 description: "콘텐츠 출처 표준 C2PA의 Manifest를 생성하고 서명과 검증을 거칩니다. 이미지를 수정한 뒤 Content Credentials와 출처 이력이 어떻게 바뀌는지도 실험합니다."
 keywords: [ "C2PA", "Content Credentials", "Provenance", "Manifest", "워터마크" ]
 author: "DSeung001"
-lastmod: 2026-10-30T11:51:00+09:00
+lastmod: 2026-10-31T11:51:00+09:00
 ---
 
 C2PA Manifest를 만들어 서명하고 검증한 뒤, 콘텐츠를 수정하면 무엇이 바뀌는지 봅니다. C2PA(Coalition for Content Provenance and Authenticity)는 콘텐츠의 출처와 편집 이력을 담는 표준이고, Content Credentials는 그 표준으로 콘텐츠에 붙는 출처 정보입니다. 프로비넌스(Provenance)는 콘텐츠가 어디서 왔고 이후 어떻게 바뀌었는지에 대한 이력입니다.

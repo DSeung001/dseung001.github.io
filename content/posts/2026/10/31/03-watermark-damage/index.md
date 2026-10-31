@@ -1,6 +1,6 @@
 ---
 title: "3편. 워터마크를 훼손하면 추적할 수 없을까?"
-date: 2026-10-30T11:02:00+09:00
+date: 2026-10-31T11:02:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "Robustness", "DCT", "Attack Simulation" ]
@@ -8,7 +8,7 @@ draft: true
 description: "JPEG 압축, 크롭, 리사이즈, 노이즈로 워터마크 이미지를 훼손한 뒤 식별자가 얼마나 남는지 생존율을 측정합니다. LSB와 DCT 삽입이 같은 공격을 얼마나 견디는지도 비교합니다."
 keywords: [ "워터마크", "Robustness", "DCT", "JPEG", "Attack Simulation" ]
 author: "DSeung001"
-lastmod: 2026-10-30T11:51:00+09:00
+lastmod: 2026-10-31T11:51:00+09:00
 ---
 
 JPEG 압축, 크롭, 리사이즈, 노이즈를 적용하고 워터마크가 얼마나 남는지 측정합니다. 강인성(Robustness)은 이미지가 변형된 뒤에도 워터마크를 읽을 수 있는 성질이고, DCT(Discrete Cosine Transform)는 픽셀을 주파수 성분으로 나누는 변환입니다.

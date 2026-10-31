@@ -1,6 +1,6 @@
 ---
 title: "5편. 워터마크만으로 이미지의 위변조를 증명할 수 있을까?"
-date: 2026-10-30T11:04:00+09:00
+date: 2026-10-31T11:04:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
 tags: [ "SHA-256", "Digital Signature", "Integrity" ]
@@ -8,7 +8,7 @@ draft: true
 description: "SHA-256 해시와 전자서명으로 이미지 바이트가 바뀌었는지 검증합니다. 워터마크 식별자와 서명이 각각 배포 대상과 무결성 중 어디까지 증명하는지도 정리합니다."
 keywords: [ "워터마크", "SHA-256", "Digital Signature", "Integrity", "위변조" ]
 author: "DSeung001"
-lastmod: 2026-10-30T11:51:00+09:00
+lastmod: 2026-10-31T11:51:00+09:00
 ---
 
 SHA-256과 전자서명으로 콘텐츠가 바뀌었는지 검증합니다. SHA-256은 입력을 256비트 해시로 바꾸는 암호학적 해시 함수이고, 전자서명(Digital Signature)은 개인키로 서명한 값을 공개키로 확인해 출처와 무결성(Integrity, 내용이 중간에 바뀌지 않았음)을 보는 방식입니다.
