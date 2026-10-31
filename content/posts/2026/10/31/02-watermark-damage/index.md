@@ -30,8 +30,6 @@ lastmod: 2026-10-31T17:51:00+09:00
 훼손해보며 LSB의 강인성을 측정해봅시다.
 일반적으로 BER(Bit Error Rate) 과 복원 성공률(Success Rate) 을 이용해 평가하므로 여기서도 동일하게 적용합니다.
 
-### BER을 이용한 강인성 평가
-
 \[
 BER=\frac{N_{\mathrm{error}}}{N_{\mathrm{total}}}
 \]
@@ -157,3 +155,4 @@ LSB와 DCT를 비교하면 다음과 같습니다. 한 픽셀을 이용하느냐
 
 ![LSB와 DCT의 BER 막대 차트. JPEG 압축, 가우시안 블러, 해상도 축소에서 주황 LSB와 파랑 DCT를 나란히 비교하고, 점선 0.5는 무작위 수준이다](./image/lsb-vs-dct-ber-comparison.webp)
 
+워터마크는 식별자 데이터만 넣으면 되니 지금까지로는 DCT 기술이 더 활용하기 좋아보이네요.
