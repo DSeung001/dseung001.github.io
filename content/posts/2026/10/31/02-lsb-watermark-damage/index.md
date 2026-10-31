@@ -1,5 +1,5 @@
 ---
-title: "2편. 워터마크를 훼손하면 추적할 수 없을까?"
+title: "2편. LSB 워터마크는 훼손되면 어떻게 될까?"
 date: 2026-10-31T11:02:00+09:00
 categories: [ "Watermark" ]
 series: [ "watermark" ]
@@ -9,7 +9,10 @@ math: true
 description: "워터마크가 담긴 이미지를 훼손하면 비트가 망가져서 추적을 못하지 않을까?"
 keywords: [ "워터마크", "Robustness", "DCT", "JPEG", "Attack Simulation" ]
 author: "DSeung001"
-lastmod: 2026-10-31T17:51:00+09:00
+lastmod: 2026-10-31T21:01:00+09:00
+slug: "02-lsb-watermark-damage"
+aliases:
+  - /posts/2026/10/31/02-watermark-damage/
 ---
 
 ## 워터마크를 훼손하면 어떻게 될까?
