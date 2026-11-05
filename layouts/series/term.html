@@ -1,19 +1,20 @@
 {{- define "main" }}
 
-{{- $pages := sort .RegularPages "Date" "asc" -}}
+{{- $chrono := sort .RegularPages "Date" "asc" -}}
+{{- $pages := sort .RegularPages "Date" "desc" -}}
 {{- $total := len $pages -}}
 {{- $first := false -}}
 {{- $last := false -}}
 {{- if gt $total 0 -}}
-{{- $first = index $pages 0 -}}
-{{- $last = index (last 1 $pages) 0 -}}
+{{- $first = index $chrono 0 -}}
+{{- $last = index (last 1 $chrono) 0 -}}
 {{- end -}}
 
 <header class="series-hero">
   <div class="series-hero__title-row">
     <h1>{{ .Title }}</h1>
     {{- if gt $total 1 }}
-    <button class="series-sort-toggle" type="button" data-series-sort-toggle aria-label="내림차순으로 정렬" title="내림차순으로 정렬">
+    <button class="series-sort-toggle is-desc" type="button" data-series-sort-toggle aria-label="오름차순으로 정렬" title="오름차순으로 정렬">
       <svg class="series-sort-toggle__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M7 3v18" />
@@ -75,7 +76,7 @@
   <p class="series-timeline__empty">아직 이 시리즈에 포함된 글이 없습니다.</p>
   {{- end }}
   {{- range $index, $page := $pages }}
-  {{- $number := printf "%02d" (add $index 1) -}}
+  {{- $number := printf "%02d" (int (sub $total $index)) -}}
   <article class="series-timeline__item">
     <div class="series-timeline__body">
       <header class="series-timeline__header">
@@ -120,7 +121,7 @@
       updateButton(isDesc);
     });
 
-    updateButton(false);
+    updateButton(true);
   })();
 </script>
 {{- end }}
