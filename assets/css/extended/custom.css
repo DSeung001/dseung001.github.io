@@ -843,6 +843,18 @@ body.dark .series-timeline__draft {
     top: 6px;
 }
 
+/* 서비스 화면 캡처. 흰 UI가 본문 배경에 묻히지 않게 테두리를 두고 본문 너비에 맞춘다. */
+.content-screenshot .content-image-wrap {
+    display: block;
+    max-width: 100%;
+}
+
+.content-screenshot .content-image-wrap img {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
 .content-image-expand {
     display: none;
     position: absolute;
