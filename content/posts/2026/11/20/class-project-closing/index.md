@@ -16,7 +16,7 @@ lastmod: 2026-11-20T15:16:00+09:00
 
 실제 사용자 유저층을 받을 수 있고 리소스도 쉽게 습득이 가능했기에 6월부터 9월까지 진행했던 프로젝트죠.<br/>
 이제 11월 20일 기준으로 부트캠프가 종료되었기 때문에 해당 프로젝트도 닫으려고 합니다.
-![CLASS 강의 검색 화면](./image/class-lecture.jpg)
+![CLASS 강의 검색 화면](./image/class-lecture.webp)
 
 이 프로젝트를 진행하면서 경험해 본 바는 아래와 같습니다.<br/>
 블로그 시리즈에 묶인 것처럼 인코딩 서버를 서버리스로 띄우고 여기서 비동기로 영상 인코딩 작업을 한 뒤 S3에랑 CDN에 올려 비용을 최적화해 보기도 하고 이 주제로 파이콘에서 튜토리얼 진행하고 고등학교에서도 진행했죠.
@@ -24,14 +24,14 @@ lastmod: 2026-11-20T15:16:00+09:00
 RAG 관련해서 만들어 보기도 하고 이에 대한 피드백 구조, 어드민에서 RAG 프롬프트 버저닝을 가능케 해서 어느 게 더 사용자 성과가 좋은지도 확인해 볼 수 있게 했죠. 골든 테스트도 적용해 보고
 
 영상의 음성 데이터를 STT로 바꾸고 또 이를 나누어서 생성된 청크 기반으로 RAG 데이터를 생성해 보는 것과 Postgres에 임베딩해서 한국어 의미 기반으로 검색 + FTS도 같이 하는 하이브리드도 만들어 봤죠.
-![강의 검색 화면과 Class S 추천 챗봇](./image/class-lecture-search-chatbot.jpg)
+![강의 검색 화면과 Class S 추천 챗봇](./image/class-lecture-search-chatbot.webp)
 
 청크 기반으로 타임라인도 만들고 설명문도 만들고, 문제도 만들고
 <div class="content-image-slide" tabindex="0" aria-label="청크 기반 요약, 타임라인, 문제 화면">
 
-![분류량 평가 강의의 개념 요약](./image/classification-evaluation-summary.jpg)
-![분류량 평가 강의의 구간 타임라인](./image/classification-lecture-timeline.jpg)
-![피처 중요도 문제 풀기 화면](./image/feature-importance-quiz.jpg)
+![분류량 평가 강의의 개념 요약](./image/classification-evaluation-summary.webp)
+![분류량 평가 강의의 구간 타임라인](./image/classification-lecture-timeline.webp)
+![피처 중요도 문제 풀기 화면](./image/feature-importance-quiz.webp)
 
 </div>
 
@@ -48,3 +48,5 @@ RAG 관련해서 만들어 보기도 하고 이에 대한 피드백 구조, 어�
 
 이걸로 OTT 업계는 뚫지 못했지만 다음 프로젝트는 **동시성**, **대규모 설계**를 중점으로 둔 프로젝트를 시작해 보는 걸로 셀프 피드백을 얻었습니다. 그래도 이 Class 프로젝트를 통해 RAG와 영상 인코딩 미디어 파이프라인은 설계해 보면서 재밌었네요.
 
+AWS 무료 크레딧으로 6개월 동안 재미난 사이드 프로젝트 했네요
+![서비스별 AWS 비용 막대 그래프. EC2 Compute가 가장 크고 VPC, EC2 Other, S3, ECR이 뒤를 잇는다](./image/aws-service-cost.webp)
