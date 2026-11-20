@@ -663,6 +663,103 @@
       if (e.target === dialog) closeImageDialog();
     });
   }
+
+  document.querySelectorAll('.content-image-slide').forEach(function (slide) {
+    if (slide.dataset.slideBar) return;
+    slide.dataset.slideBar = '1';
+    if (!slide.id) slide.id = 'content-image-slide-' + Math.random().toString(36).slice(2, 8);
+
+    var bar = document.createElement('div');
+    bar.className = 'content-image-slide-bar';
+    bar.tabIndex = 0;
+    bar.setAttribute('role', 'scrollbar');
+    bar.setAttribute('aria-orientation', 'horizontal');
+    bar.setAttribute('aria-controls', slide.id);
+    bar.setAttribute('aria-label', '이미지 가로 이동');
+    bar.setAttribute('aria-valuemin', '0');
+
+    var thumb = document.createElement('div');
+    thumb.className = 'content-image-slide-thumb';
+    bar.appendChild(thumb);
+    slide.insertAdjacentElement('afterend', bar);
+
+    function maxScroll() {
+      return Math.max(0, slide.scrollWidth - slide.clientWidth);
+    }
+
+    function layout() {
+      var max = maxScroll();
+      var track = bar.clientWidth;
+      var thumbW = max <= 0 ? track : Math.max(96, track * (slide.clientWidth / slide.scrollWidth));
+      if (thumbW > track) thumbW = track;
+      var travel = Math.max(0, track - thumbW);
+      var left = max <= 0 || travel <= 0 ? 0 : (slide.scrollLeft / max) * travel;
+      thumb.style.width = thumbW + 'px';
+      thumb.style.transform = 'translateX(' + left + 'px)';
+      bar.hidden = max <= 1;
+      bar.setAttribute('aria-valuemax', String(Math.round(max)));
+      bar.setAttribute('aria-valuenow', String(Math.round(slide.scrollLeft)));
+    }
+
+    var drag = null;
+
+    thumb.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      drag = { x: e.clientX, left: slide.scrollLeft };
+      slide.style.scrollSnapType = 'none';
+      try { thumb.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+
+    thumb.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var max = maxScroll();
+      var travel = bar.clientWidth - thumb.offsetWidth;
+      if (travel <= 0 || max <= 0) return;
+      slide.scrollLeft = drag.left + ((e.clientX - drag.x) / travel) * max;
+    });
+
+    function endDrag() {
+      if (!drag) return;
+      drag = null;
+      slide.style.scrollSnapType = '';
+      layout();
+    }
+
+    thumb.addEventListener('pointerup', endDrag);
+    thumb.addEventListener('pointercancel', endDrag);
+
+    bar.addEventListener('pointerdown', function (e) {
+      if (e.target === thumb) return;
+      var max = maxScroll();
+      var rect = bar.getBoundingClientRect();
+      var travel = bar.clientWidth - thumb.offsetWidth;
+      var x = e.clientX - rect.left - thumb.offsetWidth / 2;
+      var ratio = travel <= 0 ? 0 : Math.min(1, Math.max(0, x / travel));
+      slide.style.scrollSnapType = 'none';
+      slide.scrollLeft = ratio * max;
+      slide.style.scrollSnapType = '';
+    });
+
+    bar.addEventListener('keydown', function (e) {
+      var max = maxScroll();
+      var step = Math.max(40, slide.clientWidth * 0.2);
+      if (e.key === 'ArrowRight') slide.scrollLeft = Math.min(max, slide.scrollLeft + step);
+      else if (e.key === 'ArrowLeft') slide.scrollLeft = Math.max(0, slide.scrollLeft - step);
+      else if (e.key === 'Home') slide.scrollLeft = 0;
+      else if (e.key === 'End') slide.scrollLeft = max;
+      else return;
+      e.preventDefault();
+    });
+
+    slide.addEventListener('scroll', layout, { passive: true });
+    window.addEventListener('resize', layout);
+    if (window.ResizeObserver) new ResizeObserver(layout).observe(slide);
+    slide.querySelectorAll('img').forEach(function (img) {
+      if (!img.complete) img.addEventListener('load', layout);
+    });
+    layout();
+  });
 })();
 </script>
 {{ end }}

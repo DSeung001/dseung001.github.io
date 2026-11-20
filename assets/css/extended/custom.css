@@ -788,6 +788,78 @@ body.dark .series-timeline__draft {
     object-fit: contain;
 }
 
+/* 높이를 맞춘 가로 스크롤. 마크다운 이미지는 p로 한 번 더 감싸진다. */
+.content-image-slide {
+    margin: 0.6rem 0 0;
+    overflow-x: scroll;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 2px;
+    scrollbar-width: none;
+}
+
+.content-image-slide::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+}
+
+.content-image-slide-bar {
+    position: relative;
+    height: 32px;
+    margin: 10px 0 1rem;
+    border-radius: 16px;
+    background: var(--tertiary);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.content-image-slide-thumb {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    height: 26px;
+    min-width: 96px;
+    border-radius: 13px;
+    background: var(--secondary);
+    cursor: grab;
+    touch-action: none;
+}
+
+.content-image-slide-thumb:hover,
+.content-image-slide-thumb:active {
+    background: var(--primary);
+    cursor: grabbing;
+}
+
+.content-image-slide > p {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 8px;
+    width: max-content;
+    margin: 0;
+}
+
+.content-image-slide .content-image-wrap {
+    flex: 0 0 auto;
+    max-width: none;
+    scroll-snap-align: start;
+}
+
+.content-image-slide .content-image-wrap img {
+    width: auto;
+    height: clamp(220px, 46vh, 320px);
+    max-width: none;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.content-image-slide .content-image-expand {
+    top: 6px;
+}
+
 .content-image-wrap img {
     display: block;
     max-width: 100%;
